@@ -2,23 +2,9 @@
 
 ## Overview
 
-This program is an agent-based model built using Mesa. The model simulates very basic economic activity using two types of agents: `Individual`s and `Bank`s.
+This program is an agent-based model built using Mesa. It simulates very basic economic activity using two types of agents: `Individual`s and `Bank`s. On each step, each `Individual` tries to give one unit of money to another `Individual`. If they can't because they do not have enough money, they can instead apply for a loan from a `Bank` as long as they are beneath their personal borrowing limit. The `Bank`s provide a means of payment between the `Individual`s, ie. a form of money, by offering them transaction accounts and allowing transfers between them.
 
----
-
-## Old overview
-
-This model involves many individuals and a single bank. The individuals simply try
-to give each other one unit of money. If they do not have enough money, they may
-apply for a loan from the bank. If the bank approves the loan, they will grant the
-individual money in the form of a bank account.
-
-The bank loans that will be offered will not bear any interest. When they come due,
-individuals will try to repay them before trying to give money to someone else. If
-they are unable to repay the loan, ie. if they default, then they will be unable to
-give anyone else money. The individual will then try again on the next step. Once
-they successfully repay the loan, they will then be ineligible to borrow any money
-for some number of steps.
+For these models, loans will not bear any interest. Nor will there be any penalty for being unable to repay a loan, ie. defaulting. If an `Individual` defaults, they will simply keep trying to repay the loan in perpetuity. While an `Individual` is in default, they will be unable to give anyone else money.
 
 ---
 
