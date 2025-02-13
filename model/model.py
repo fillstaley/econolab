@@ -12,17 +12,19 @@ class BoltzmannBank(mesa.Model):
     def __init__(self,
         num_individuals: int,
         num_banks: int = 1,
+        init_gift: float = 0,
+        debt_limit: float = 0,
         loan_review_limit: int | None = None,
         individual_loan_limit: int | None = None,
         seed: int | None = None,
     ) -> None:
-        print("Hello!")
         super().__init__(seed=seed)
         
         # Create individuals
         Individual.create_agents(
             model=self,
             n=num_individuals,
+            debt_limit=debt_limit,
         )
 
         # Create banks
@@ -36,7 +38,7 @@ class BoltzmannBank(mesa.Model):
         # Open a transaction account at the bank for each individual
         for i in self.agents_by_type[Individual]:
             bank = self.random.choice(self.agents_by_type[Bank])
-            i.open_account(bank)
+            i.open_account(bank, initial_deposit=init_gift)
         
         self.datacollector = mesa.DataCollector(
             model_reporters={

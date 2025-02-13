@@ -8,9 +8,10 @@ from . import finance
 class Individual(finance.Agent, mesa.Agent):
     """The fundamental agents of our economy"""
     
-    def __init__(self, model):
+    def __init__(self, model, debt_limit: float | None = None):
         super().__init__(model=model)
 
+        self.debt_limit = debt_limit
     
     ##############
     # Properties #
@@ -27,16 +28,24 @@ class Individual(finance.Agent, mesa.Agent):
     def act(self):
 
         date = self.model.steps
-        amount = 1
         
-        if self.money < amount:
+        # individuals should apply for a loan if they need money and
+        # if they are not already borrowing too much money
+        gift_amount = 1
+        money_demand = max(0, gift_amount - self.money)
+        
+        debt_outstanding = sum(l.principal for l in self._loans)
+        debt_capacity = max(0, self.debt_limit - debt_outstanding)
+        
+        if money_demand and debt_capacity:
+            borrow_amount = min(money_demand, debt_capacity)
             bank = self._account.bank
-            self.borrow_money(bank, amount, date)
-        else:
+            self.borrow_money(bank, borrow_amount, date)
+        elif not money_demand:
             other = self
             while other is self:
                 other = self.random.choice(self.model.agents_by_type[Individual])
-            self.give_money(other, amount)
+            self.give_money(other, gift_amount)
 
 
 class Bank(finance.Bank, mesa.Agent):

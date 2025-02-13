@@ -30,7 +30,23 @@ class Agent:
     def money(self) -> float:
         """The amount of money the agent has."""
         return self._account.balance if self._account else 0
+    
+    @property
+    def outstanding_debt(self) -> float:
+        sum(l.principal for l in self._loans)
 
+    @property
+    def loans_due(self) -> list[Loan] | None:
+        return [
+            loan
+            for loan in self._loans
+            if loan.due_date and loan.due_date <= self.model.date
+        ] or None
+
+    ############
+    # Counters #
+    ############
+    
     @property
     def income(self) -> float:
         """A counter for the money the agent receives from other agents; reset each step."""
@@ -51,14 +67,6 @@ class Agent:
         """A counter for the money the agent repays to a bank; reset each step."""
         return self._repaid_debt
 
-    @property
-    def loans_due(self) -> list[Loan] | None:
-        return [
-            loan
-            for loan in self._loans
-            if loan.due_date and loan.due_date <= self.model.date
-        ] or None
-
     ###########
     # Methods #
     ###########
@@ -66,9 +74,9 @@ class Agent:
     def reset_counters(self) -> None:
         self._new_debt = 0
 
-    def open_account(self, bank: Bank) -> bool:
+    def open_account(self, bank: Bank, initial_deposit: float = 0.0) -> bool:
         if self._account is None:
-            self._account = bank.new_account(self)
+            self._account = bank.new_account(self, initial_deposit)
 
     def close_account(self):
         pass
@@ -135,9 +143,9 @@ class Bank(Agent):
             account.reset_counters()
         return super().reset_counters()
 
-    def new_account(self, holder: Agent) -> Account | None:
+    def new_account(self, holder: Agent, initial_deposit: float = 0.0) -> Account | None:
         if holder not in self.account_holders:
-            account = Account(self, holder)
+            account = Account(self, holder, initial_deposit)
             self._account_book[holder] = account
             return account
     
@@ -217,10 +225,10 @@ class Account:
         self._balance = initial_deposit
         
         # Initialize counters
-        self._income = 0
-        self._spending = 0
-        self._new_credit = 0
-        self._redeemed_credit = 0
+        self._income: float = 0
+        self._spending: float = 0
+        self._new_credit: float = 0
+        self._redeemed_credit: float = 0
 
     ##############
     # Properties #
