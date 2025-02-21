@@ -12,9 +12,11 @@ class BoltzmannBank(mesa.Model):
     def __init__(self,
         num_individuals: int,
         num_banks: int = 1,
-        init_gift: float = 0,
-        debt_limit: float = 0,
+        init_gift: float = 1,
+        borrowing_limit: float = 0,
         loan_review_limit: int | None = None,
+        max_principal: float | None = None,
+        term: int = 100,
         individual_loan_limit: int | None = None,
         seed: int | None = None,
     ) -> None:
@@ -24,7 +26,7 @@ class BoltzmannBank(mesa.Model):
         Individual.create_agents(
             model=self,
             n=num_individuals,
-            debt_limit=debt_limit,
+            debt_limit=borrowing_limit,
         )
 
         # Create banks
@@ -32,7 +34,6 @@ class BoltzmannBank(mesa.Model):
             model=self,
             n=num_banks,
             loan_review_limit=loan_review_limit,
-            individual_loan_limit = individual_loan_limit,
         )
 
         # Open a transaction account at the bank for each individual
@@ -44,6 +45,8 @@ class BoltzmannBank(mesa.Model):
             model_reporters={
                 "Money Supply": "money_supply",
                 "New Debt": "new_debt",
+                "Repaid Debt": "repaid_debt",
+                "Total Income": "total_income",
                 "Total Spending": "total_spending",
                 "Individual Wealth Gini": "individual_wealth_gini",
                 "Individual Income Gini": "individual_income_gini",
@@ -52,13 +55,15 @@ class BoltzmannBank(mesa.Model):
             agent_reporters={
                 "Money": "money",
                 "New Debt": "new_debt",
+                "Repaid Debt": "repaid_debt",
                 "Income": "income",
                 "Spending": "spending",
-                "Repaid Debt": "repaid_debt",
             },
             agenttype_reporters={
                 Individual: {
                     "Wealth": "wealth",
+                    "New Debt": "new_debt",
+                    "Repaid Debt": "repaid_debt",
                     "Income": "income",
                     "Spending": "spending",
                 }
@@ -80,6 +85,10 @@ class BoltzmannBank(mesa.Model):
     @property
     def new_debt(self) -> float:
         return sum(agent.new_debt for agent in self.agents)
+    
+    @property
+    def repaid_debt(self) -> float:
+        return sum(agent.repaid_debt for agent in self.agents)
     
     @property
     def total_income(self) -> float:
