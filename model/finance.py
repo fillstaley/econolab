@@ -59,14 +59,14 @@ class Agent:
     ############
 
     @property
-    def new_debt(self) -> float:
+    def issued_debt(self) -> float:
         """A counter for the money the agent borrows from a bank; reset each step."""
-        return self._account.pure_credit if self._account else 0
+        return self._account.issued_debt if self._account else 0
 
     @property
     def repaid_debt(self) -> float:
         """A counter for the money the agent repays to a bank; reset each step."""
-        return self._account.pure_debit if self._account else 0
+        return self._account.repaid_debt if self._account else 0
     
     @property
     def income(self) -> float:
@@ -185,8 +185,8 @@ class Account:
         self._balance = initial_deposit
         
         # Initialize counters
-        self._pure_credit: float = 0
-        self._pure_debit: float = 0
+        self._issued_debt: float = 0
+        self._repaid_debt: float = 0
         self._income: float = 0
         self._spending: float = 0
 
@@ -204,14 +204,14 @@ class Account:
     ############
 
     @property
-    def pure_credit(self) -> float:
+    def issued_debt(self) -> float:
         """A counter for the money created from a bank loan; reset each step."""
-        return self._pure_credit
+        return self._issued_debt
 
     @property
-    def pure_debit(self) -> float:
+    def repaid_debt(self) -> float:
         """A counter for the money destroyed by repaying a loan; reset each step."""
-        return self._pure_debit
+        return self._repaid_debt
 
     @property
     def income(self) -> float:
@@ -228,55 +228,53 @@ class Account:
     ###########
 
     def reset_counters(self) -> None:
-        self._pure_credit = 0
-        self._pure_debit = 0
+        self._issued_debt = 0
+        self._repaid_debt = 0
         self._income = 0
         self._spending = 0
 
-    def credit(self, amount: float, pure_credit: bool = False, income: bool = True) -> bool:
+    def credit(self, amount: float, issued_debt: bool = False, income: bool = True) -> None:
         """Increase the account balance.
 
         Parameters
         ----------
         amount : float
             The amount by which to increase the account balance
-        pure_credit : bool, optional
-            The amount is newly issued credit, by default False
+        issued_debt : bool, optional
+            The amount is created from issuing debt, by default False
         income : bool, optional
             The amount is transferred from another account, by default True
 
         """
-        # is there ever a reason for this method to fail?
-        success = True
         self._balance += amount
-        if pure_credit:
-            self._pure_credit += amount
+        if issued_debt:
+            self._issued_debt += amount
         elif income:
             self._income += amount
-        return success
 
-    def debit(self, amount: float, pure_debit: bool = False, spending: bool = True) -> bool:
+    def debit(self, amount: float, repaid_debt: bool = False, spending: bool = True) -> bool:
         """Decreases the account balance.
 
         Parameters
         ----------
         amount : float
             The amount by which to decrease the account balance.
-        pure_debit : bool, optional
-            The amount is redeemed, by default False
+        repaid_debt : bool, optional
+            The amount is destroyed by repaying debt, by default False
         spending : bool, optional
             The amount is transferred to another account, by default True
         
         Returns
         -------
-        success :bool
+        success : bool
+            ...
 
         """
         # this method should limit the extent to which the account can go negative
         success = True
         self._balance -= amount
-        if pure_debit:
-            self._pure_debit += amount
+        if repaid_debt:
+            self._repaid_debt += amount
         elif spending:
             self._spending += amount
         return success
@@ -301,8 +299,9 @@ class Loan:
         self.interest_rate = interest_rate
 
         # the loan creates money by issuing credit
+        # perhaps this should happen in a bank method?
         bank._loan_book[borrower].append(self)
-        bank._account_book[borrower].credit(principal, pure_credit=True)
+        bank._account_book[borrower].credit(principal, issued_debt=True)
 
     @property
     def due_date(self):
