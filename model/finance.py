@@ -16,10 +16,6 @@ class Agent:
         
         self._open_loan_applications: list[LoanApplication] = []
         self._closed_loan_applications: list[LoanApplication] = []
-        
-        self._outstanding_loan_applications: list = []
-        self._approved_loan_applications: list = []
-        self._denied_loan_applications: list = []
 
     ##############
     # Properties #
@@ -116,6 +112,8 @@ class Bank(Agent):
         self.open_account(self)
 
         # Initialize counters
+        self._extended_credit: float = 0
+        self._redeemed_credit: float = 0
         
     ##############
     # Properties #
@@ -130,18 +128,14 @@ class Bank(Agent):
     ###########
 
     def reset_counters(self) -> None:
+        # first reset the bank's counters
+        self._extended_credit = 0
+        self._redeemed_credit = 0
+        
+        # then reset the counters for all the bank's accounts
         for account in self._account_book.values():
             account.reset_counters()
         return super().reset_counters()
-
-    def new_account(self, holder: Agent, initial_deposit: float = 0.0) -> Account | None:
-        if holder not in self.account_holders:
-            account = Account(self, holder, initial_deposit)
-            self._account_book[holder] = account
-            return account
-    
-    def close_account(self, holder: Agent) -> bool:
-        pass
 
     def transfer_money(self,
             sender: Agent, 
@@ -175,6 +169,42 @@ class Bank(Agent):
             if success := self._account_book[sender].debit(amount, spending=spending):
                 self._account_book[receiver].credit(amount, income=income)
         return success
+
+    def new_account(self, holder: Agent, initial_deposit: float = 0) -> Account | None:
+        if holder not in self.account_holders:
+            account = Account(self, holder, initial_deposit)
+            self._account_book[holder] = account
+            return account
+    
+    def close_account(self, holder: Agent) -> bool:
+        pass
+    
+    def new_loan(
+        self,
+        borrower: Agent,
+        principal: float,
+        term: int,
+        interest_rate: float,
+        date_issued: int,
+    ) -> Loan:
+
+        loan = Loan(
+            bank=self,
+            borrower=borrower,
+            principal=principal,
+            term=term,
+            interest_rate=interest_rate,
+            date_issued=date_issued
+        )
+        
+        self._loan_book[borrower].append(loan)
+        self._account_book[borrower].credit(principal, issued_debt=True)
+        self._extended_credit += principal
+        
+        return loan
+    
+    def close_loan(self,) -> bool:
+        pass
 
 
 class Account:
@@ -298,11 +328,6 @@ class Loan:
         self.term = term
         self.interest_rate = interest_rate
 
-        # the loan creates money by issuing credit
-        # perhaps this should happen in a bank method?
-        bank._loan_book[borrower].append(self)
-        bank._account_book[borrower].credit(principal, issued_debt=True)
-
     @property
     def due_date(self):
         return self.date_issued + self.term if self.term else None
@@ -388,11 +413,10 @@ class LoanApplication:
         if self.date_closed is None:
             self.date_closed = date
 
-            return Loan(
-                bank=self.bank,
+            return self.bank.new_loan(
                 borrower=self.borrower,
-                date_issued=self.date_closed,
                 principal=self.principal,
                 term=self.term,
                 interest_rate=self.interest_rate,
+                date_issued=self.date_closed,
             )
