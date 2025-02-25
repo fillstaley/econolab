@@ -3,6 +3,7 @@ from typing import Any
 import mesa
 
 from .agents import Individual, Bank
+from .finance import LoanOption
 from .util import gini_index
 
 
@@ -12,12 +13,11 @@ class BoltzmannBank(mesa.Model):
     def __init__(self,
         num_individuals: int,
         num_banks: int = 1,
-        init_gift: float = 1,
-        borrowing_limit: float = 0,
+        init_gift: float = 0,
+        borrowing_limit: float | None = None,
+        lending_limit: float | None = None,
         loan_review_limit: int | None = None,
-        max_principal: float | None = None,
-        term: int = 100,
-        individual_loan_limit: int | None = None,
+        loan_options: list[LoanOption] | None = None,
         seed: int | None = None,
     ) -> None:
         super().__init__(seed=seed)
@@ -33,7 +33,9 @@ class BoltzmannBank(mesa.Model):
         Bank.create_agents(
             model=self,
             n=num_banks,
+            credit_limit=lending_limit,
             loan_review_limit=loan_review_limit,
+            loan_options=loan_options,
         )
 
         # Open a transaction account at the bank for each individual

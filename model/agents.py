@@ -55,21 +55,17 @@ class Individual(finance.Agent, mesa.Agent):
         gift_amount = 1
         money_demand = max(0, gift_amount - self.money)
         
-        debt_outstanding = sum(l.principal for l in self._loans)
-        debt_capacity = max(0, self.debt_limit - debt_outstanding)
-        
-        
         ## if they want to and can borrow money, then they submit an application
         if money_demand:
-            if debt_capacity:
-                borrow_amount = min(money_demand, debt_capacity)
+            if self.debt_capacity:
+                borrow_amount = min(money_demand, self.debt_capacity) if self.debt_capacity is not True else money_demand
                 
                 # this could all be refactored as a finance.Agent method
                 # for now, agents can only borrow from their bank
                 bank = self._account.bank
                 
                 # randomly choose a loan on offer for which the individual is eligible
-                if eligible_loans := bank.eligible_loans(self):
+                if eligible_loans := bank.loan_options(self):
                     loan_choice = self.random.choice(eligible_loans)
                     
                     application = loan_choice.apply(self, borrow_amount, this_step)
@@ -88,8 +84,10 @@ class Bank(finance.Bank, mesa.Agent):
         self,
         model,
         loan_review_limit: int | None,
+        *args,
+        **kwargs
     ):
-        super().__init__(model=model)
+        super().__init__(model=model, *args, **kwargs)
         
         self.loan_review_limit = loan_review_limit
     

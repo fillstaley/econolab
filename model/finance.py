@@ -8,11 +8,13 @@ from collections import defaultdict, deque
 
 
 class Agent:
-    def __init__(self, *args, **kwargs) -> None:
+    def __init__(self, debt_limit: float | None = 0, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
 
         self._account: Account | None = None
         self._loans: list[Loan] = []
+        
+        self.debt_limit = debt_limit
         
         self._open_loan_applications: list[LoanApplication] = []
         self._closed_loan_applications: list[LoanApplication] = []
@@ -31,12 +33,12 @@ class Agent:
         return [loan for loan in self._open_loan_applications if loan.date_reviewed]
     
     @property
-    def debt_owed(self) -> float:
+    def debt_load(self) -> float:
         return sum(loan.principal for loan in self._loans)
     
     @property
-    def debt_capacity(self) -> float:
-        return max(0, self.debt_limit - self.debt_owed)
+    def debt_capacity(self) -> float | bool:
+        return max(0, self.debt_limit - self.debt_load) if self.debt_limit is not None else True
     
     @property
     def outstanding_debt(self) -> float:
@@ -99,13 +101,20 @@ class Agent:
 
 
 class Bank(Agent):
-    def __init__(self, *args, **kwargs) -> None:
+    def __init__(self,
+        credit_limit: float,
+        loan_options: list[LoanOption] | None,
+        *args,
+        **kwargs
+    ) -> None:
         super().__init__(*args, **kwargs)
 
         self._account_book: dict[Agent, Account] = {}
         self._loan_book: dict[Agent, list[Loan]] = defaultdict(list)
-
-        self.loan_options: list[LoanOption] = []
+        
+        self.credit_limit = credit_limit
+        
+        self._loan_options: list[LoanOption] = loan_options if loan_options is not None else []
         
         self._received_loan_applications: deque[LoanApplication] = deque()
         
@@ -122,6 +131,18 @@ class Bank(Agent):
     @property
     def account_holders(self) -> list[Agent]:
         return list(self._account_book.keys())
+    
+    ############
+    # Counters #
+    ############
+    
+    @property
+    def extended_credit(self) -> float:
+        return self._extended_credit
+    
+    @property
+    def redeemed_credit(self) -> float:
+        return self._redeemed_credit
 
     ###########
     # Methods #
@@ -178,6 +199,11 @@ class Bank(Agent):
     
     def close_account(self, holder: Agent) -> bool:
         pass
+    
+    def loan_options(self, borrower: Agent) -> list[LoanOption]:
+        # returns a list of loans for which the borrower is eligible
+        # for now it simply returns the whole list
+        return self._loan_options
     
     def new_loan(
         self,
