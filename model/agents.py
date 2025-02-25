@@ -37,7 +37,6 @@ class Individual(finance.Agent, mesa.Agent):
         if reviewed_loan_applications := self.reviewed_loan_applications:
             while reviewed_loan_applications:
                 loan_application = reviewed_loan_applications.pop(0)
-                loan_application.date_closed = this_step
                 if loan_application.approved:
                     # for now, applications will be accepted as long as the resulting
                     # amount borrowed is less than the agent's borrowing limit
@@ -68,7 +67,7 @@ class Individual(finance.Agent, mesa.Agent):
                 if eligible_loans := bank.loan_options(self):
                     loan_choice = self.random.choice(eligible_loans)
                     
-                    application = loan_choice.apply(self, borrow_amount, this_step)
+                    application = loan_choice.apply(bank, self, borrow_amount, this_step)
                     self._open_loan_applications.append(application)
         else:
             other = self

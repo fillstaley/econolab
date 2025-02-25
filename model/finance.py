@@ -34,7 +34,7 @@ class Agent:
     
     @property
     def debt_load(self) -> float:
-        return sum(loan.principal for loan in self._loans)
+        return sum(loan.principal for loan in self._loans) if self._loans else 0
     
     @property
     def debt_capacity(self) -> float | bool:
@@ -383,24 +383,20 @@ class Loan:
 
 class LoanOption:
     def __init__(self,
-        bank: Bank,
-        borrower_type, 
         term: int, 
         max_principal: float | None = None, 
         min_interest_rate: float = 0
     ):
-        self.bank = bank
-        self.borrower_type = borrower_type
         self.term = term
         self.max_principal = max_principal
         self.min_interest_rate = min_interest_rate
 
-    def apply(self, borrower: Agent, principal: float, date: int) -> LoanApplication:
+    def apply(self, bank: Bank, borrower: Agent, principal: float, date: int) -> LoanApplication:
         if self.max_principal:
             principal = max(principal, self.max_principal)
         
         return LoanApplication(
-            bank=self.bank,
+            bank=bank,
             borrower=borrower,
             date_opened=date,
             term=self.term,
@@ -434,7 +430,7 @@ class LoanApplication:
         
         bank._received_loan_applications.append(self)
     
-    def accept_loan(self, date: int) -> Loan | None:
+    def accept(self, date: int) -> Loan | None:
         # this method should only do issue a loan once
         if self.date_closed is None:
             self.date_closed = date
