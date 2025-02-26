@@ -46,17 +46,17 @@ class BoltzmannBank(mesa.Model):
         self.datacollector = mesa.DataCollector(
             model_reporters={
                 "Money Supply": "money_supply",
-                "New Debt": "new_debt",
+                "Issued Debt": "issued_debt",
                 "Repaid Debt": "repaid_debt",
-                "Total Income": "total_income",
-                "Total Spending": "total_spending",
+                "Income": "income",
+                "Spending": "spending",
                 "Individual Wealth Gini": "individual_wealth_gini",
                 "Individual Income Gini": "individual_income_gini",
                 "Individual Spending Gini": "individual_spending_gini",
             },
             agent_reporters={
                 "Money": "money",
-                "New Debt": "new_debt",
+                "Issued Debt": "issued_debt",
                 "Repaid Debt": "repaid_debt",
                 "Income": "income",
                 "Spending": "spending",
@@ -64,7 +64,7 @@ class BoltzmannBank(mesa.Model):
             agenttype_reporters={
                 Individual: {
                     "Wealth": "wealth",
-                    "New Debt": "new_debt",
+                    "Issued Debt": "issued_debt",
                     "Repaid Debt": "repaid_debt",
                     "Income": "income",
                     "Spending": "spending",
@@ -85,19 +85,19 @@ class BoltzmannBank(mesa.Model):
         return sum(agent.money for agent in self.agents)
     
     @property
-    def new_debt(self) -> float:
-        return sum(agent.new_debt for agent in self.agents)
+    def issued_debt(self) -> float:
+        return sum(agent.issued_debt for agent in self.agents)
     
     @property
     def repaid_debt(self) -> float:
         return sum(agent.repaid_debt for agent in self.agents)
     
     @property
-    def total_income(self) -> float:
+    def income(self) -> float:
         return sum(agent.income for agent in self.agents)
     
     @property
-    def total_spending(self) -> float:
+    def spending(self) -> float:
         return sum(agent.spending for agent in self.agents)
     
     @property
