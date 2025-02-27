@@ -103,7 +103,7 @@ class Agent:
 class Bank(Agent):
     def __init__(self,
         credit_limit: float,
-        loan_options: list[LoanOption] | None,
+        loan_options: list[dict] | None,
         *args,
         **kwargs
     ) -> None:
@@ -114,7 +114,10 @@ class Bank(Agent):
         
         self.credit_limit = credit_limit
         
-        self._loan_options: list[LoanOption] = loan_options if loan_options is not None else []
+        self._loan_options: list[LoanOption] = []
+        if loan_options is not None:
+            for loan_option in loan_options:
+                self._loan_options.append(LoanOption(bank=self, **loan_option))
         
         self._received_loan_applications: deque[LoanApplication] = deque()
         
@@ -382,21 +385,24 @@ class Loan:
 
 
 class LoanOption:
-    def __init__(self,
+    def __init__(
+        self,
+        bank: Bank,
         term: int, 
         max_principal: float | None = None, 
-        min_interest_rate: float = 0
+        min_interest_rate: float = 0,
     ):
+        self.bank = bank
         self.term = term
         self.max_principal = max_principal
         self.min_interest_rate = min_interest_rate
 
-    def apply(self, bank: Bank, borrower: Agent, principal: float, date: int) -> LoanApplication:
+    def apply(self, borrower: Agent, principal: float, date: int) -> LoanApplication:
         if self.max_principal:
             principal = max(principal, self.max_principal)
         
         return LoanApplication(
-            bank=bank,
+            bank=self.bank,
             borrower=borrower,
             date_opened=date,
             term=self.term,

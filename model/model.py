@@ -17,7 +17,7 @@ class BoltzmannBank(mesa.Model):
         borrowing_limit: float | None = None,
         lending_limit: float | None = None,
         loan_review_limit: int | None = None,
-        loan_options: list[LoanOption] | None = None,
+        loan_options: list[dict] | None = None,
         seed: int | None = None,
     ) -> None:
         super().__init__(seed=seed)
@@ -29,13 +29,15 @@ class BoltzmannBank(mesa.Model):
             debt_limit=borrowing_limit,
         )
 
+        loan_options_per_bank = [loan_options for _ in range(num_banks)]
+
         # Create banks
         Bank.create_agents(
             model=self,
             n=num_banks,
             credit_limit=lending_limit,
             loan_review_limit=loan_review_limit,
-            loan_options=loan_options,
+            loan_options=loan_options_per_bank,
         )
 
         # Open a transaction account at the bank for each individual

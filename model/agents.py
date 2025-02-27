@@ -67,7 +67,7 @@ class Individual(finance.Agent, mesa.Agent):
                 if eligible_loans := bank.loan_options(self):
                     loan_choice = self.random.choice(eligible_loans)
                     
-                    application = loan_choice.apply(bank, self, borrow_amount, this_step)
+                    application = loan_choice.apply(self, borrow_amount, this_step)
                     self._open_loan_applications.append(application)
         else:
             other = self
