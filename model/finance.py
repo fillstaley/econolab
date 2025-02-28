@@ -44,14 +44,6 @@ class Agent:
     def outstanding_debt(self) -> float:
         return sum(l.principal for l in self._loans)
 
-    @property
-    def loans_due(self) -> list[Loan] | None:
-        return [
-            loan
-            for loan in self._loans
-            if loan.due_date and loan.due_date <= self.model.date
-        ] or None
-
     ############
     # Counters #
     ############
@@ -89,6 +81,14 @@ class Agent:
 
     def close_account(self):
         pass
+
+    def loans_due(self, after_date: int = 0, before_date: int | None = None) -> list[Loan]:
+        loans_due = [loan for loan in self._loans if loan.due_date if after_date <= loan.due_date]
+        
+        if before_date:
+            loans_due = [loan for loan in loans_due if loan.due_date < before_date]
+        
+        return loans_due
 
     def give_money(self, other: Agent, amount: float) -> bool:
         # direct the agent's bank to transfer money to the receiver
@@ -208,29 +208,31 @@ class Bank(Agent):
         # for now it simply returns the whole list
         return self._loan_options
     
-    def new_loan(
-        self,
-        borrower: Agent,
-        principal: float,
-        term: int,
-        interest_rate: float,
-        date_issued: int,
-    ) -> Loan:
-
-        loan = Loan(
-            bank=self,
-            borrower=borrower,
-            principal=principal,
-            term=term,
-            interest_rate=interest_rate,
-            date_issued=date_issued
-        )
-        
-        self._loan_book[borrower].append(loan)
-        self._account_book[borrower].credit(principal, issued_debt=True)
-        self._extended_credit += principal
-        
-        return loan
+    def new_loan(self, application: LoanApplication, date: int) -> Loan | None:
+        if application.approved and not application.issued:
+            application.date_issued = date
+            
+            borrower = application.borrower
+            
+            loan = Loan(
+                bank=self,
+                borrower=borrower,
+                principal=application.principal,
+                term=application.term,
+                interest_rate=application.interest_rate,
+                date_issued=application.date_issued,
+            )
+            
+            self._loan_book[borrower].append(loan)
+            self._account_book[borrower].credit(loan.principal, issued_debt=True)
+            self._extended_credit += loan.principal
+            
+            return loan
+    
+    def process_payment(self, borrower: Agent, amount: float, date: int) -> bool:
+        if success := self._account_book[borrower].debit(amount, repaid_debt=True):
+            self._redeemed_credit += amount
+        return success
     
     def close_loan(self,) -> bool:
         pass
@@ -353,10 +355,18 @@ class Loan:
         self.bank = bank
         self.borrower = borrower
         self.date_issued = date_issued
-        self.principal = principal
+        self._principal = principal
         self.term = term
         self.interest_rate = interest_rate
-
+    
+    ##############
+    # Properties #
+    ##############
+    
+    @property
+    def principal(self) -> float:
+        return self._principal
+    
     @property
     def due_date(self):
         return self.date_issued + self.term if self.term else None
@@ -372,17 +382,17 @@ class Loan:
     ###########
     # Methods #
     ###########
-
-    def repay(self) -> bool:
-        principal = self.principal
-        amount_due = principal + self.interest
-
-        if self.borrower.money >= amount_due:
-            success = self.borrower.give_money(self.bank, amount_due, spending=False)
-            if success:
-                self.principal -= principal
-            return success
-
+    
+    def capitalize(self, amount: float):
+        self._principal += amount
+    
+    def amortize(self, amount: float):
+        self._principal -= amount
+    
+    def make_payment(self, amount: float, date: int) -> bool:
+        if success := self.bank.process_payment(self.borrower, amount, date):
+            ...
+        return success
 
 class LoanOption:
     def __init__(
@@ -396,7 +406,11 @@ class LoanOption:
         self.term = term
         self.max_principal = max_principal
         self.min_interest_rate = min_interest_rate
-
+    
+    ###########
+    # Methods #
+    ###########
+    
     def apply(self, borrower: Agent, principal: float, date: int) -> LoanApplication:
         if self.max_principal:
             principal = max(principal, self.max_principal)
@@ -430,21 +444,32 @@ class LoanApplication:
         self.date_opened = date_opened
         self.date_reviewed = None
         self.date_closed = None
+        self.date_issued = None
         
         self.approved = None
         self.accepted = None
         
         bank._received_loan_applications.append(self)
     
+    ##############
+    # Properties #
+    ##############
+    
+    @property
+    def closed(self) -> bool:
+        return self.date_closed is not None
+    
+    @property
+    def issued(self) -> bool:
+        return self.date_issued is not None
+    
+    ###########
+    # Methods #
+    ###########
+    
     def accept(self, date: int) -> Loan | None:
-        # this method should only do issue a loan once
-        if self.date_closed is None:
+        # a loan should only be issued once
+        if self.approved and not self.closed:
             self.date_closed = date
 
-            return self.bank.new_loan(
-                borrower=self.borrower,
-                principal=self.principal,
-                term=self.term,
-                interest_rate=self.interest_rate,
-                date_issued=self.date_closed,
-            )
+            return self.bank.new_loan(self, date)

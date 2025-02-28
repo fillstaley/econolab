@@ -33,7 +33,7 @@ class Individual(finance.Agent, mesa.Agent):
 
         this_step = self.model.steps
 
-        # first, individuals should manage their open loan applications
+        # first, individuals should manage their reviewed loan applications
         if reviewed_loan_applications := self.reviewed_loan_applications:
             while reviewed_loan_applications:
                 loan_application = reviewed_loan_applications.pop(0)
@@ -47,6 +47,15 @@ class Individual(finance.Agent, mesa.Agent):
                 
                 self._open_loan_applications.remove(loan_application)
                 self._closed_loan_applications.append(loan_application)
+        
+        # second, individuals should manage their due, and overdue, loans
+        if loans_due := self.loans_due(before_date=this_step+1):
+            for loan in loans_due:
+                if self.money >= loan.amount_due:
+                    loan.make_payment(loan.amount_due, this_step)
+                else:
+                    ...
+                    break
         
         
         # individuals should apply for a loan if they need money and
