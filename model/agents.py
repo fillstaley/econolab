@@ -54,7 +54,6 @@ class Individual(finance.Agent, mesa.Agent):
                 if self.money >= loan.amount_due:
                     loan.make_payment(loan.amount_due, this_step)
                 else:
-                    ...
                     break
         
         

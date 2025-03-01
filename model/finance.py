@@ -82,13 +82,12 @@ class Agent:
     def close_account(self):
         pass
 
-    def loans_due(self, after_date: int = 0, before_date: int | None = None) -> list[Loan]:
-        loans_due = [loan for loan in self._loans if loan.due_date if after_date <= loan.due_date]
-        
-        if before_date:
-            loans_due = [loan for loan in loans_due if loan.due_date < before_date]
-        
-        return loans_due
+    def loan_payments_due(self, date: int) -> list[tuple[Loan, Payment]]:
+        return [
+            (loan, payment)
+            for loan in self._loans if loan.payment_due(date)
+            for payment in loan.payment_schedule if payment.is_due(date)
+        ]
 
     def give_money(self, other: Agent, amount: float) -> bool:
         # direct the agent's bank to transfer money to the receiver
@@ -217,10 +216,11 @@ class Bank(Agent):
             loan = Loan(
                 bank=self,
                 borrower=borrower,
-                principal=application.principal,
-                term=application.term,
-                interest_rate=application.interest_rate,
                 date_issued=application.date_issued,
+                principal=application.principal,
+                interest_rate=application.interest_rate,
+                term=application.term,
+                billing_window=application.billing_window,
             )
             
             self._loan_book[borrower].append(loan)
@@ -344,20 +344,26 @@ class Account:
 class Loan:
     """Creates money."""
 
-    def __init__(self,
+    def __init__(
+        self,
         bank: Bank,
         borrower: Agent,
         date_issued: int,
         principal: float,
-        term: int | None = None,
         interest_rate: float = 0.0,
+        term: int | None = None,
+        billing_window: int = 0,
+        payment_schedule: list[Payment] | None = None,
     ) -> None:
         self.bank = bank
         self.borrower = borrower
         self.date_issued = date_issued
         self._principal = principal
-        self.term = term
         self.interest_rate = interest_rate
+        self.term = term
+        self.billing_window = billing_window
+        
+        self.payment_schedule = payment_schedule or [Payment(principal, date_issued + term)]
     
     ##############
     # Properties #
@@ -389,10 +395,40 @@ class Loan:
     def amortize(self, amount: float):
         self._principal -= amount
     
+    def payment_due(self, date: int) -> bool:
+        return any(payment.is_due(date) for payment in self.payment_schedule)
+    
+    def amount_due(self, date: int) -> float:
+        return sum(payment.amount_due for payment in self.payment_schedule if payment.is_due(date))
+    
     def make_payment(self, amount: float, date: int) -> bool:
         if success := self.bank.process_payment(self.borrower, amount, date):
-            ...
+            self.amortize(amount)
         return success
+
+
+class Payment:
+    def __init__(self, amount_due: float, date_due: int, billing_window: int = 0) -> None:
+        self.amount_due = amount_due
+        self.date_due = date_due
+        
+        self.billing_window = billing_window
+        
+        self.amount_paid: float | None = None
+        self.date_paid: int | None = None
+    
+    @property
+    def paid(self) -> bool:
+        return self.amount_paid is not None
+    
+    def is_due(self, date) -> bool:
+        return not self.paid and date >= self.date_due - self.billing_window
+    
+    def mark_paid(self, amount_paid: float, date_paid: int) -> None:
+        if not self.paid:
+            self.amount_paid = amount_paid
+            self.date_paid = date_paid
+
 
 class LoanOption:
     def __init__(
@@ -431,15 +467,17 @@ class LoanApplication:
         bank: Bank, 
         borrower: Agent, 
         date_opened: int,
-        term: int, 
         principal: float, 
-        interest_rate: float = 0,
+        interest_rate: float,
+        term: int,
+        billing_window: int,
     ):
         self.bank = bank
         self.borrower = borrower
-        self.term = term
         self.principal = principal
         self.interest_rate = interest_rate
+        self.term = term
+        self.billing_window = billing_window
 
         self.date_opened = date_opened
         self.date_reviewed = None
