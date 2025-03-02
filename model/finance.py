@@ -401,9 +401,14 @@ class Loan:
     def amount_due(self, date: int) -> float:
         return sum(payment.amount_due for payment in self.payment_schedule if payment.is_due(date))
     
-    def make_payment(self, amount: float, date: int) -> bool:
-        if success := self.bank.process_payment(self.borrower, amount, date):
+    def pay(self, payment: Payment, date: int):
+        bank = self.bank
+        borrower = self.borrower
+        amount = payment.amount_due
+        
+        if success := bank.process_payment(borrower, amount, date):
             self.amortize(amount)
+            payment.mark_paid(amount, date)
         return success
 
 
@@ -435,11 +440,13 @@ class LoanOption:
         self,
         bank: Bank,
         term: int, 
+        billing_window: int = 0,
         max_principal: float | None = None, 
         min_interest_rate: float = 0,
     ):
         self.bank = bank
         self.term = term
+        self.billing_window = billing_window
         self.max_principal = max_principal
         self.min_interest_rate = min_interest_rate
     
@@ -455,9 +462,10 @@ class LoanOption:
             bank=self.bank,
             borrower=borrower,
             date_opened=date,
-            term=self.term,
             principal=principal,
             interest_rate=self.min_interest_rate,
+            term=self.term,
+            billing_window=self.billing_window,
         )
 
 

@@ -49,11 +49,15 @@ class Individual(finance.Agent, mesa.Agent):
                 self._closed_loan_applications.append(loan_application)
         
         # second, individuals should manage their due, and overdue, loans
-        if loans_due := self.loans_due(before_date=this_step+1):
-            for loan in loans_due:
-                if self.money >= loan.amount_due:
-                    loan.make_payment(loan.amount_due, this_step)
+        if loan_payments_due := self.loan_payments_due(date=this_step):
+            # for now we won't actually sort anything
+            sorted_payments = loan_payments_due
+            
+            for loan, payment in sorted_payments:
+                if self.money >= payment.amount_due:
+                    loan.pay(payment, this_step)
                 else:
+                    ...
                     break
         
         
