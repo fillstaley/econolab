@@ -32,7 +32,7 @@ class Individual(finance.Agent, mesa.Agent):
     def act(self):
 
         this_step = self.model.steps
-
+        
         # first, individuals should manage their reviewed loan applications
         if reviewed_loan_applications := self.reviewed_loan_applications:
             while reviewed_loan_applications:
@@ -60,28 +60,29 @@ class Individual(finance.Agent, mesa.Agent):
                     ...
                     break
         
-        
-        # individuals should apply for a loan if they need money and
-        # if they are not already borrowing too much money
+        # third, individuals should decide if they want to apply for loans
+        # they should only apply if they have a demand for money, a capacity
+        # to take on my debt, and have no open loan applications
         gift_amount = 1
         money_demand = max(0, gift_amount - self.money)
         
-        ## if they want to and can borrow money, then they submit an application
-        if money_demand:
-            if self.debt_capacity:
-                borrow_amount = min(money_demand, self.debt_capacity) if self.debt_capacity is not True else money_demand
+        if money_demand and self.debt_capacity and not self._open_loan_applications:
+            borrow_amount = min(money_demand, self.debt_capacity) if self.debt_capacity is not True else money_demand
+            
+            # this could all be refactored as a finance.Agent method
+            # for now, agents can only borrow from their bank
+            bank = self._account.bank
+            
+            # randomly choose a loan on offer for which the individual is eligible
+            if eligible_loans := bank.loan_options(self):
+                loan_choice = self.random.choice(eligible_loans)
                 
-                # this could all be refactored as a finance.Agent method
-                # for now, agents can only borrow from their bank
-                bank = self._account.bank
-                
-                # randomly choose a loan on offer for which the individual is eligible
-                if eligible_loans := bank.loan_options(self):
-                    loan_choice = self.random.choice(eligible_loans)
-                    
-                    application = loan_choice.apply(self, borrow_amount, this_step)
-                    self._open_loan_applications.append(application)
-        else:
+                application = loan_choice.apply(self, borrow_amount, this_step)
+                self._open_loan_applications.append(application)
+        
+        
+        # fourth, individuals should decide if they want to spend money, ie. give some away
+        if self.money >= gift_amount:
             other = self
             while other is self:
                 other = self.random.choice(self.model.agents_by_type[Individual])
