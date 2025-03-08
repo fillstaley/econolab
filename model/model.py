@@ -35,7 +35,6 @@ class BoltzmannBank(mesa.Model):
         Bank.create_agents(
             model=self,
             n=num_banks,
-            credit_limit=lending_limit,
             loan_review_limit=loan_review_limit,
             loan_options=loan_options_per_bank,
         )

@@ -100,18 +100,23 @@ class Agent:
 
 
 class Bank(Agent):
-    def __init__(self,
-        credit_limit: float,
-        loan_options: list[dict] | None,
+    def __init__(
+        self,
+        loan_options: list[dict] | None, 
         *args,
         **kwargs
     ) -> None:
+        """...
+
+        Parameters
+        ----------
+        loan_options : list[dict] | None
+            The possible loans on offer.
+        """
         super().__init__(*args, **kwargs)
 
         self._account_book: dict[Agent, Account] = {}
         self._loan_book: dict[Agent, list[Loan]] = defaultdict(list)
-        
-        self.credit_limit = credit_limit
         
         self._loan_options: list[LoanOption] = []
         if loan_options is not None:
@@ -160,13 +165,15 @@ class Bank(Agent):
             account.reset_counters()
         return super().reset_counters()
 
-    def transfer_money(self,
-            sender: Agent, 
-            receiver: Agent, 
-            amount: float,
-            spending: bool = True,
-            income: bool = True,
-        ) -> bool:
+    def transfer_money(
+        self,
+        sender: Agent | Account, 
+        receiver: Agent | Account, 
+        amount: float,
+        spending: bool = True,
+        income: bool = True,
+        interbank: bool = False
+    ) -> bool:
         """Transfers money between accounts.
 
         Parameters
@@ -181,21 +188,66 @@ class Bank(Agent):
             Whether the money being transferred should count as spending by the sender, by default True
         income : bool, optional
             Whether the money being transferred should count as income for the receiver, by default True
+        interbank : bool, optional
+            ...
 
         Returns
         -------
         success : bool
             Whether or not the money was successfully transferred
         """
-        success = False
-        if sender in self.account_holders and receiver in self.account_holders:
-            if success := self._account_book[sender].debit(amount, spending=spending):
-                self._account_book[receiver].credit(amount, income=income)
+        
+        # if interbank is True, we have already performed type checking and should return early
+        if interbank:
+            receiver.credit(amount, income=income)
+            return True
+        
+        # check if sender is an Agent or an account, extract its default account if it's an Agent
+        if isinstance(sender, Agent):
+            if (sender_account := sender._account) is None:
+                raise ValueError("Sender doesn't have a bank account.")
+        elif isinstance(sender, Account):
+            sender_account = sender
+        else:
+            raise ValueError(f"Sender must be an Agent or an Account, got {type(sender).__name__}.")
+        
+        # check if receiver is an Agent or an account, extract its default account if it's an Agent
+        if isinstance(receiver, Agent):
+            if (receiver_account := receiver._account) is None:
+                raise ValueError("Receiver doesn't have a bank account.")
+        elif isinstance(receiver, Account):
+            receiver_account = receiver
+        else:
+            raise ValueError(f"Receiver must be an Agent or an Account, got {type(receiver).__name__}.")
+        
+        # check that the bank has authority to debit sender_account
+        if sender_account.bank is not self:
+            raise ValueError(f"Sender account {sender_account} is not maintained by bank {self}.")
+        
+        # check that the source and target of the transfer are distinct
+        if sender_account is receiver_account:
+            raise ValueError("Sender and receiver accounts cannot be the same.")
+        
+        if (receiver_bank := receiver_account.bank) is self:
+            if success := sender_account.debit(amount, spending):
+                receiver_account.credit(amount, income)
+        elif (reserve_bank := self.reserve_bank) and reserve_bank is receiver_bank.reserve_bank:
+            if success := sender_account.debit(amount, spending):
+                reserve_bank.transfer_money(self, receiver_bank, amount)
+                receiver_bank.transfer_money(None, receiver_account, amount, income=income, interbank=True)
+        else:
+            raise ValueError("The receiving account cannot be reached.")
+        
         return success
 
-    def new_account(self, holder: Agent, initial_deposit: float = 0) -> Account | None:
+    def new_account(
+        self,
+        holder: Agent, 
+        initial_deposit: float = 0, 
+        overdraft_limit: float | None = 0,
+    ) -> Account | None:
         if holder not in self.account_holders:
-            account = Account(self, holder, initial_deposit)
+            account = Account(self, holder, initial_deposit, overdraft_limit)
             self._account_book[holder] = account
             return account
     
@@ -238,10 +290,23 @@ class Bank(Agent):
         pass
 
 
+class ReserveBank(Bank):
+    def __init__(self, loan_options, *args, **kwargs):
+        super().__init__(loan_options, *args, **kwargs)
+
+
 class Account:
-    def __init__(self, bank: Bank, holder: Agent, initial_deposit: float = 0) -> None:
+    def __init__(
+        self, 
+        bank: Bank, 
+        holder: Agent, 
+        initial_deposit: float = 0, 
+        overdraft_limit: float | None = 0,
+    ) -> None:
         self.bank = bank
         self.holder = holder
+
+        self.overdraft_limit = overdraft_limit if overdraft_limit is not None else float('inf')
 
         self._balance = initial_deposit
         
@@ -314,30 +379,29 @@ class Account:
             self._income += amount
 
     def debit(self, amount: float, repaid_debt: bool = False, spending: bool = True) -> bool:
-        """Decreases the account balance.
+        """Attempts to decrease the account balance, respecting overdraft limits.
 
         Parameters
         ----------
         amount : float
             The amount by which to decrease the account balance.
         repaid_debt : bool, optional
-            The amount is destroyed by repaying debt, by default False
+            If True, the amount is destroyed by repaying debt (default: False).
         spending : bool, optional
-            The amount is transferred to another account, by default True
+            If True, the amount is transferred to another account (default: True).
         
         Returns
         -------
         success : bool
-            ...
-
+            True if the debit operation was successful, False if insufficient funds.
         """
-        # this method should limit the extent to which the account can go negative
-        success = True
-        self._balance -= amount
-        if repaid_debt:
-            self._repaid_debt += amount
-        elif spending:
-            self._spending += amount
+
+        if success := self._balance - amount + self.overdraft_limit >= 0:
+            self._balance -= amount
+            if repaid_debt:
+                self._repaid_debt += amount
+            elif spending:
+                self._spending += amount
         return success
 
 
