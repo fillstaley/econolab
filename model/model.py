@@ -2,7 +2,7 @@ from typing import Any
 
 import mesa
 
-from .agents import Individual, Bank
+from .agents import Individual, Bank, ReserveBank
 from .finance import LoanOption
 from .util import gini_index
 
@@ -39,10 +39,22 @@ class BoltzmannBank(mesa.Model):
             loan_options=loan_options_per_bank,
         )
 
+        # if there is more than 1 bank, we need to create a reserve bank
+        if num_banks > 1:
+            ReserveBank.create_agents(
+                model=self,
+                n=1,
+                loan_options=None,
+            )
+            reserve_bank = self.agents_by_type[ReserveBank][0]
+            for b in self.agents_by_type[Bank]:
+                b.reserve_account = b.open_account(reserve_bank, overdraft_limit=None)
+                b.reserve_bank = reserve_bank
+
         # Open a transaction account at the bank for each individual
         for i in self.agents_by_type[Individual]:
             bank = self.random.choice(self.agents_by_type[Bank])
-            i.open_account(bank, initial_deposit=init_gift)
+            i.primary_account = i.open_account(bank, initial_deposit=init_gift)
         
         self.datacollector = mesa.DataCollector(
             model_reporters={

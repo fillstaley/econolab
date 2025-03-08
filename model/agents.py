@@ -71,7 +71,7 @@ class Individual(finance.Agent, mesa.Agent):
             
             # this could all be refactored as a finance.Agent method
             # for now, agents can only borrow from their bank
-            bank = self._account.bank
+            bank = self.primary_account.bank
             
             # randomly choose a loan on offer for which the individual is eligible
             if eligible_loans := bank.loan_options(self):
@@ -132,3 +132,11 @@ class Bank(finance.Bank, mesa.Agent):
     
     def eligible_loans(self, borrower) -> list[finance.LoanOption]:
         return []
+
+
+class ReserveBank(finance.ReserveBank, mesa.Agent):
+    def __init__(self, model, *args, **kwargs):
+        super().__init__(model=model, *args, **kwargs)
+    
+    def act(self):
+        pass

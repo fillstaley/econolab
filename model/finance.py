@@ -11,7 +11,8 @@ class Agent:
     def __init__(self, debt_limit: float | None = 0, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
 
-        self._account: Account | None = None
+        self.primary_account: Account | None = None
+        self._accounts: list[Account] = []
         self._loans: list[Loan] = []
         
         self.debt_limit = debt_limit
@@ -26,7 +27,7 @@ class Agent:
     @property
     def money(self) -> float:
         """The amount of money the agent has."""
-        return self._account.balance if self._account else 0
+        return self.primary_account.balance if self.primary_account else 0
     
     @property
     def reviewed_loan_applications(self) -> list[LoanApplication]:
@@ -51,22 +52,22 @@ class Agent:
     @property
     def issued_debt(self) -> float:
         """A counter for the money the agent borrows from a bank; reset each step."""
-        return self._account.issued_debt if self._account else 0
+        return self.primary_account.issued_debt if self.primary_account else 0
 
     @property
     def repaid_debt(self) -> float:
         """A counter for the money the agent repays to a bank; reset each step."""
-        return self._account.repaid_debt if self._account else 0
+        return self.primary_account.repaid_debt if self.primary_account else 0
     
     @property
     def income(self) -> float:
         """A counter for the money the agent receives from other agents; reset each step."""
-        return self._account.income if self._account else 0
+        return self.primary_account.income if self.primary_account else 0
 
     @property
     def spending(self) -> float:
         """A counter for the money the agent sends to other agents; reset each step."""
-        return self._account.spending if self._account else 0
+        return self.primary_account.spending if self.primary_account else 0
 
     ###########
     # Methods #
@@ -75,9 +76,10 @@ class Agent:
     def reset_counters(self) -> None:
         pass
     
-    def open_account(self, bank: Bank, initial_deposit: float = 0.0) -> bool:
-        if self._account is None:
-            self._account = bank.new_account(self, initial_deposit)
+    def open_account(self, bank: Bank, initial_deposit: float = 0, overdraft_limit: float | None = 0) -> None:
+        account = bank.new_account(self, initial_deposit, overdraft_limit)
+        self._accounts.append(account)
+        return account
 
     def close_account(self):
         pass
@@ -94,8 +96,8 @@ class Agent:
         # eventually this method should choose a common payment system between
         # the giver and the receiver, but this is moot for now
         success = False
-        if other._account:
-            success = self._account.bank.transfer_money(self, other, amount)
+        if other.primary_account:
+            success = self.primary_account.bank.transfer_money(self, other, amount)
         return success
 
 
@@ -125,7 +127,10 @@ class Bank(Agent):
         
         self._received_loan_applications: deque[LoanApplication] = deque()
         
-        self.open_account(self)
+        self.primary_account = self.open_account(self)
+
+        self.reserve_bank = None
+        self.reserve_account = None
 
         # Initialize counters
         self._extended_credit: float = 0
@@ -204,7 +209,7 @@ class Bank(Agent):
         
         # check if sender is an Agent or an account, extract its default account if it's an Agent
         if isinstance(sender, Agent):
-            if (sender_account := sender._account) is None:
+            if (sender_account := sender.primary_account) is None:
                 raise ValueError("Sender doesn't have a bank account.")
         elif isinstance(sender, Account):
             sender_account = sender
@@ -213,7 +218,7 @@ class Bank(Agent):
         
         # check if receiver is an Agent or an account, extract its default account if it's an Agent
         if isinstance(receiver, Agent):
-            if (receiver_account := receiver._account) is None:
+            if (receiver_account := receiver.primary_account) is None:
                 raise ValueError("Receiver doesn't have a bank account.")
         elif isinstance(receiver, Account):
             receiver_account = receiver
@@ -229,11 +234,11 @@ class Bank(Agent):
             raise ValueError("Sender and receiver accounts cannot be the same.")
         
         if (receiver_bank := receiver_account.bank) is self:
-            if success := sender_account.debit(amount, spending):
-                receiver_account.credit(amount, income)
+            if success := sender_account.debit(amount, spending=spending):
+                receiver_account.credit(amount, income=income)
         elif (reserve_bank := self.reserve_bank) and reserve_bank is receiver_bank.reserve_bank:
-            if success := sender_account.debit(amount, spending):
-                reserve_bank.transfer_money(self, receiver_bank, amount)
+            if success := sender_account.debit(amount, spending=spending):
+                reserve_bank.transfer_money(self.reserve_account, receiver_bank.reserve_account, amount)
                 receiver_bank.transfer_money(None, receiver_account, amount, income=income, interbank=True)
         else:
             raise ValueError("The receiving account cannot be reached.")
