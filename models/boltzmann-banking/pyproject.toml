@@ -5,11 +5,13 @@ description = "An ABM of random spending and borrowing"
 authors = [{ name = "Fill Staley", email = "fillstaley@gmail.com" }]
 readme = "README.md"
 requires-python = ">=3.13"
-dependencies = ["mesa (>=3.1.3,<4.0.0)", "seaborn (>=0.13.2,<0.14.0)", "jupyter (>=1.1.1,<2.0.0)"]
+dependencies = ["mesa (>=3.1.3,<4.0.0)", "seaborn (>=0.13.2,<0.14.0)", "jupyter (>=1.1.1,<2.0.0)", "econolab @ file:///Users/fill/Projects/econolab"]
 
 [tool.poetry]
 package-mode = false
 
+[tool.poetry.dependencies]
+econolab = {develop = true}
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]
 build-backend = "poetry.core.masonry.api"

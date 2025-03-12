@@ -594,6 +594,20 @@ files = [
 ]
 
 [[package]]
+name = "econolab"
+version = "0.1.0"
+description = "A package for agent-based simulations of economic activity."
+optional = false
+python-versions = ">=3.13"
+groups = ["main"]
+files = []
+develop = true
+
+[package.source]
+type = "directory"
+url = "../.."
+
+[[package]]
 name = "executing"
 version = "2.2.0"
 description = "Get the currently executing AST node of a frame, and other information"
@@ -3005,4 +3019,4 @@ files = [
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.13"
-content-hash = "0e0bb5c1110013b4802f02ad77ec02733809d1ad9bf92961c38a8e9617021097"
+content-hash = "28ec36290e108c1e145be17a682684c56ed73eb892593ac85d1dac9ce3a29198"
