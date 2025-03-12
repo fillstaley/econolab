@@ -2,9 +2,9 @@ from typing import Any
 
 import mesa
 
-from .agents import Individual, Bank, ReserveBank
-from .finance import LoanOption
-from .util import gini_index
+from econolab import metrics
+
+from agents import Individual, Bank, ReserveBank
 
 
 class BoltzmannBank(mesa.Model):
@@ -119,7 +119,7 @@ class BoltzmannBank(mesa.Model):
     
     @property
     def individual_income_gini(self) -> float:
-        return gini_index(self.individual_income_curve)
+        return metrics.gini_index(self.individual_income_curve)
     
     @property
     def individual_wealth_curve(self) -> float:
@@ -127,7 +127,7 @@ class BoltzmannBank(mesa.Model):
     
     @property
     def individual_wealth_gini(self) -> float:
-        return gini_index(self.individual_wealth_curve)
+        return metrics.gini_index(self.individual_wealth_curve)
     
     @property
     def individual_spending_curve(self) -> float:
@@ -135,7 +135,7 @@ class BoltzmannBank(mesa.Model):
     
     @property
     def individual_spending_gini(self) -> float:
-        return gini_index(self.individual_spending_curve)
+        return metrics.gini_index(self.individual_spending_curve)
     
     
     ###############

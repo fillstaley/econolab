@@ -2,10 +2,10 @@ from __future__ import annotations
 
 import mesa
 
-from . import finance
+from econolab import banking
 
 
-class Individual(finance.Agent, mesa.Agent):
+class Individual(banking.Agent, mesa.Agent):
     """The fundamental agents of our economy"""
     
     def __init__(
@@ -69,7 +69,7 @@ class Individual(finance.Agent, mesa.Agent):
         if money_demand and self.debt_capacity and not self._open_loan_applications:
             borrow_amount = min(money_demand, self.debt_capacity) if self.debt_capacity is not True else money_demand
             
-            # this could all be refactored as a finance.Agent method
+            # this could all be refactored as a banking.Agent method
             # for now, agents can only borrow from their bank
             bank = self.primary_account.bank
             
@@ -89,7 +89,7 @@ class Individual(finance.Agent, mesa.Agent):
             self.give_money(other, gift_amount)
 
 
-class Bank(finance.Bank, mesa.Agent):
+class Bank(banking.Bank, mesa.Agent):
     """The agents that create money."""
     
     def __init__(
@@ -130,11 +130,11 @@ class Bank(finance.Bank, mesa.Agent):
             application.approved = True
             application.date_reviewed = this_step
     
-    def eligible_loans(self, borrower) -> list[finance.LoanOption]:
+    def eligible_loans(self, borrower) -> list[banking.LoanOption]:
         return []
 
 
-class ReserveBank(finance.ReserveBank, mesa.Agent):
+class ReserveBank(banking.ReserveBank, mesa.Agent):
     def __init__(self, model, *args, **kwargs):
         super().__init__(model=model, *args, **kwargs)
     
