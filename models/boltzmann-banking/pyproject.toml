@@ -16,7 +16,7 @@ dependencies = [
 package-mode = false
 
 [tool.poetry.dependencies]
-econolab = { path = "../../../econolab", develop = true }
+econolab = {develop = true}
 
 [tool.poetry.group.dev.dependencies]
 jupyter = "^1.1.1"

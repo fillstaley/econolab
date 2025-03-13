@@ -7,7 +7,7 @@ from econolab import metrics
 from agents import Individual, Bank, ReserveBank
 
 
-class BoltzmannBank(mesa.Model):
+class BoltzmannBanking(mesa.Model):
     """The Boltzmann wealth model with a bank"""
     
     def __init__(self,
