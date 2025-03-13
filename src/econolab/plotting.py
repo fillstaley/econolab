@@ -35,7 +35,7 @@ def money_supply(model, period: int = 1):
     sampled_df = model_df.iloc[::period]
 
     # Create figure with two vertically stacked axes
-    fig, axes = plt.subplots(2, 1, figsize=(8, 8), sharex=True)
+    fig, axes = plt.subplots(2, 1, figsize=(8, 6), sharex=True)
 
     ## **First Plot: Total Money Supply**
     axes[0].plot(sampled_df.index, sampled_df["Money Supply"], label="Money Supply", color="blue")
@@ -104,7 +104,7 @@ def individual_wealth_distribution(model, step: int | None = None):
     population_share = np.linspace(0, 1, len(sorted_wealth))
     
     # Create figure with two subplots
-    fig, ax = plt.subplots(1, 2, figsize=(12, 5))
+    fig, ax = plt.subplots(1, 2, figsize=(8, 3))
 
     # Histogram of wealth distribution
     sns.histplot(wealth_data, bins=20, kde=True, ax=ax[0], color="blue")
