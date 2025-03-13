@@ -2,22 +2,22 @@
 name = "boltzmann-business"
 version = "0.1.0"
 description = "An EconoLab model for random business activity."
-authors = [
-    {name = "Fill Staley",email = "fillstaley@gmail.com"}
-]
-license = {text = "BSD-3-Clause"}
+authors = [{ name = "Fill Staley", email = "fillstaley@gmail.com" }]
+license = { text = "BSD-3-Clause" }
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
-    "mesa (>=3.1.4,<4.0.0)",
-    "econolab @ file:///Users/fill/Projects/econolab"
+    "mesa (>=3.1.3,<4.0.0)",
+    "matplotlib (>=3.10.1,<4.0.0)",
+    "seaborn (>=0.13.2,<0.14.0)",
+    "econolab @ file:///Users/fill/Projects/econolab",
 ]
 
 [tool.poetry]
 package-mode = false
 
 [tool.poetry.dependencies]
-econolab = {develop = true}
+econolab = { path = "../../../econolab", develop = true }
 
 [tool.poetry.group.dev.dependencies]
 jupyter = "^1.1.1"
