@@ -1,10 +1,12 @@
 """A collection of visualization functions.
 """
 
+import numpy as np
 import matplotlib.pyplot as plt
+import seaborn as sns
 
 
-def plot_money_supply(model, period: int = 1):
+def money_supply(model, period: int = 1):
     """Plot the money supply and its change over time, with separate visualization for issued and repaid debt.
 
     Parameters:
@@ -85,5 +87,38 @@ def plot_money_supply(model, period: int = 1):
     axes[1].legend()
 
     # Improve layout and show plot
+    plt.tight_layout()
+    plt.show()
+
+
+def individual_wealth_distribution(model, step: int | None = None):
+    
+    if step is None:
+        step = model.steps
+    
+    wealth_data = model.individual_data["Wealth"].xs(step, level=0)
+    
+    total_wealth = np.sum(wealth_data)
+    sorted_wealth = np.sort(wealth_data)
+    cumulative_wealth = np.cumsum(sorted_wealth) / total_wealth if total_wealth else 0
+    population_share = np.linspace(0, 1, len(sorted_wealth))
+    
+    # Create figure with two subplots
+    fig, ax = plt.subplots(1, 2, figsize=(12, 5))
+
+    # Histogram of wealth distribution
+    sns.histplot(wealth_data, bins=20, kde=True, ax=ax[0], color="blue")
+    ax[0].set_title(f"Wealth Distribution (Step {step})")
+    ax[0].set_xlabel("Wealth")
+    ax[0].set_ylabel("Number of Agents")
+
+    # Lorenz Curve
+    ax[1].plot(population_share, cumulative_wealth, label="Lorenz Curve", color="red")
+    ax[1].plot([0, 1], [0, 1], linestyle="--", color="black", label="Perfect Equality")
+    ax[1].set_title(f"Lorenz Curve of Wealth (Step {step})")
+    ax[1].set_xlabel("Cumulative Population Share")
+    ax[1].set_ylabel("Cumulative Wealth Share")
+    ax[1].legend()
+
     plt.tight_layout()
     plt.show()

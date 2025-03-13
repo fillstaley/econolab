@@ -137,6 +137,9 @@ class BoltzmannBanking(mesa.Model):
     def individual_spending_gini(self) -> float:
         return metrics.gini_index(self.individual_spending_curve)
     
+    @property
+    def individual_data(self):
+        return self.datacollector.get_agenttype_vars_dataframe(Individual)
     
     ###############
     # Step Method #
