@@ -1,4 +1,5 @@
-from typing import Any
+"""A model of random money creation, movement and destruction.
+"""
 
 import numpy as np
 import mesa
@@ -9,7 +10,8 @@ from agents import Individual, Bank, ReserveBank
 
 
 class BoltzmannBanking(mesa.Model):
-    """The Boltzmann wealth model with a bank"""
+    """A Mesa model with many individuals and one or more banks.
+    """
     
     def __init__(self,
         num_individuals: int,
