@@ -179,14 +179,14 @@ class BoltzmannBanking(mesa.Model):
     # Methods #
     ###########
     
-    def lorenz_wealth_value(self, step, p):
+    def lorenz_wealth_values(self, step, p_values):
         
-        pop_share, cum_wealth = self.lorenz_wealth_curve(step)
+        pop_share, cumulative = self.lorenz_wealth_curve(step)
 
-        index = np.searchsorted(pop_share, p)
-        index = min(index, len(cum_wealth) - 1)  # Ensure index stays within bounds
+        indices = np.searchsorted(pop_share, np.array(p_values))
+        indices = np.clip(indices, 0, len(cumulative) - 1)  # Ensure indices stays within bounds
         
-        return cum_wealth[index]
+        return {p: cumulative[idx] for p, idx in zip(p_values, indices)}
     
     def lorenz_wealth_curve(self, step):
         
@@ -209,14 +209,14 @@ class BoltzmannBanking(mesa.Model):
             {"Step": self.steps, "Population Share": population_share, "Cumulative Wealth": cumulative_share}
         )
 
-    def lorenz_income_value(self, step, p):
+    def lorenz_income_values(self, step, p_values):
         
-        pop_share, cum_income = self.lorenz_income_curve(step)
+        pop_share, cumulative = self.lorenz_income_curve(step)
 
-        index = np.searchsorted(pop_share, p)
-        index = min(index, len(cum_income) - 1)  # Ensure index stays within bounds
+        indices = np.searchsorted(pop_share, np.array(p_values))
+        indices = np.clip(indices, 0, len(cumulative) - 1)  # Ensure indices stays within bounds
         
-        return cum_income[index]
+        return {p: cumulative[idx] for p, idx in zip(p_values, indices)}
 
     def lorenz_income_curve(self, step):
         
