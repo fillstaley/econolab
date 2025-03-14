@@ -1,5 +1,6 @@
 from typing import Any
 
+import numpy as np
 import mesa
 
 from econolab import metrics
@@ -83,10 +84,17 @@ class BoltzmannBanking(mesa.Model):
                     "Spending": "spending",
                 }
             },
-            tables=None
+            tables={
+                "Individual Wealth Curve": [
+                    "Step",
+                    "Population Share",
+                    "Cumulative Wealth"
+                ]
+            }
         )
         
         self.datacollector.collect(self)
+        self._store_lorenz_wealth_curve()
     
     
     ##############
@@ -114,20 +122,20 @@ class BoltzmannBanking(mesa.Model):
         return sum(agent.spending for agent in self.agents)
     
     @property
+    def individual_wealth_data(self) -> list[float]:
+        return [i.wealth for i in self.agents_by_type[Individual]]
+    
+    @property
+    def individual_wealth_gini(self) -> float:
+        return metrics.gini_index(self.individual_wealth_data)
+    
+    @property
     def individual_income_curve(self) -> float:
         return sorted([i.income for i in self.agents_by_type[Individual]])
     
     @property
     def individual_income_gini(self) -> float:
         return metrics.gini_index(self.individual_income_curve)
-    
-    @property
-    def individual_wealth_curve(self) -> float:
-        return sorted([i.wealth for i in self.agents_by_type[Individual]])
-    
-    @property
-    def individual_wealth_gini(self) -> float:
-        return metrics.gini_index(self.individual_wealth_curve)
     
     @property
     def individual_spending_curve(self) -> float:
@@ -154,3 +162,38 @@ class BoltzmannBanking(mesa.Model):
         self.agents_by_type[Bank].do("act")
 
         self.datacollector.collect(self)
+        self._store_lorenz_wealth_curve()
+    
+    ###########
+    # Methods #
+    ###########
+    
+    def lorenz_wealth_value(self, step, p):
+        
+        pop_share, cum_wealth = self.lorenz_wealth_curve(step)
+
+        index = np.searchsorted(pop_share, p)
+        index = min(index, len(cum_wealth) - 1)  # Ensure index stays within bounds
+        
+        return cum_wealth[index]
+    
+    def lorenz_wealth_curve(self, step):
+        
+        table = self.datacollector.get_table_dataframe("Individual Wealth Curve")
+        row = table.loc[table["Step"] == step]
+        
+        if row.empty:
+            raise ValueError(f"No Lorenz curve data available for step {step}")
+        
+        return np.array(row["Population Share"].values[0]), np.array(row["Cumulative Wealth"].values[0])
+    
+    def _store_lorenz_wealth_curve(self):
+        if len(self.individual_wealth_data) > 0:
+            cumulative_share, population_share = metrics.lorenz_curve(self.individual_wealth_data)
+        else:
+            raise RuntimeError("Model has no individuals. Check initialization.")
+        
+        self.datacollector.add_table_row(
+            "Individual Wealth Curve",
+            {"Step": self.steps, "Population Share": population_share, "Cumulative Wealth": cumulative_share}
+        )

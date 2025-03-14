@@ -42,6 +42,7 @@ def money_supply(model, period: int = 1):
     axes[0].set_ylabel("Money Supply")
     axes[0].set_title(f"Money Supply Over Time (Downsampled every {period} steps)")
     axes[0].legend()
+    axes[0].grid(True)
 
     ## **Second Plot: Issued Debt & Net Issuance**
     axes[1].plot(sampled_df.index, sampled_df["Money Supply Change"], label="Net Issuance", color="black")
@@ -120,5 +121,42 @@ def individual_wealth_distribution(model, step: int | None = None):
     ax[1].set_ylabel("Cumulative Wealth Share")
     ax[1].legend()
 
+    plt.tight_layout()
+    plt.show()
+
+
+def individual_wealth_inequality(model, p_values = [0.25, 0.5, 0.75]):
+    
+    # Extract model-level data
+    model_df = model.datacollector.get_model_vars_dataframe()
+
+    individual_wealth_gini = model_df["Individual Wealth Gini"]
+    
+    steps = individual_wealth_gini.index.get_level_values(0).unique()
+    wealth_share_over_time = {p: [] for p in p_values}
+
+    for step in steps:
+        for p in p_values:
+            wealth_share_over_time[p].append(model.lorenz_wealth_value(step, p))
+
+    # Create a stacked figure
+    fig, ax = plt.subplots(2, 1, figsize=(8, 6), sharex=True)
+    
+    # Plot Gini coefficient
+    ax[0].plot(steps, individual_wealth_gini, marker="o", linestyle="-", color="red")
+    ax[0].set_ylabel("Gini Coefficient")
+    ax[0].set_title("Gini Coefficient and Wealth Share Over Time")
+    ax[0].grid(True)
+    ax[0].set_ylim(0, 1)
+    
+    # Plot wealth share of bottom p%
+    for p in p_values:
+        ax[1].plot(steps, wealth_share_over_time[p], marker="o", linestyle="-", label=f"Bottom {p}%")
+    ax[1].set_xlabel("Time Step")
+    ax[1].set_ylabel("Wealth Share (%)")
+    ax[1].legend()
+    ax[1].grid(True)
+    ax[1].set_ylim(0, 1)
+    
     plt.tight_layout()
     plt.show()
