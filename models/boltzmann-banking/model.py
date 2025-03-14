@@ -89,12 +89,18 @@ class BoltzmannBanking(mesa.Model):
                     "Step",
                     "Population Share",
                     "Cumulative Wealth"
+                ],
+                "Individual Income Curve": [
+                    "Step",
+                    "Population Share",
+                    "Cumulative Income"
                 ]
             }
         )
         
         self.datacollector.collect(self)
         self._store_lorenz_wealth_curve()
+        self._store_lorenz_income_curve()
     
     
     ##############
@@ -122,6 +128,10 @@ class BoltzmannBanking(mesa.Model):
         return sum(agent.spending for agent in self.agents)
     
     @property
+    def individuals(self):
+        return self.agents_by_type[Individual]
+    
+    @property
     def individual_wealth_data(self) -> list[float]:
         return [i.wealth for i in self.agents_by_type[Individual]]
     
@@ -130,20 +140,20 @@ class BoltzmannBanking(mesa.Model):
         return metrics.gini_index(self.individual_wealth_data)
     
     @property
-    def individual_income_curve(self) -> float:
-        return sorted([i.income for i in self.agents_by_type[Individual]])
+    def individual_income_data(self) -> float:
+        return [i.income for i in self.agents_by_type[Individual]]
     
     @property
     def individual_income_gini(self) -> float:
-        return metrics.gini_index(self.individual_income_curve)
+        return metrics.gini_index(self.individual_income_data)
     
     @property
-    def individual_spending_curve(self) -> float:
-        return sorted([i.spending for i in self.agents_by_type[Individual]])
+    def individual_spending_data(self) -> float:
+        return [i.spending for i in self.agents_by_type[Individual]]
     
     @property
     def individual_spending_gini(self) -> float:
-        return metrics.gini_index(self.individual_spending_curve)
+        return metrics.gini_index(self.individual_spending_data)
     
     @property
     def individual_data(self):
@@ -163,6 +173,7 @@ class BoltzmannBanking(mesa.Model):
 
         self.datacollector.collect(self)
         self._store_lorenz_wealth_curve()
+        self._store_lorenz_income_curve()
     
     ###########
     # Methods #
@@ -196,4 +207,34 @@ class BoltzmannBanking(mesa.Model):
         self.datacollector.add_table_row(
             "Individual Wealth Curve",
             {"Step": self.steps, "Population Share": population_share, "Cumulative Wealth": cumulative_share}
+        )
+
+    def lorenz_income_value(self, step, p):
+        
+        pop_share, cum_income = self.lorenz_income_curve(step)
+
+        index = np.searchsorted(pop_share, p)
+        index = min(index, len(cum_income) - 1)  # Ensure index stays within bounds
+        
+        return cum_income[index]
+
+    def lorenz_income_curve(self, step):
+        
+        table = self.datacollector.get_table_dataframe("Individual Income Curve")
+        row = table.loc[table["Step"] == step]
+        
+        if row.empty:
+            raise ValueError(f"No Lorenz curve data available for step {step}")
+        
+        return np.array(row["Population Share"].values[0]), np.array(row["Cumulative Income"].values[0])
+
+    def _store_lorenz_income_curve(self):
+        if len(self.individual_income_data) > 0:
+            cumulative_share, population_share = metrics.lorenz_curve(self.individual_income_data)
+        else:
+            raise RuntimeError("Model has no individuals. Check initialization.")
+        
+        self.datacollector.add_table_row(
+            "Individual Income Curve",
+            {"Step": self.steps, "Population Share": population_share, "Cumulative Income": cumulative_share}
         )

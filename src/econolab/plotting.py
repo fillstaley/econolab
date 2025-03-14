@@ -92,6 +92,43 @@ def money_supply(model, period: int = 1):
     plt.show()
 
 
+def individual_wealth_inequality(model, p_values = [0.25, 0.5, 0.75]):
+    
+    # Extract model-level data
+    model_df = model.datacollector.get_model_vars_dataframe()
+
+    individual_wealth_gini = model_df["Individual Wealth Gini"]
+    
+    steps = individual_wealth_gini.index.get_level_values(0).unique()
+    wealth_share_over_time = {p: [] for p in p_values}
+
+    for step in steps:
+        for p in p_values:
+            wealth_share_over_time[p].append(model.lorenz_wealth_value(step, p))
+
+    # Create a stacked figure
+    fig, ax = plt.subplots(2, 1, figsize=(8, 6), sharex=True)
+    
+    # Plot Gini coefficient
+    ax[0].plot(steps, individual_wealth_gini, marker="o", linestyle="-", color="red")
+    ax[0].set_ylabel("Gini Coefficient")
+    ax[0].set_title("Gini Coefficient and Wealth Share Over Time")
+    ax[0].grid(True)
+    ax[0].set_ylim(0, 1)
+    
+    # Plot wealth share of bottom p%
+    for p in p_values:
+        ax[1].plot(steps, wealth_share_over_time[p], marker="o", linestyle="-", label=f"Bottom {p}%")
+    ax[1].set_xlabel("Time Step")
+    ax[1].set_ylabel("Wealth Share (%)")
+    ax[1].legend()
+    ax[1].grid(True)
+    ax[1].set_ylim(0, 1)
+    
+    plt.tight_layout()
+    plt.show()
+
+
 def individual_wealth_distribution(model, step: int | None = None):
     
     if step is None:
@@ -125,38 +162,69 @@ def individual_wealth_distribution(model, step: int | None = None):
     plt.show()
 
 
-def individual_wealth_inequality(model, p_values = [0.25, 0.5, 0.75]):
-    
-    # Extract model-level data
+def individual_income_inequality(model, p_values: list[float] = [0.25, 0.5, 0.9]):
+    """
+    Plots the Gini coefficient of individual income over time and the wealth share of the bottom p%.
+    """
     model_df = model.datacollector.get_model_vars_dataframe()
-
-    individual_wealth_gini = model_df["Individual Wealth Gini"]
+    individual_income_gini = model_df["Individual Income Gini"]
     
-    steps = individual_wealth_gini.index.get_level_values(0).unique()
-    wealth_share_over_time = {p: [] for p in p_values}
+    steps = individual_income_gini.index.get_level_values(0).unique()
+    income_share_over_time = {p: [] for p in p_values}
 
     for step in steps:
         for p in p_values:
-            wealth_share_over_time[p].append(model.lorenz_wealth_value(step, p))
-
-    # Create a stacked figure
+            income_share_over_time[p].append(model.lorenz_income_value(step, p))
+    
     fig, ax = plt.subplots(2, 1, figsize=(8, 6), sharex=True)
     
     # Plot Gini coefficient
-    ax[0].plot(steps, individual_wealth_gini, marker="o", linestyle="-", color="red")
+    ax[0].plot(steps, individual_income_gini, marker="o", linestyle="-", color="blue")
     ax[0].set_ylabel("Gini Coefficient")
-    ax[0].set_title("Gini Coefficient and Wealth Share Over Time")
+    ax[0].set_title("Gini Coefficient and Income Share Over Time")
     ax[0].grid(True)
     ax[0].set_ylim(0, 1)
     
-    # Plot wealth share of bottom p%
+    # Plot income share of bottom p%
     for p in p_values:
-        ax[1].plot(steps, wealth_share_over_time[p], marker="o", linestyle="-", label=f"Bottom {p}%")
+        ax[1].plot(steps, income_share_over_time[p], marker="o", linestyle="-", label=f"Bottom {p}%")
     ax[1].set_xlabel("Time Step")
-    ax[1].set_ylabel("Wealth Share (%)")
+    ax[1].set_ylabel("Income Share (%)")
     ax[1].legend()
     ax[1].grid(True)
     ax[1].set_ylim(0, 1)
+    
+    plt.tight_layout()
+    plt.show()
+
+
+def individual_income_distribution(model, step: int | None = None):
+    """
+    Plots the income distribution histogram and Lorenz curve for a given step.
+    """
+    if step is None:
+        step = model.steps
+    
+    # extract the data to be plotted
+    income_data = model.individual_data["Income"].xs(step, level=0)
+    pop_share, cum_income = model.lorenz_income_curve(step)
+    
+    fig, ax = plt.subplots(1, 2, figsize=(8, 3))
+    
+    # Income distribution histogram
+    ax[0].hist(income_data, bins=30, density=True, alpha=0.7, color="blue")
+    ax[0].set_xlabel("Income")
+    ax[0].set_ylabel("Density")
+    ax[0].set_title(f"Income Distribution at Step {step}")
+    
+    # Lorenz curve for income
+    ax[1].plot(pop_share, cum_income, label="Lorenz Curve", color="blue")
+    ax[1].plot([0, 1], [0, 1], linestyle="--", color="gray", label="Perfect Equality")
+    ax[1].set_xlabel("Population Share")
+    ax[1].set_ylabel("Cumulative Income Share")
+    ax[1].set_title(f"Lorenz Curve of Income at Step {step}")
+    ax[1].legend()
+    ax[1].grid(True)
     
     plt.tight_layout()
     plt.show()
