@@ -61,6 +61,11 @@ class BoltzmannBusiness(mesa.Model):
             bank = self.random.choice(self.agents_by_type[Bank])
             i.primary_account = i.open_account(bank, initial_deposit=init_gift)
         
+        # Open a transaction account at the bank for each business
+        for b in self.agents_by_type[Business]:
+            bank = self.random.choice(self.agents_by_type[Bank])
+            b.primary_account = b.open_account(bank, initial_deposit=init_gift)
+        
         self.datacollector = mesa.DataCollector(
             model_reporters=None,
             agent_reporters=None,
