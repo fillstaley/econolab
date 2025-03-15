@@ -13,7 +13,8 @@ class BoltzmannBanking(mesa.Model):
     """A Mesa model with many individuals and one or more banks.
     """
     
-    def __init__(self,
+    def __init__(
+        self,
         num_individuals: int,
         num_banks: int = 1,
         init_gift: float = 0,
