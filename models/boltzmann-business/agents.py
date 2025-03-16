@@ -8,10 +8,10 @@ import mesa
 
 from econolab import banking
 
-import business
+import employment
 
 
-class Individual(banking.Agent, mesa.Agent):
+class Individual(employment.Employee, banking.Agent, mesa.Agent):
     def __init__(self, model, *args, **kwargs) -> None:
         super().__init__(model=model, *args, **kwargs)
     
@@ -36,7 +36,7 @@ class Individual(banking.Agent, mesa.Agent):
         return super().reset_counters()
 
 
-class Business(banking.Agent, mesa.Agent):
+class Business(employment.Employer, banking.Agent, mesa.Agent):
     def __init__(self, model, *args, **kwargs) -> None:
         super().__init__(model=model, *args, **kwargs)
     

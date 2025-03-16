@@ -1,6 +1,7 @@
 """A model of random business activity.
 """
 
+import mesa.agent
 import numpy as np
 import mesa
 
@@ -21,29 +22,32 @@ class BoltzmannBusiness(mesa.Model):
         init_gift: float = 0,
         seed: int | None = None,
     ) -> None:
+        
         super().__init__(seed=seed)
         
-        # create individuals
+        ###########################
+        # Add agents to the model #
+        ###########################
+        
+        # Individuals
         Individual.create_agents(
             model=self,
             n=num_individuals,
         )
 
-        # create businesses
+        # Businesses
         Business.create_agents(
             model=self,
             n=num_business,
         )
         
+        # Banks
         loan_options_per_bank = [None for _ in range(num_banks)]
-        
-        # create banks
         Bank.create_agents(
             model=self,
             n=num_banks,
             loan_options=loan_options_per_bank
         )
-        
         # if there is more than 1 bank, we need to create a reserve bank
         if num_banks > 1:
             ReserveBank.create_agents(
@@ -51,20 +55,32 @@ class BoltzmannBusiness(mesa.Model):
                 n=1,
                 loan_options=None,
             )
-            reserve_bank = self.agents_by_type[ReserveBank][0]
-            for b in self.agents_by_type[Bank]:
-                b.reserve_account = b.open_account(reserve_bank, overdraft_limit=None)
-                b.reserve_bank = reserve_bank
-
+            for b in self.banks:
+                b.reserve_account = b.open_account(self.reserve_bank, overdraft_limit=None)
+                b.reserve_bank = self.reserve_bank
+        
+        ##############################
+        # Initialize monetary system #
+        ##############################
+        
         # Open a transaction account at the bank for each individual
-        for i in self.agents_by_type[Individual]:
-            bank = self.random.choice(self.agents_by_type[Bank])
+        for i in self.individuals:
+            bank = self.random.choice(self.banks)
             i.primary_account = i.open_account(bank, initial_deposit=init_gift)
         
         # Open a transaction account at the bank for each business
-        for b in self.agents_by_type[Business]:
-            bank = self.random.choice(self.agents_by_type[Bank])
+        for b in self.businesses:
+            bank = self.random.choice(self.banks)
             b.primary_account = b.open_account(bank, initial_deposit=init_gift)
+        
+        #########################
+        # Initialize employment #
+        #########################
+        
+        
+        ################################
+        # Initialize the datacollector #
+        ################################
         
         self.datacollector = mesa.DataCollector(
             model_reporters=None,
@@ -80,6 +96,21 @@ class BoltzmannBusiness(mesa.Model):
     # Properties #
     ##############
     
+    @property
+    def individuals(self) -> mesa.agent.AgentSet:
+        return self.agents_by_type[Individual]
+    
+    @property
+    def businesses(self) -> mesa.agent.AgentSet:
+        return self.agents_by_type[Business]
+    
+    @property
+    def banks(self) -> mesa.agent.AgentSet:
+        return self.agents_by_type[Bank]
+    
+    @property
+    def reserve_bank(self):
+        return self.agents_by_type[ReserveBank][0]
     
     ###############
     # Step Method #
