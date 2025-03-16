@@ -1,5 +1,4 @@
-"""Auxiliary code
-
+"""A banking system
 """
 
 
