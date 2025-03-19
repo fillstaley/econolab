@@ -56,6 +56,13 @@ class Business(employment.Employer, banking.Agent, mesa.Agent):
         super().__init__(model=model, *args, **kwargs)
         
         self.employment_apps_review_limit: int | None = None
+        
+        self.approval_probability = 1.0
+        
+        # for now, create 10 jobs with 1 position each
+        for _ in range(10):
+            job = employment.Job(self, max_employees=1)
+            self.begin_hiring(job)
     
     ##############
     # Properties #
@@ -78,6 +85,7 @@ class Business(employment.Employer, banking.Agent, mesa.Agent):
             # each job has only so many open positions, 
             # we don't want to offer more jobs than are available
             offers_available = job.open_positions
+            
             while (
                 (
                     self.employment_apps_review_limit is None
@@ -88,13 +96,18 @@ class Business(employment.Employer, banking.Agent, mesa.Agent):
             ):
                 self.employment_apps_reviewed += 1
                 
+                # for now, randomly decide whether to approve or deny the application
                 if self.random.random() < self.approval_probability:
                     application.approve()
                     offers_available -= 1
                 else:
                     application.deny()
             
-            if self.employment_apps_reviewed >= self.employment_apps_review_limit:
+            # if we hit our review limit, break out of the for loop over open jobs
+            if (
+                self.employment_apps_review_limit is None
+                or self.employment_apps_reviewed >= self.employment_apps_review_limit
+            ):
                 break
 
     ###########
@@ -103,6 +116,18 @@ class Business(employment.Employer, banking.Agent, mesa.Agent):
     
     def reset_counters(self):
         return super().reset_counters()
+    
+    def begin_hiring(self, job):
+        super().begin_hiring(job)
+        
+        if getattr(self.model, "job_board", None) is not None:
+            self.model.job_board.append(job)
+    
+    def end_hiring(self, job):
+        super().end_hiring(job)
+        
+        if getattr(self.model, "job_board", None) is not None and job in self.model.job_board:
+            self.model.job_board.remove(job)
 
 
 class Bank(banking.Bank, mesa.Agent):

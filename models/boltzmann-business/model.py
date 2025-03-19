@@ -17,13 +17,19 @@ class BoltzmannBusiness(mesa.Model):
     def __init__(
         self,
         num_individuals: int,
-        num_business: int,
+        num_businesses: int,
         num_banks: int = 1,
         init_gift: float = 0,
         seed: int | None = None,
     ) -> None:
         
         super().__init__(seed=seed)
+        
+        #########################
+        # Initialize employment #
+        #########################
+        
+        self.job_board = []
         
         ###########################
         # Add agents to the model #
@@ -38,7 +44,7 @@ class BoltzmannBusiness(mesa.Model):
         # Businesses
         Business.create_agents(
             model=self,
-            n=num_business,
+            n=num_businesses,
         )
         
         # Banks
@@ -72,11 +78,6 @@ class BoltzmannBusiness(mesa.Model):
         for b in self.businesses:
             bank = self.random.choice(self.banks)
             b.primary_account = b.open_account(bank, initial_deposit=init_gift)
-        
-        #########################
-        # Initialize employment #
-        #########################
-        
         
         ################################
         # Initialize the datacollector #

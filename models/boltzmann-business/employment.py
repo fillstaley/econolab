@@ -83,7 +83,7 @@ class Employer:
         del self._received_job_applications[job]
         return True
     
-    def hire(self, application: EmploymentApplication, date: int) -> EmploymentContract | None:
+    def hire(self, application: EmploymentApplication, date: int = 0) -> EmploymentContract | None:
         """Adds an employee to the payroll.
 
         Parameters
@@ -100,13 +100,17 @@ class Employer:
             employee, then a new Job instance is returned; otherwise None is returned.
         """
         if application.approved:
-            contract = EmploymentContract()
+            contract = EmploymentContract(self, application.applicant)
             self.payroll[application.applicant] = contract
+            
+            if not application.job.open_positions:
+                self.end_hiring(application.job)
+            
             return contract
         return None
     
     
-    def fire(self, employee: Employee, date: int) -> bool:
+    def fire(self, employee: Employee, date: int = 0) -> bool:
         """Removes an employee from the payroll.
 
         Parameters
@@ -130,7 +134,7 @@ class Job:
     
     @property
     def open_positions(self) -> bool:
-        return self.max_employees - len(self.employees)
+        return max(0, self.max_employees - len(self.employees))
     
     def apply(self, applicant: Employee) -> EmploymentApplication | None:
         if self.open_positions:
@@ -182,4 +186,6 @@ class EmploymentApplication:
 
 
 class EmploymentContract:
-    pass
+    def __init__(self, employer: Employer, employee: Employee):
+        self.employer = employer
+        self.employee = employee
