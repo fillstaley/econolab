@@ -100,11 +100,16 @@ class Employer:
             employee, then a new Job instance is returned; otherwise None is returned.
         """
         if application.approved:
-            contract = EmploymentContract(self, application.applicant)
-            self.payroll[application.applicant] = contract
             
-            if not application.job.open_positions:
-                self.end_hiring(application.job)
+            employee = application.applicant
+            job = application.job
+            
+            contract = EmploymentContract(self, employee)
+            self.payroll[employee] = contract
+            
+            job.employees.append(employee)
+            if not job.open_positions:
+                self.end_hiring(job)
             
             return contract
         return None

@@ -3,6 +3,7 @@
 
 
 from __future__ import annotations
+from collections import deque
 
 import mesa
 
@@ -14,12 +15,18 @@ import employment
 class Individual(employment.Employee, banking.Agent, mesa.Agent):
     def __init__(self, model, *args, **kwargs) -> None:
         super().__init__(model=model, *args, **kwargs)
+        
+        self._open_employment_applications = []
+        self._closed_employment_applications = []
     
     
     ##############
     # Properties #
     ##############
     
+    @property
+    def applied_jobs(self) -> set[employment.Job]:
+        return {app.job for app in self._open_employment_applications}
     
     ##############
     # Act Method #
@@ -37,11 +44,10 @@ class Individual(employment.Employee, banking.Agent, mesa.Agent):
         
         # if unemployed, search and apply for open jobs
         if not self._current_employment_contracts and getattr(self.model, "job_board", None):
-            sample_size = min(3, len(self.model.job_board))
-            jobs_sample = self.random.sample(self.model.job_board, sample_size)
-            for job in jobs_sample:
-                if application := job.apply(self):
-                    self._open_employment_applications.append(application)
+            for job in self.search_for_jobs(self.model.job_board, num_jobs=3):
+                if (application := job.apply(self)) is None:
+                    continue
+                self._open_employment_applications.append(application)
 
     ###########
     # Methods #
@@ -49,6 +55,42 @@ class Individual(employment.Employee, banking.Agent, mesa.Agent):
     
     def reset_counters(self):
         return super().reset_counters()
+    
+    def search_for_jobs(
+        self, 
+        job_board: list[employment.Job], 
+        num_jobs: int, 
+        max_attempts: int | None = None
+    ) -> list[employment.Job]:
+        """Returns a list of jobs for which the individual can and would like to apply."""
+        preferred_jobs = []
+        
+        # create a copy of the list of jobs
+        # later: filter for jobs for which the individual is qualified
+        # later: filter by some coarse desirability conditions
+        suitable_jobs = list(job_board)
+        
+        # Shuffle the qualified jobs and convert them into a deque (for sampling without replacement)
+        self.random.shuffle(suitable_jobs)
+        jobs_deque = deque(suitable_jobs)
+        
+        # If max_attempts isn't provided, default to len(job_board)
+        if max_attempts is None:
+            max_attempts = len(jobs_deque)
+        
+        attempts = 0
+        while len(preferred_jobs) < num_jobs and attempts < max_attempts and jobs_deque:
+            attempts += 1
+            job = jobs_deque.popleft()
+            
+            # skip jobs for which the individual has already applied
+            if job in self.applied_jobs:
+                continue
+            
+            # later: apply some finer desirability conditions
+            preferred_jobs.append(job)
+
+        return preferred_jobs
 
 
 class Business(employment.Employer, banking.Agent, mesa.Agent):
