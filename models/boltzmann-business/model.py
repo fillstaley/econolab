@@ -84,9 +84,15 @@ class BoltzmannBusiness(mesa.Model):
         ################################
         
         self.datacollector = mesa.DataCollector(
-            model_reporters=None,
+            model_reporters = {
+                "Unemployment Rate": "unemployment_rate",
+            },
             agent_reporters=None,
-            agenttype_reporters=None,
+            agenttype_reporters = {
+                Individual: {
+                    "Number of Jobs": "number_of_jobs",
+                }
+            },
             tables=None
         )
         
@@ -112,6 +118,12 @@ class BoltzmannBusiness(mesa.Model):
     @property
     def reserve_bank(self):
         return self.agents_by_type[ReserveBank][0]
+    
+    @property
+    def unemployment_rate(self) -> float:
+        total = len(self.individuals)
+        unemployed = sum(1 for i in self.individuals if i.number_of_jobs == 0)
+        return unemployed / total if total else 0.0
     
     ###############
     # Step Method #

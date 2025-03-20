@@ -16,9 +16,6 @@ class Individual(employment.Employee, banking.Agent, mesa.Agent):
     def __init__(self, model, *args, **kwargs) -> None:
         super().__init__(model=model, *args, **kwargs)
         
-        self._open_employment_applications = []
-        self._closed_employment_applications = []
-    
     
     ##############
     # Properties #
@@ -27,6 +24,10 @@ class Individual(employment.Employee, banking.Agent, mesa.Agent):
     @property
     def applied_jobs(self) -> set[employment.Job]:
         return {app.job for app in self._open_employment_applications}
+    
+    @property
+    def number_of_jobs(self) -> int:
+        return len(self._current_employment_contracts)
     
     ##############
     # Act Method #

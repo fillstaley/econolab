@@ -318,3 +318,33 @@ def individual_income_distribution(model, step: int | None = None):
     
     plt.tight_layout()
     plt.show()
+
+
+####################
+# Employment plots #
+####################
+
+def unemployment_rate(model) -> None:
+    """
+    Plots the unemployment rate over time using data from the model's datacollector.
+    
+    Assumes:
+        - The model has a datacollector with a method get_model_vars_df()
+        - The returned dataframe has an index representing steps
+        - The dataframe has a column "Unemployment Rate"
+    """
+    # Extract the model variables dataframe from the model's datacollector
+    model_df = model.datacollector.get_model_vars_dataframe()
+    
+    # Create subplots for future expansion (currently one plot)
+    fig, ax = plt.subplots(1, 1, figsize=(8, 3))
+    
+    # Plot the unemployment rate (the index is assumed to be the simulation step)
+    ax.plot(model_df.index, model_df["Unemployment Rate"], label="Unemployment Rate")
+    ax.set_xlabel("Step")
+    ax.set_ylabel("Unemployment Rate")
+    ax.set_title("Unemployment Rate Over Time")
+    ax.legend()
+    
+    plt.tight_layout()
+    plt.show()
