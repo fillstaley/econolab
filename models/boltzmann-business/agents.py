@@ -118,9 +118,11 @@ class Business(employment.Employer, banking.Agent, mesa.Agent):
     
     def act(self) -> None:
         
+        self.record_attendance(self.employees)
+        
         self.employment_apps_reviewed = 0
         
-        open_jobs = self.open_jobs
+        open_jobs = list(self.open_jobs)
         self.random.shuffle(open_jobs)
         
         # loop over the open jobs and review as many applications as possible

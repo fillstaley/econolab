@@ -33,12 +33,12 @@ class Employer:
     ##############
     
     @property
-    def employees(self) -> list[Employee]:
-        return list(self.payroll.keys())
+    def employees(self) -> set[Employee]:
+        return set(self.payroll.keys())
     
     @property
-    def open_jobs(self) -> list[Job]:
-        return list(self._received_job_applications.keys())
+    def open_jobs(self) -> set[Job]:
+        return set(self._received_job_applications.keys())
     
     ###########
     # Methods #
@@ -117,7 +117,7 @@ class Employer:
     
     def fire(self, employee: Employee, date: int = 0) -> bool:
         """Removes an employee from the payroll.
-
+        
         Parameters
         ----------
         employee : Employee
@@ -129,6 +129,13 @@ class Employer:
             del self.payroll[employee]
             return True
         return False
+    
+    
+    def record_attendance(self, employees: list[Employee]) -> None:
+        for employee in employees:
+            if employee not in self.employees:
+                raise ValueError(f"{employee} is not employed by this employer.")
+            self.payroll[employee].steps_worked += 1
 
 
 class Job:
@@ -194,3 +201,5 @@ class EmploymentContract:
     def __init__(self, employer: Employer, employee: Employee):
         self.employer = employer
         self.employee = employee
+        
+        self.steps_worked: int = 0
