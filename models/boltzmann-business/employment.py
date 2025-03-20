@@ -3,7 +3,7 @@
 
 
 from __future__ import annotations
-from collections import deque
+from collections import deque, defaultdict
 
 class Employee:
     def __init__(self, *args, **kwargs):
@@ -15,9 +15,22 @@ class Employee:
         self._current_employment_contracts: list[EmploymentContract] = []
         self._past_employment_contracts: list[EmploymentContract] = []
     
+    
+    ##############
+    # Properties #
+    ##############
+    
     @property
     def reviewed_employment_applications(self) -> list[EmploymentApplication]:
         return [a for a in self._open_employment_applications if not a.pending]
+    
+    @property
+    def applied_jobs(self) -> set[Job]:
+        return {app.job for app in self._open_employment_applications}
+    
+    @property
+    def number_of_jobs(self) -> int:
+        return len(self._current_employment_contracts)
 
 
 class Employer:
@@ -27,6 +40,7 @@ class Employer:
         self.payroll: dict[Employee, EmploymentContract] = {}
         
         self._received_job_applications: dict[Job, deque[EmploymentApplication]] = {}
+        self._outstanding_job_offers: dict[Job, list[EmploymentApplication]] = {}
     
     ##############
     # Properties #
@@ -54,20 +68,61 @@ class Employer:
         
         # we initialize an empty queue for applications
         self._received_job_applications[job] = deque()
+        self._outstanding_job_offers[job] = []
         return True
     
+    
     def receive_employment_application(self, application: EmploymentApplication):
+        
         job = application.job
         if job in self._received_job_applications:
             self._received_job_applications[job].append(application)
     
-    def next_employment_application(self, job: Job) -> EmploymentApplication | None:
-        if job not in self._received_job_applications:
-            return None
+    
+    def review_employment_applications(
+        self, 
+        open_jobs: list[Job], 
+        review_limit: int | None = None
+    ) -> int:
         
-        if not (queue := self._received_job_applications[job]):
-            return None
-        return queue.popleft()
+        apps_reviewed: int = 0
+        for job in open_jobs:
+            # determine how many applications can be accepted and get application queue
+            offers_outstanding = len(self._outstanding_job_offers[job])
+            offers_available = job.open_positions
+            queue = self._received_job_applications[job]
+            while (
+                (review_limit is None or apps_reviewed >= review_limit)
+                and offers_available
+                and queue
+            ):
+                # increment the counter and get the next application
+                apps_reviewed += 1
+                application = queue.popleft()
+                
+                # decide whether to approve or deny the application
+                if self.decide_employment(application):
+                    application.approve()
+                    offers_available -= 1
+                    self._outstanding_job_offers[job].append(application)
+                else:
+                    application.deny()
+            
+            # if we hit our review limit, break out of the for loop over open jobs
+            if review_limit is None or apps_reviewed >= review_limit:
+                break
+        return apps_reviewed
+    
+    
+    def decide_employment(self, application: EmploymentApplication) -> bool:
+        """
+        Default decision method for an application.
+        Returns True if the application is approved, False otherwise.
+        The default behavior might be a simple random coin flip.
+        """
+        # Default: approve based on a random probability.
+        return self.random.random() < self.approval_probability
+    
     
     def end_hiring(self, job: Job) -> bool:
         """Denies all remaining applications for a job and deletes the queue."""
@@ -77,11 +132,21 @@ class Employer:
         if job not in self._received_job_applications:
             return False
         
-        # we clear the queue of applications then remove it
-        while application := self.next_employment_application(job):
+        # ensure that the list of outstanding job offers is empty
+        if self._outstanding_job_offers[job]:
+            return False
+        
+        # clear the application queue by denying all applications
+        queue = self._received_job_applications[job]
+        while queue:
+            application = queue.popleft()
             application.deny()
+        
+        # remove both the application queue and the outstanding jobs list
         del self._received_job_applications[job]
+        del self._outstanding_job_offers[job]
         return True
+    
     
     def hire(self, application: EmploymentApplication, date: int = 0) -> EmploymentContract | None:
         """Adds an employee to the payroll.

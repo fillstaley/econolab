@@ -21,13 +21,6 @@ class Individual(employment.Employee, banking.Agent, mesa.Agent):
     # Properties #
     ##############
     
-    @property
-    def applied_jobs(self) -> set[employment.Job]:
-        return {app.job for app in self._open_employment_applications}
-    
-    @property
-    def number_of_jobs(self) -> int:
-        return len(self._current_employment_contracts)
     
     ##############
     # Act Method #
@@ -120,41 +113,13 @@ class Business(employment.Employer, banking.Agent, mesa.Agent):
         
         self.record_attendance(self.employees)
         
-        self.employment_apps_reviewed = 0
-        
+        # create a list of open jobs and prioritize (for now, shuffle) them
         open_jobs = list(self.open_jobs)
         self.random.shuffle(open_jobs)
-        
-        # loop over the open jobs and review as many applications as possible
-        for job in open_jobs:
-            # each job has only so many open positions, 
-            # we don't want to offer more jobs than are available
-            offers_available = job.open_positions
-            
-            while (
-                (
-                    self.employment_apps_review_limit is None
-                    or self.employment_apps_reviewed < self.employment_apps_review_limit
-                )
-                and offers_available > 0
-                and (application := self.next_employment_application(job))
-            ):
-                self.employment_apps_reviewed += 1
-                
-                # for now, randomly decide whether to approve or deny the application
-                if self.random.random() < self.approval_probability:
-                    application.approve()
-                    offers_available -= 1
-                else:
-                    application.deny()
-            
-            # if we hit our review limit, break out of the for loop over open jobs
-            if (
-                self.employment_apps_review_limit is None
-                or self.employment_apps_reviewed >= self.employment_apps_review_limit
-            ):
-                break
-
+        # and then review employment applications for them
+        self.review_employment_applications(open_jobs)
+    
+    
     ###########
     # Methods #
     ###########
