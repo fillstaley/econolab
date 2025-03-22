@@ -1,4 +1,5 @@
-"""The temporal structure of an econolab module."""
+"""A class that specifies the temporal structure of an EconoLab model.
+"""
 
 
 class Calendar:
