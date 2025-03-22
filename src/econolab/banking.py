@@ -5,8 +5,10 @@
 from __future__ import annotations
 from collections import defaultdict, deque
 
+from ._core import BaseAgent
 
-class Agent:
+
+class Agent(BaseAgent):
     def __init__(self, debt_limit: float | None = 0, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
 

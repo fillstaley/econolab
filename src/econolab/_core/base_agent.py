@@ -4,7 +4,7 @@ from ..temporal import Calendar
 from .counters import Counters
 
 
-class Agent:
+class BaseAgent:
     """Base class for agents in an EconoLab model."""
 
     def __init__(self, calendar: Calendar, *args, **kwargs) -> None:

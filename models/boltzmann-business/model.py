@@ -5,6 +5,7 @@ import mesa.agent
 import numpy as np
 import mesa
 
+from econolab import temporal
 from econolab import metrics
 
 from agents import Individual, Business, Bank, ReserveBank
@@ -22,8 +23,13 @@ class BoltzmannBusiness(mesa.Model):
         init_gift: float = 0,
         seed: int | None = None,
     ) -> None:
-        
         super().__init__(seed=seed)
+        
+        #######################
+        # Initialize calendar #
+        #######################
+        
+        self.calendar = temporal.Calendar()
         
         #########################
         # Initialize employment #
@@ -39,12 +45,14 @@ class BoltzmannBusiness(mesa.Model):
         Individual.create_agents(
             model=self,
             n=num_individuals,
+            calendar=self.calendar,
         )
 
         # Businesses
         Business.create_agents(
             model=self,
             n=num_businesses,
+            calendar=self.calendar,
         )
         
         # Banks
@@ -52,6 +60,7 @@ class BoltzmannBusiness(mesa.Model):
         Bank.create_agents(
             model=self,
             n=num_banks,
+            calendar=self.calendar,
             loan_options=loan_options_per_bank
         )
         # if there is more than 1 bank, we need to create a reserve bank
@@ -59,6 +68,7 @@ class BoltzmannBusiness(mesa.Model):
             ReserveBank.create_agents(
                 model=self,
                 n=1,
+                calendar=self.calendar,
                 loan_options=None,
             )
             for b in self.banks:

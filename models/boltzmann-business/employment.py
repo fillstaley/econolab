@@ -5,7 +5,9 @@
 from __future__ import annotations
 from collections import deque, defaultdict
 
-class Employee:
+from econolab import BaseAgent
+
+class Employee(BaseAgent):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         
@@ -33,7 +35,7 @@ class Employee:
         return len(self._current_employment_contracts)
 
 
-class Employer:
+class Employer(BaseAgent):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         
