@@ -5,12 +5,14 @@
 from __future__ import annotations
 from functools import total_ordering
 
+from numpy import floor
+
 from .config import MINYEAR, MAXYEAR, DAYS_PER_WEEK, DAYS_PER_MONTH, MONTHS_PER_YEAR
 
 
 @total_ordering
 class EconoDate:
-    """...
+    """A point in EconoLab time.
     """
     
     
@@ -122,21 +124,69 @@ class EconoDate:
     
     __rsub__ = __sub__
     
+    def __str__(self):
+        return f"{self.year}-{self.month}-{self.day}"
+    
     def __repr__(self):
-        return f"EconoDate({self.steps})"
+        return f"EconoDate({self.year}, {self.month}, {self.day})"
 
 
 @total_ordering
 class EconoDuration:
-    """...
+    """A duration of EconoLab time, measured in days.
+    
+    Parameters
+    ----------
+    days : int
+        The number of days in the duration, default is 0
+    weeks : int
+        The additional number of weeks in the duration, default is 0
+    
+    Attributes
+    ----------
+    days : int
+        The number of days in the duration
+    
+    Examples
+    --------
+    >>> duration = EconoDuration(7)
+    >>> duration
+    EconoDuration(7)
+    >>> print(duration)
+    7 days
+    >>> duration.days
+    7
+    >>> duration + EconoDuration(10)
+    EconoDuration(17)
+    >>> duration - EconoDuration(3)
+    EconoDuration(4)
+    >>> duration * 2
+    EconoDuration(14)
+    >>> duration / 2
+    EconoDuration(3)
+    >>> duration // 2
+    EconoDuration(3)
+    >>> duration // EconoDuration(3)
+    EconoDuration(2)
+    >>> duration % EconoDuration(3)
+    EconoDuration(1)
+    >>> divmod(duration, EconoDuration(3))
+    (EconoDuration(2), EconoDuration(1))
+    >>> -duration
+    EconoDuration(-7)
+    >>> abs(duration)
+    EconoDuration(7)
+    >>> abs(-duration)
+    EconoDuration(7)
+    
     """
     
     ###############
     # Init Method #
     ###############
     
-    def __init__(self, days: int = 0, weeks: int = 0):
-        self._days = days + weeks * DAYS_PER_WEEK
+    def __init__(self, days: int | float = 0, weeks: int | float = 0):
+        self._days = int(floor(days + weeks * DAYS_PER_WEEK))
     
     
     ##############
@@ -145,6 +195,7 @@ class EconoDuration:
     
     @property
     def days(self) -> int:
+        """The number of days in the duration."""
         return self._days
     
     @days.setter
@@ -178,6 +229,50 @@ class EconoDuration:
         if isinstance(other, EconoDuration):
             return EconoDuration(self.days - other.days)
         return NotImplemented
+    
+    def __mul__(self, other: int | float) -> EconoDuration:
+        if isinstance(other, int | float):
+            return EconoDuration(self.days * other)
+        return NotImplemented
+    
+    def __truediv__(self, other: EconoDuration | int | float) -> float | EconoDuration:
+        if isinstance(other, EconoDuration):
+            return self.days / other.days
+        elif isinstance(other, int | float):
+            return EconoDuration(self.days / other)
+        return NotImplemented
+    
+    def __floordiv__(self, other: EconoDuration | int) -> EconoDuration:
+        if isinstance(other, EconoDuration):
+            return EconoDuration(self.days // other.days)
+        elif isinstance(other, int):
+            return EconoDuration(self.days // other)
+        return NotImplemented
+    
+    def __mod__(self, other: EconoDuration) -> EconoDuration:
+        if isinstance(other, EconoDuration):
+            return EconoDuration(self.days % other.days)
+        return NotImplemented
+    
+    def __divmod__(self, other: EconoDuration) -> tuple[EconoDuration, EconoDuration]:
+        if isinstance(other, EconoDuration):
+            return self // other, self % other
+        return NotImplemented
+    
+    def __neg__(self) -> EconoDuration:
+        return EconoDuration(-self.days)
+    
+    def __pos__(self) -> EconoDuration:
+        return self
+    
+    def __abs__(self) -> EconoDuration:
+        return EconoDuration(abs(self.days))
+    
+    def __str__(self) -> str:
+        if self.days == 1:
+            return "1 day"
+        else:
+            return f"{self.days} days"
 
     def __repr__(self):
-        return f"EconoStep({self.steps})"
+        return f"EconoDuration({self.days})"
