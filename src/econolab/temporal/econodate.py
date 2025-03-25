@@ -12,9 +12,71 @@ from .config import MINYEAR, MAXYEAR, DAYS_PER_WEEK, DAYS_PER_MONTH, MONTHS_PER_
 
 @total_ordering
 class EconoDate:
-    """A point in EconoLab time.
     """
+    A point in EconoLab time represented as a discrete calendar date.
+
+    An EconoDate object encapsulates a specific moment in the simulation's calendar,
+    defined by a year, month, and day. The date is based on a fixed temporal structure,
+    with a set number of days per month and months per year (imported from the configuration).
+    EconoDate objects are immutable; once created, their year, month, and day cannot be changed.
+
+    Parameters
+    ----------
+    year : int
+        The year component of the date. Must be between MINYEAR and MAXYEAR.
+    month : int
+        The month component of the date. Must be between 1 and MONTHS_PER_YEAR.
+    day : int
+        The day component of the date. Must be between 1 and DAYS_PER_MONTH.
+
+    Attributes
+    ----------
+    year : int
+        The year of the date.
+    month : int
+        The month of the date.
+    day : int
+        The day of the date.
+
+    Methods
+    -------
+    to_days() -> int
+        Convert the EconoDate to an integer count of days elapsed since the base year
+        (MINYEAR), according to the configured temporal structure.
+    replace(year: int = None, month: int = None, day: int = None) -> EconoDate
+        Return a new EconoDate with any specified components replaced by new values.
+    weekday() -> int
+        Return the day of the week (to be implemented).
     
+    Operator Overloads
+    ------------------
+    __eq__(other: EconoDate) -> bool
+        Compare two EconoDate objects for equality based on (year, month, day).
+    __lt__(other: EconoDate) -> bool
+        Compare two EconoDate objects lexicographically.
+    __add__(other: EconoDuration) -> EconoDate
+        Return a new EconoDate by adding a duration (in days) to the current date.
+    __sub__(other: EconoDuration | EconoDate) -> EconoDate | EconoDuration
+        Subtract a duration from a date (yielding a new date) or subtract two dates
+        (yielding a duration).
+
+    Examples
+    --------
+    >>> d1 = EconoDate(2021, 1, 1)
+    >>> d1
+    EconoDate(2021, 1, 1)
+    >>> d1.to_days()  
+    <number of days from MINYEAR to January 1, 2021>
+    >>> d2 = d1.replace(month=2)
+    >>> d2
+    EconoDate(2021, 2, 1)
+
+    Note
+    ----
+    EconoDate objects are immutable. Attempting to set attributes (e.g., d1.year = 2020)
+    will raise an AttributeError.
+    
+    """
     
     #################
     # Class Methods #
@@ -22,12 +84,38 @@ class EconoDate:
     
     @classmethod
     def from_days(cls, days: int) -> EconoDate:
-        year = MINYEAR + days // (DAYS_PER_MONTH * MONTHS_PER_YEAR)
-        if year > MAXYEAR:
-            raise ValueError("too many days, exceeds maximum number of years")
+        """
+        Create an EconoDate object from a given number of days elapsed since MINYEAR.
+
+        This method converts a number of days into a discrete calendar date, assuming a
+        fixed calendar with DAYS_PER_MONTH days per month and MONTHS_PER_YEAR months per
+        year, starting at MINYEAR. If the computed year exceeds MAXYEAR, a ValueError is
+        raised.
+
+        Parameters
+        ----------
+        days : int
+            The number of days elapsed since the beginning of the calendar (MINYEAR).
+
+        Returns
+        -------
+        EconoDate
+            A new EconoDate object corresponding to the given number of days.
+
+        Raises
+        ------
+        ValueError
+            If the calculated year exceeds MAXYEAR.
         
-        month = 1 + days % (DAYS_PER_MONTH * MONTHS_PER_YEAR) // DAYS_PER_MONTH
-        day = 1 + days % DAYS_PER_MONTH
+        """
+        
+        days_in_year = DAYS_PER_MONTH * MONTHS_PER_YEAR
+        year = MINYEAR + days // days_in_year
+        if year > MAXYEAR:
+            raise ValueError("Too many days: exceeds maximum number of years")
+        remainder = days % days_in_year
+        month = 1 + remainder // DAYS_PER_MONTH
+        day = 1 + remainder % DAYS_PER_MONTH
         return cls(year, month, day)
     
     
@@ -54,6 +142,7 @@ class EconoDate:
     
     @property
     def year(self) -> int:
+        """The year of the date."""
         return self._year
     
     @year.setter
@@ -62,6 +151,7 @@ class EconoDate:
     
     @property
     def month(self) -> int:
+        """The month of the date."""
         return self._month
     
     @month.setter
@@ -70,6 +160,7 @@ class EconoDate:
     
     @property
     def day(self) -> int:
+        """The day of the date."""
         return self._day
     
     @day.setter
@@ -82,16 +173,90 @@ class EconoDate:
     ###########
     
     def to_days(self) -> int:
-        return (self.year - MINYEAR) * MONTHS_PER_YEAR * DAYS_PER_MONTH + (self.month - 1) * DAYS_PER_MONTH + self.day
+        """
+        Convert this EconoDate to the total number of days elapsed since the base year (MINYEAR).
+
+        The conversion is computed using the formula:
+        
+            total_days = (year - MINYEAR) * (MONTHS_PER_YEAR * DAYS_PER_MONTH)
+                            + (month - 1) * DAYS_PER_MONTH
+                            + (day - 1)
+
+        Thus, (MINYEAR, 1, 1) is mapped to 0 days. This calculation assumes that the
+        calendar is fixed with a constant number of days per month and months per year,
+        as defined by the global configuration values.
+
+        Returns
+        -------
+        int
+            The total number of days elapsed since (MINYEAR, 1, 1).
+
+        Examples
+        --------
+        >>> d = EconoDate(2021, 1, 1)
+        >>> d.to_days()
+        365 * (2021 - MINYEAR)
+        
+        """
+        
+        days  = (self.year - MINYEAR) * MONTHS_PER_YEAR * DAYS_PER_MONTH
+        days += (self.month - 1) * DAYS_PER_MONTH
+        days += (self.day - 1)
+        return days
     
-    def replace(self, year: int = None, month: int = None, day: int = None) -> EconoDate:
+    def replace(
+        self, 
+        year: int = None,
+        month: int = None, 
+        day: int = None
+    ) -> EconoDate:
+        """
+        Return a new EconoDate object with the specified components replaced.
+
+        This method creates a new EconoDate, using the current date as a template. Any
+        component (year, month, or day) not provided will default to the corresponding
+        value of this EconoDate.
+
+        Parameters
+        ----------
+        year : int, optional
+            The new year value. If not provided, the current year is used.
+        month : int, optional
+            The new month value. If not provided, the current month is used.
+        day : int, optional
+            The new day value. If not provided, the current day is used.
+
+        Returns
+        -------
+        EconoDate
+            A new EconoDate object with the updated components.
+
+        Examples
+        --------
+        >>> d = EconoDate(2021, 1, 1)
+        >>> d.replace(month=2)
+        EconoDate(2021, 2, 1)
+        
+        """
+        
         year = year if year is not None else self.year
         month = month if month is not None else self.month
         day = day if day is not None else self.day
         return EconoDate(year, month, day)
     
     def weekday(self) -> int:
-        pass
+        """Returns the day of the week.
+        
+        This method is not yet implemented.
+        
+        Raises
+        ------
+        NotImplementedError
+            Always raised since this method is not implemented yet.
+        
+        """
+        
+        raise NotImplementedError("The 'weekday()' method is not implemented yet.")
     
     
     ###################
