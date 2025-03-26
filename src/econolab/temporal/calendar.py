@@ -336,9 +336,9 @@ class Calendar:
         return EconoDuration(days)
     
     
-    ###############
-    # Init Method #
-    ###############
+    ###################
+    # Special Methods #
+    ###################
     
     def __init__(
         self,

@@ -122,9 +122,35 @@ class EconoDate:
         return cls(year, month, day)
     
     
-    ###############
-    # Init Method #
-    ###############
+    ###################
+    # Special Methods #
+    ###################
+
+    def __eq__(self, other: EconoDate) -> bool:
+        if isinstance(other, EconoDate):
+            return (self.year, self.month, self.day) == (other.year, other.month, other.day)
+        return NotImplemented
+
+    def __lt__(self, other: EconoDate) -> bool:
+        if isinstance(other, EconoDate):
+            return (self.year, self.month, self.day) < (other.year, other.month, other.day)
+        return NotImplemented
+    
+    def __add__(self, other: EconoDuration) -> EconoDate:
+        if isinstance(other, EconoDuration):
+            return EconoDate.from_days(self.to_days() + other.days)
+        return NotImplemented
+    
+    __radd__ = __add__
+    
+    def __sub__(self, other: EconoDuration | EconoDate) -> EconoDate | EconoDuration:
+        if isinstance(other, EconoDuration):
+            return EconoDate.from_days(self.to_days() - other.days)
+        elif isinstance(other, EconoDate):
+            return EconoDuration(self.to_days() - other.to_days())
+        return NotImplemented
+    
+    __rsub__ = __sub__
     
     def __init__(self, year: int, month: int, day: int):
         if not MINYEAR <= year <= MAXYEAR:
@@ -137,6 +163,12 @@ class EconoDate:
         self._year = year
         self._month = month
         self._day = day
+    
+    def __repr__(self):
+        return f"EconoDate({self.year}, {self.month}, {self.day})"
+    
+    def __str__(self):
+        return f"{self.year}-{self.month}-{self.day}"
     
     
     ##############
@@ -260,43 +292,6 @@ class EconoDate:
         """
         
         raise NotImplementedError("The 'weekday()' method is not implemented yet.")
-    
-    
-    ###################
-    # Special Methods #
-    ###################
-
-    def __eq__(self, other: EconoDate) -> bool:
-        if isinstance(other, EconoDate):
-            return (self.year, self.month, self.day) == (other.year, other.month, other.day)
-        return NotImplemented
-
-    def __lt__(self, other: EconoDate) -> bool:
-        if isinstance(other, EconoDate):
-            return (self.year, self.month, self.day) < (other.year, other.month, other.day)
-        return NotImplemented
-    
-    def __add__(self, other: EconoDuration) -> EconoDate:
-        if isinstance(other, EconoDuration):
-            return EconoDate.from_days(self.to_days() + other.days)
-        return NotImplemented
-    
-    __radd__ = __add__
-    
-    def __sub__(self, other: EconoDuration | EconoDate) -> EconoDate | EconoDuration:
-        if isinstance(other, EconoDuration):
-            return EconoDate.from_days(self.to_days() - other.days)
-        elif isinstance(other, EconoDate):
-            return EconoDuration(self.to_days() - other.to_days())
-        return NotImplemented
-    
-    __rsub__ = __sub__
-    
-    def __str__(self):
-        return f"{self.year}-{self.month}-{self.day}"
-    
-    def __repr__(self):
-        return f"EconoDate({self.year}, {self.month}, {self.day})"
 
 
 @total_ordering
@@ -348,28 +343,6 @@ class EconoDuration:
     EconoDuration(7)
     
     """
-    
-    ###############
-    # Init Method #
-    ###############
-    
-    def __init__(self, days: int | float = 0, weeks: int | float = 0):
-        self._days = int(floor(days + weeks * DAYS_PER_WEEK))
-    
-    
-    ##############
-    # Properties #
-    ##############
-    
-    @property
-    def days(self) -> int:
-        """The number of days in the duration."""
-        return self._days
-    
-    @days.setter
-    def days(self, value: int) -> None:
-        raise AttributeError("readonly attribute")
-    
     
     ###################
     # Special Methods #
@@ -436,11 +409,28 @@ class EconoDuration:
     def __abs__(self) -> EconoDuration:
         return EconoDuration(abs(self.days))
     
+    def __init__(self, days: int | float = 0, weeks: int | float = 0):
+        self._days = int(floor(days + weeks * DAYS_PER_WEEK))
+
+    def __repr__(self):
+        return f"EconoDuration({self.days})"
+    
     def __str__(self) -> str:
         if self.days == 1:
             return "1 day"
         else:
             return f"{self.days} days"
-
-    def __repr__(self):
-        return f"EconoDuration({self.days})"
+    
+    
+    ##############
+    # Properties #
+    ##############
+    
+    @property
+    def days(self) -> int:
+        """The number of days in the duration."""
+        return self._days
+    
+    @days.setter
+    def days(self, value: int) -> None:
+        raise AttributeError("readonly attribute")
