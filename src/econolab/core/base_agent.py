@@ -10,7 +10,7 @@ class BaseAgent:
     def __init__(self, calendar: Calendar, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         
-        self.calendar = calendar
+        self.calendar = Calendar(self)
         self.counters = Counters()
 
     def act(self) -> None:
