@@ -10,4 +10,4 @@ from . import banking
 from . import metrics
 from . import plotting
 
-from ._core import BaseAgent
+from .core import BaseAgent
