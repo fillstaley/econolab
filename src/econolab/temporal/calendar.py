@@ -2,9 +2,14 @@
 """
 
 
+import logging
+logger = logging.getLogger(__name__)
+
+import math
 from typing import Protocol, runtime_checkable
 
 from .econodate import EconoDate, EconoDuration
+
 
 
 @runtime_checkable
@@ -78,7 +83,7 @@ class Calendar:
     
     @property
     def start_date(self) -> EconoDate:
-        return EconoDate(self.start_year, self.start_month, self.start_day)
+        return self.__class__.get_start_date()
     
     @start_date.setter
     def start_date(self, value: EconoDate) -> None:
@@ -95,6 +100,8 @@ class Calendar:
         
         This method sets the ratio of steps to days. The ratio is used to convert between
         the number of steps and the number of days since the start of the simulation.
+        The ratio will be reduced to lowest terms by dividing both by their GCD if
+        they are not relatively prime.
         
         Parameters
         ----------
@@ -128,7 +135,17 @@ class Calendar:
             raise ValueError("'steps' must be an integer and at least 1")
         if not isinstance(days, int) or days < 1:
             raise ValueError("'days' must be an integer and at least 1")
+        
+        if (gcd := math.gcd(steps, days)) != 1:
+            steps, days = steps // gcd, days // gcd
+            logger.debug("'steps' and 'days' were not relatively prime; divided both by their GCD (%s)", gcd)
+        
         cls._step_units, cls._day_units = steps, days
+        logger.info(
+            "Updated steps-to-days ratio; now %s equals %s",
+            f"{steps} step" if steps == 1 else f"{steps} steps",
+            f"{days} day" if days == 1 else f"{days} days",
+        )
     
     @classmethod
     def set_start_date(cls, year: int, month: int, day: int) -> None:
@@ -170,7 +187,9 @@ class Calendar:
             raise ValueError("'month' must be an integer between 1 and 12")
         if not isinstance(day, int) or day < 1 or day > 31:
             raise ValueError("'day' must be an integer between 1 and 31")
+        
         cls._start_year, cls._start_month, cls._start_day = year, month, day
+        logger.info("Updated start date; now the calendar begins on year %s", cls.get_start_date())
     
     @classmethod
     def convert_steps_to_days(cls, steps: int) -> int:
@@ -203,7 +222,11 @@ class Calendar:
         
         """
         
-        return 1 + (steps - 1) * cls.day_units // cls.step_units
+        return steps * cls._day_units // cls._step_units
+    
+    @classmethod
+    def get_start_date(cls) -> EconoDate:
+        return cls.new_date(cls._start_year, cls._start_month, cls._start_day)
     
     @classmethod
     def new_date(
@@ -267,9 +290,10 @@ class Calendar:
         """
         
         if steps is not None:
-            return cls.start_date + EconoDuration(cls.convert_steps_to_days(steps))
+            return cls.get_start_date() + EconoDuration(cls.convert_steps_to_days(steps))
         if year is None or month is None or day is None:
             raise ValueError("year, month, and day must be provided")
+        
         return EconoDate(year, month, day)
     
     @classmethod
@@ -322,8 +346,14 @@ class Calendar:
     ) -> None:
         if not isinstance(owner, ABFModel) and not isinstance(owner, ABFAgent):
             raise TypeError("Calendar 'owner' must be a valid model or agent object")
+        
         self.model = owner if isinstance(owner, ABFModel) else owner.model
         self.agent = owner if isinstance(owner, ABFAgent) else None
+        
+        logger.debug(
+            "New calendar created; it belongs to %s",
+            f"agent #{self.agent.unique_id}" if self.agent else f"the model {self.model}"
+        )
     
     ###########
     # Methods #

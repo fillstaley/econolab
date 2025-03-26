@@ -109,13 +109,16 @@ class EconoDate:
         
         """
         
+        if not isinstance(days, int) or days < 1:
+            raise ValueError("'days' must be an integer and at least 1")
+        
         days_in_year = DAYS_PER_MONTH * MONTHS_PER_YEAR
         year = MINYEAR + days // days_in_year
         if year > MAXYEAR:
             raise ValueError("Too many days: exceeds maximum number of years")
         remainder = days % days_in_year
         month = 1 + remainder // DAYS_PER_MONTH
-        day = 1 + remainder % DAYS_PER_MONTH
+        day = remainder % DAYS_PER_MONTH
         return cls(year, month, day)
     
     
@@ -174,34 +177,34 @@ class EconoDate:
     
     def to_days(self) -> int:
         """
-        Convert this EconoDate to the total number of days elapsed since the base year (MINYEAR).
+        Convert an EconoDate to an ordinal number of days.
 
         The conversion is computed using the formula:
         
             total_days = (year - MINYEAR) * (MONTHS_PER_YEAR * DAYS_PER_MONTH)
                             + (month - 1) * DAYS_PER_MONTH
-                            + (day - 1)
+                            + day
 
-        Thus, (MINYEAR, 1, 1) is mapped to 0 days. This calculation assumes that the
-        calendar is fixed with a constant number of days per month and months per year,
-        as defined by the global configuration values.
+        Thus, EconoDate(MINYEAR, 1, 1) is mapped to day 1. This calculation assumes
+        that the calendar is fixed with a constant number of days per month and months
+        per year, as defined by the global configuration values.
 
         Returns
         -------
         int
-            The total number of days elapsed since (MINYEAR, 1, 1).
+            An ordinal number of days relative to EconoDate(MINYEAR, 1, 1) as day 1
 
         Examples
         --------
         >>> d = EconoDate(2021, 1, 1)
         >>> d.to_days()
-        365 * (2021 - MINYEAR)
+        360 * (2021 - MINYEAR)
         
         """
         
         days  = (self.year - MINYEAR) * MONTHS_PER_YEAR * DAYS_PER_MONTH
         days += (self.month - 1) * DAYS_PER_MONTH
-        days += (self.day - 1)
+        days += self.day
         return days
     
     def replace(
