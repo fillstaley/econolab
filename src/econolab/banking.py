@@ -5,7 +5,7 @@
 from __future__ import annotations
 from collections import defaultdict, deque
 
-from ._core import BaseAgent
+from .core import BaseAgent
 
 
 class Agent(BaseAgent):
