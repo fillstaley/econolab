@@ -8,7 +8,7 @@ DAYS_PER_WEEK = 7
 DAYS_PER_MONTH = 30
 MONTHS_PER_YEAR = 12
 
-def configure(
+def set_temporal_structure(
     *,
     minyear: int | None = None,
     maxyear: int | None = None,

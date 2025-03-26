@@ -8,7 +8,7 @@ logger = logging.getLogger(__name__)
 import math
 from typing import Protocol, runtime_checkable
 
-from .econodate import EconoDate, EconoDuration
+from .base import EconoDate, EconoDuration
 
 
 

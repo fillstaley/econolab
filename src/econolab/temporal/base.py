@@ -7,7 +7,7 @@ from functools import total_ordering
 
 from numpy import floor
 
-from .config import MINYEAR, MAXYEAR, DAYS_PER_WEEK, DAYS_PER_MONTH, MONTHS_PER_YEAR
+from ..config.temporal import MINYEAR, MAXYEAR, DAYS_PER_WEEK, DAYS_PER_MONTH, MONTHS_PER_YEAR
 
 
 @total_ordering
