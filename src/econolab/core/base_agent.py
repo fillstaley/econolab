@@ -7,11 +7,11 @@ from .counters import Counters
 class BaseAgent:
     """Base class for agents in an EconoLab model."""
 
-    def __init__(self, calendar: Calendar, *args, **kwargs) -> None:
+    def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         
         self.calendar = Calendar(self)
-        self.counters = Counters()
+        self.counters = Counters(self)
 
     def act(self) -> None:
         """Perform actions during a model step."""
