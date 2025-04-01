@@ -263,9 +263,9 @@ class CounterCollection:
     
     def add_counters(
         self,
+        *null_counters: str,
         type_: type[Number] = float,
         persistent: bool = False,
-        *null_counters: str,
         **init_counters: Number
     ) -> None:
         """

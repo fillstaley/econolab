@@ -9,18 +9,41 @@ from .core import BaseAgent
 
 
 class Agent(BaseAgent):
+    """An agent that uses money.
+    
+    These agents use money.
+    
+    """
+    
+    ###################
+    # Special Methods #
+    ###################
+    
     def __init__(self, debt_limit: float | None = 0, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
-
+        
+        # initialize agent counters
+        self.counters.add_counters(
+            "credit_inflow",
+            "credit_outflow",
+            "debt_incurred",
+            "debt_repaid",
+            "cash_deposited",
+            "cash_withdrawn",
+        )
+        
+        if isinstance(debt_limit, float) and debt_limit < 0:
+            raise ValueError("'debt_limit' must be nonnegative.")
+        self.debt_limit = debt_limit if debt_limit is not None else float("inf")
+        
         self.primary_account: Account | None = None
         self._accounts: list[Account] = []
         self._loans: list[Loan] = []
         
-        self.debt_limit = debt_limit
-        
         self._open_loan_applications: list[LoanApplication] = []
         self._closed_loan_applications: list[LoanApplication] = []
-
+    
+    
     ##############
     # Properties #
     ##############
@@ -103,31 +126,41 @@ class Agent(BaseAgent):
 
 
 class Bank(Agent):
+    """Agents that create money.
+    
+    These agents create money.
+    
+    """
+    
+    ###################
+    # Special Methods #
+    ###################
+    
     def __init__(
         self,
         loan_options: list[dict] | None, 
         *args,
         **kwargs
     ) -> None:
-        """...
-
-        Parameters
-        ----------
-        loan_options : list[dict] | None
-            The possible loans on offer.
-        """
         super().__init__(*args, **kwargs)
-
+        
+        # initialize agent counters
+        self.counters.add_counters(
+            "loans_issued",
+            "loans_repaid",
+            "deposits_made",
+            "withdrawals_made",
+        )
+        
+        self._loan_options: list[LoanOption] = [
+            LoanOption(bank=self, **loan_option) for loan_option in (loan_options or [])
+        ]
+        
         self._account_book: dict[Agent, Account] = {}
         self._loan_book: dict[Agent, list[Loan]] = defaultdict(list)
         
-        self._loan_options: list[LoanOption] = []
-        if loan_options is not None:
-            for loan_option in loan_options:
-                self._loan_options.append(LoanOption(bank=self, **loan_option))
-        
         self._received_loan_applications: deque[LoanApplication] = deque()
-        
+
         self.primary_account = self.open_account(self)
 
         self.reserve_bank = None
