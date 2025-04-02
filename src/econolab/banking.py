@@ -1,4 +1,7 @@
-"""A banking system
+"""DEPRECATED
+
+A banking system
+
 """
 
 
