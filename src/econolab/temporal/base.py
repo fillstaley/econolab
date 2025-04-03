@@ -376,6 +376,8 @@ class EconoDuration:
             return EconoDuration(self.days * other)
         return NotImplemented
     
+    __rmul__ = __mul__
+    
     def __truediv__(self, other: EconoDuration | int | float) -> float | EconoDuration:
         if isinstance(other, EconoDuration):
             return self.days / other.days
@@ -383,9 +385,9 @@ class EconoDuration:
             return EconoDuration(self.days / other)
         return NotImplemented
     
-    def __floordiv__(self, other: EconoDuration | int) -> EconoDuration:
+    def __floordiv__(self, other: EconoDuration | int) -> int | EconoDuration:
         if isinstance(other, EconoDuration):
-            return EconoDuration(self.days // other.days)
+            return self.days // other.days
         elif isinstance(other, int):
             return EconoDuration(self.days // other)
         return NotImplemented
@@ -395,7 +397,7 @@ class EconoDuration:
             return EconoDuration(self.days % other.days)
         return NotImplemented
     
-    def __divmod__(self, other: EconoDuration) -> tuple[EconoDuration, EconoDuration]:
+    def __divmod__(self, other: EconoDuration) -> tuple[int, EconoDuration]:
         if isinstance(other, EconoDuration):
             return self // other, self % other
         return NotImplemented
@@ -416,10 +418,7 @@ class EconoDuration:
         return f"EconoDuration({self.days})"
     
     def __str__(self) -> str:
-        if self.days == 1:
-            return "1 day"
-        else:
-            return f"{self.days} days"
+        return "1 day" if self.days == 1 else f"{self.days} days"
     
     
     ##############
