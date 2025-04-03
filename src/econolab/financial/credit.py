@@ -11,20 +11,6 @@ from functools import total_ordering
 from ..core import BaseAgent
 
 
-class Currency:
-    def __init__(self, name: str, symbol: str = ""):
-        self.name = name
-        self.symbol = symbol
-
-    def __eq__(self, other: object) -> bool:
-        if not isinstance(other, Currency):
-            return NotImplemented
-        return self.name == other.name and self.symbol == other.symbol
-
-    def __repr__(self):
-        return f"Currency(name='{self.name}', symbol='{self.symbol}')"
-
-
 @total_ordering
 class Credit:
     """Represents a quantity of credit as a monetary object.
@@ -37,8 +23,12 @@ class Credit:
     This class is the atomic unit of credit issued and redeemed by lenders 
     and held by borrowers. It can be extended with metadata (e.g., issuer, 
     currency type) in future versions.
+    
     """
-    __slots__ = ("_amount", "currency")
+    
+    __slots__ = ("_amount", "_currency")
+    
+    DEFAULT_PRECISION = Currency.DEFAULT_PRECISION
     
     #################
     # Class Methods #
