@@ -68,7 +68,7 @@ class Counter:
     
     """
 
-    __slots__ = ["name", "_value", "_type", "persistent"]
+    __slots__ = ("name", "_value", "_type", "persistent",)
     
     
     ##################
@@ -311,3 +311,9 @@ class CounterCollection:
             if name in self._counters:
                 raise ValueError(f"Counter '{name}' already exists.")
             self._counters[name] = Counter(name, init_value, type_, persistent)
+    
+    def increment(self, name: str, amount: Number = 1) -> None:
+        if name not in self._counters:
+            raise ValueError(f"Counter '{name}' not found.")
+        else:
+            return self._counters[name].increment(amount)
