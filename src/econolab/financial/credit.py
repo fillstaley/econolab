@@ -6,8 +6,196 @@
 
 from __future__ import annotations
 from collections import defaultdict, deque
+from functools import total_ordering
 
 from ..core import BaseAgent
+
+
+class Currency:
+    def __init__(self, name: str, symbol: str = ""):
+        self.name = name
+        self.symbol = symbol
+
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, Currency):
+            return NotImplemented
+        return self.name == other.name and self.symbol == other.symbol
+
+    def __repr__(self):
+        return f"Currency(name='{self.name}', symbol='{self.symbol}')"
+
+
+@total_ordering
+class Credit:
+    """Represents a quantity of credit as a monetary object.
+
+    Credit instances behave like scalar values representing an amount of 
+    monetary credit. They support arithmetic, comparison, and conversion 
+    operations, and are designed to be lightweight, immutable containers 
+    for representing money in circulation within a model.
+
+    This class is the atomic unit of credit issued and redeemed by lenders 
+    and held by borrowers. It can be extended with metadata (e.g., issuer, 
+    currency type) in future versions.
+    """
+    __slots__ = ("_amount", "currency")
+    
+    #################
+    # Class Methods #
+    #################
+    
+    @classmethod
+    def from_float(cls, amount: float, currency: Currency | None = None) -> Credit:
+        return cls(amount, currency)
+    
+    @classmethod
+    def from_string(cls, amount: str, currency: Currency | None = None) -> Credit:
+        try:
+            return cls(float(amount), currency)
+        except ValueError as e:
+            raise ValueError(f"Cannot parse credit from string {amount}.") from e
+    
+    
+    ###################
+    # Special Methods #
+    ###################
+
+    def __eq__(self, other: Credit) -> bool:
+        if isinstance(other, Credit):
+            if self.currency != other.currency:
+                return NotImplemented
+            return self.amount == other.amount
+        return NotImplemented
+    
+    def __lt__(self, other: Credit) -> bool:
+        if isinstance(other, Credit):
+            if self.currency != other.currency:
+                return NotImplemented
+            return self.amount < other.amount
+        return NotImplemented
+    
+    def __hash__(self) -> int:
+        return hash((self._amount, self._currency))
+    
+    def __bool__(self) -> bool:
+        return bool(self.amount)
+    
+    def __add__(self, other: Credit) -> Credit:
+        if isinstance(other, Credit):
+            if self.currency != other.currency:
+                raise ValueError("Cannot operate on Credit with different currencies.")
+            return Credit(self.amount + other.amount, self.currency)
+        return NotImplemented
+    
+    def __sub__(self, other: Credit) -> Credit:
+        if isinstance(other, Credit):
+            if self.currency != other.currency:
+                raise ValueError("Cannot operate on Credit with different currencies.")
+            return Credit(self.amount - other.amount, self.currency)
+        return NotImplemented
+    
+    def __mul__(self, other: int | float) -> Credit:
+        if isinstance(other, int | float):
+            return Credit(self.amount * other, self.currency)
+        return NotImplemented
+    
+    __rmul__ = __mul__
+
+    def __truediv__(self, other: Credit | int | float) -> float | Credit:
+        if isinstance(other, Credit):
+            if other.amount == 0:
+                raise ZeroDivisionError("Division by zero-valued Credit")
+            if self.currency != other.currency:
+                raise ValueError("Cannot operate on Credit with different currencies.")
+            return self.amount / other.amount
+        elif isinstance(other, int | float):
+            if other == 0:
+                raise ZeroDivisionError("Division by zero")
+            return Credit(self.amount / other, self.currency)
+        return NotImplemented
+    
+    def __floordiv__(self, other: Credit | int) -> int | Credit:
+        if isinstance(other, Credit):
+            if other.amount == 0:
+                raise ZeroDivisionError("Division by zero-valued Credit")
+            if self.currency != other.currency:
+                raise ValueError("Cannot operate on Credit with different currencies.")
+            return self.amount // other.amount
+        return NotImplemented
+    
+    def __mod__(self, other: Credit) -> Credit:
+        if isinstance(other, Credit):
+            if other.amount == 0:
+                raise ZeroDivisionError("Division by zero-valued Credit")
+            if self.currency != other.currency:
+                raise ValueError("Cannot operate on Credit with different currencies.")
+            return Credit(self.amount % other.amount, self.currency)
+        return NotImplemented
+    
+    def __divmod__(self, other: Credit) -> tuple[int, Credit]:
+        if isinstance(other, Credit):
+            if self.currency != other.currency:
+                raise ValueError("Cannot operate on Credit with different currencies.")
+            return self // other, self % other
+        return NotImplemented
+
+    def __neg__(self) -> Credit:
+        return Credit(-self.amount, self.currency)
+    
+    def __pos__(self) -> Credit:
+        return self
+
+    def __abs__(self) -> Credit:
+        return Credit(abs(self.amount), self.currency)
+    
+    def __int__(self) -> int:
+        return int(self.amount)
+
+    def __float__(self) -> float:
+        return float(self.amount)
+    
+    def __round__(self, ndigits: int | None = None):
+        return round(self.amount, ndigits)
+
+    def __init__(self, amount: int | float = 0, currency: Currency | None = None) -> None:
+        self._amount = float(amount)
+        self._currency = currency
+
+    def __repr__(self) -> str:
+        return f"Credit({self.amount}, currency={repr(self.currency)})"
+
+    def __str__(self) -> str:
+        return f"{self.amount}"
+    
+    
+    ##############
+    # Properties #
+    ##############
+    
+    @property
+    def amount(self) -> float:
+        return self._amount
+    
+    @property
+    def currency(self) -> Currency:
+        return self._currency
+    
+    
+    ###########
+    # Methods #
+    ###########
+    
+    def is_zero(self, tolerance: float = 1e-9) -> bool:
+        return not self.is_positive(tolerance) and not self.is_negative(tolerance)
+    
+    def is_positive(self, tolerance: float = 1e-9) -> bool:
+        return self.amount > tolerance
+    
+    def is_negative(self, tolerance: float = 1e-9) -> bool:
+        return self.amount < -tolerance
+    
+    def to_dict(self) -> dict:
+        return {"amount": self.amount, "currency": repr(self.currency)}
 
 
 class Borrower(BaseAgent):
@@ -82,11 +270,19 @@ class Lender(Borrower):
         self._received_loan_applications: deque[LoanApplication] = deque()
         
         self._loan_book: dict[Borrower, list[Loan]] = defaultdict(list)
+        
+        self.outstanding_credit: float = 0
     
     
     ###########
     # Methods #
     ###########
+    
+    def issue_credit(self):
+        self.counters.increment("credit_issued")
+    
+    def redeem_credit(self):
+        self.counters.increment("credit_redeemed")
     
     def loan_options(self, borrower: Borrower) -> list[LoanOption]:
         # returns a list of loans for which the borrower is eligible
@@ -308,4 +504,3 @@ class LoanApplication:
             self.date_closed = date
 
             return self.lender.new_loan(self, date)
-
