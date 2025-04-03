@@ -9,6 +9,7 @@ from collections import defaultdict, deque
 from functools import total_ordering
 
 from ..core import BaseAgent
+from .currency import Currency
 
 
 @total_ordering
