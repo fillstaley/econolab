@@ -8,23 +8,55 @@ for different currencies used throughout the model.
 
 from __future__ import annotations
 from typing import Literal
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class Currency:
-    """A monetary unit of account.
+    """A monetary unit of account used for formatting and symbolic representation of money.
 
     The Currency class represents a unit of account used to denominate values 
     in an economic model. It supports consistent string formatting, rounding 
     precision, and naming conventions for both singular and plural forms.
-
+    
+    Attributes
+    ----------
+    name : str
+        The canonical name of the currency. Required and used to uniquely identify it.
+    unit_name : str
+        Optional singular form of the currency unit (e.g., "dollar"). Defaults to a
+        lowercase version of `name`.
+    unit_plural : str
+        Optional plural form of the currency unit (e.g., "dollars"). Defaults to
+        `Currency.default_plural(unit_name)`, which is defined to append 's' by default.
+    symbol : str
+        Optional currency symbol (e.g., "$"). Defaults to class attribute `DEFAULT_SYMBOL`.
+    symbol_position : {'prefix', 'suffix'}
+        Optional indicator of whether the symbol appears before or after the number.
+        Defaults to "prefix".
+    precision : int
+        Optional number of decimal places used for rounding amounts. Defaults to
+        `DEFAULT_PRECISION`. Must be nonnegative.
+    
+    Note
+    ----
+    This class uses a registry to ensure that only one instance of each currency
+    (by normalized name) exists at runtime. Attempts to create a Currency with an
+    existing name will return the existing instance and skip reinitialization.
+    
     Examples
     --------
     >>> usd = Currency(name="Dollar", symbol="$")
     >>> usd(5.5)
     '$5.50'
-
+    
+    >>> also_usd = Currency(name="Dollar")
+    >>> usd is also_usd
+    True
+    
     >>> jpy = Currency(name="Yen", unit_name="yen", symbol="¥", precision=0)
-    >>> jpy(1200)
+    >>> jpy(1200.1)
     '¥1200'
     
     """
@@ -36,18 +68,92 @@ class Currency:
         "symbol",
         "symbol_position",
         "precision",
+        "_initialized",
     )
     
-    DEFAULT_SYMBOL = "$"
-    DEFAULT_PRECISION = 2
+    DEFAULT_SYMBOL: str = "$"  # Default currency symbol if none is provided
+    DEFAULT_PRECISION: int = 2  # Default decimal precision used for formatting and rounding
+    
+    _instances: dict[str, Currency] = {} # Registry of Currency instances indexed by normalized name
+    
+    
+    #################
+    # Class Methods #
+    #################
+    
+    @classmethod
+    def instances(cls) -> list[str]:
+        """Return a list of currency names currently in the registry."""
+        return list(cls._instances.keys())
+    
+    @classmethod
+    def from_dict(cls, data: dict) -> Currency:
+        """Create a Currency instance from a dictionary of attributes.
+
+        Parameters
+        ----------
+        data : dict
+            A dictionary with keys corresponding to Currency attributes.
+
+        Returns
+        -------
+        Currency
+            A new Currency instance initialized from the dictionary.
+        
+        Raises
+        ------
+        ValueError
+            If the 'name' key is missing from the dictionary.
+        
+        """
+        
+        if not (name := data.get("name")):
+            raise ValueError("Currency 'name' is required")
+        return cls(
+            name=name,
+            unit_name=data.get("unit_name"),
+            unit_plural=data.get("unit_plural"),
+            symbol=data.get("symbol", cls.DEFAULT_SYMBOL),
+            symbol_position=data.get("symbol_position", "prefix"),
+            precision=data.get("precision", cls.DEFAULT_PRECISION),
+        )
+    
+    
+    ###################
+    # Special Methods #
+    ###################
 
     def __eq__(self, other: Currency) -> bool:
         if isinstance(other, Currency):
-            return (self.name, self.unit_name, self.symbol) == (other.name, other.unit_name, other.symbol)
+            return self.name == other.name
         return NotImplemented
     
+    def __bool__(self) -> bool:
+        return True
+    
     def __hash__(self) -> int:
-        return hash((self.name, self.unit_name, self.symbol))
+        return hash(self.name)
+    
+    def __new__(cls, name: str, *args, **kwargs) -> Currency:
+        """Implements singleton-style behavior by reusing instances by normalized name."""
+        # validate that a new currency can be created
+        cls._validate_new_args(
+            name, 
+            kwargs.get("unit_name"), 
+            kwargs.get("unit_plural"),
+            kwargs.get("precision"), 
+            kwargs.get("symbol_position")
+        )
+        normalized_name = cls._normalize_name(name)
+        if normalized_name in cls._instances:
+            logger.warning(
+                f"Currency '{name}' already exists. Returning existing instance without reinitialization."
+            )
+            return cls._instances[normalized_name]
+        instance = super().__new__(cls)
+        cls._instances[normalized_name] = instance
+        logger.info(f"Currency '{name}' registered.")
+        return instance
     
     def __init__(self,
         name: str,
@@ -57,11 +163,9 @@ class Currency:
         symbol_position: Literal["prefix", "suffix"] = "prefix",
         precision: int | None = None,
     ) -> None:
-        
-        if symbol_position not in {"prefix", "suffix"}:
-            raise ValueError("'symbol_position' must be either 'prefix' or 'suffix'.")
-        if precision is not None and isinstance(precision, int) and precision < 0:
-            raise ValueError("'precision' must be a nonnegative integer or 'None'.")
+        # return early if already initialized
+        if getattr(self, "_initialized", False):
+            return
         
         self.name = name
         self.unit_name = unit_name or self.name.lower()
@@ -69,12 +173,15 @@ class Currency:
         self.symbol = symbol or self.DEFAULT_SYMBOL
         self.symbol_position = symbol_position
         self.precision = self.DEFAULT_PRECISION if precision is None else precision
+        
+        # mark the instance as initialized (to prevent reinitialization)
+        self._initialized = True
 
     def __repr__(self) -> str:
         return (
             f"Currency(name='{self.name}', unit_name='{self.unit_name}', "
-            f"         unit_plural='{self.unit_plural}', symbol='{self.symbol}', "
-            f"         symbol_position='{self.symbol_position}', precision={self.precision})"
+            f"unit_plural='{self.unit_plural}', symbol='{self.symbol}', "
+            f"symbol_position='{self.symbol_position}', precision={self.precision})"
         )
     
     def __str__(self) -> str:
@@ -114,6 +221,51 @@ class Currency:
             self.symbol_position
         )
     
+    
+    ###########
+    # Methods #
+    ###########
+    
+    def to_dict(self) -> dict:
+        """Return a dictionary representation of the Currency instance."""
+        return {
+            "name": self.name,
+            "unit_name": self.unit_name,
+            "unit_plural": self.unit_plural,
+            "symbol": self.symbol,
+            "symbol_position": self.symbol_position,
+            "precision": self.precision,
+        }
+    
+    
+    ##################
+    # Static Methods #
+    ##################
+    
+    @staticmethod
+    def _validate_new_args(
+        name: str,
+        unit_name: str | None,
+        unit_plural: str | None,
+        precision: int | None,
+        symbol_position: Literal["prefix", "suffix"]
+    ) -> None:
+        """Validate input arguments before creating a new Currency instance."""
+        if not name or not name.strip():
+            raise ValueError("Currency 'name' must be a non-empty string.")
+        if unit_name is not None and not unit_name.strip():
+            raise ValueError("'unit_name' must be a non-empty string if provided.")
+        if unit_plural is not None and not unit_plural.strip():
+            raise ValueError("'unit_plural' must be a non-empty string if provided.")
+        if precision is not None and (not isinstance(precision, int) or precision < 0):
+            raise ValueError("'precision' must be a nonnegative integer.")
+        if symbol_position not in {"prefix", "suffix"}:
+            raise ValueError("'symbol_position' must be either 'prefix' or 'suffix'.")
+    
+    @staticmethod
+    def _normalize_name(name: str) -> str:
+        """Normalize the currency name by converting to lowercase and stripping whitespace."""
+        return name.lower().strip()
     
     @staticmethod
     def default_plural(unit_name: str) -> str:
