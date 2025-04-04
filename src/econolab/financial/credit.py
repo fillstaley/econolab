@@ -143,10 +143,10 @@ class Credit:
         return int(self.amount)
 
     def __float__(self) -> float:
-        return float(self.amount)
+        return round(self.amount, self.precision)
     
-    def __round__(self, ndigits: int | None = None):
-        return round(self.amount, ndigits)
+    def __round__(self, ndigits: int | None = None) -> float:
+        return round(self.amount, ndigits if ndigits is not None else self.precision)
 
     def __init__(self, amount: int | float = 0, currency: Currency | None = None) -> None:
         self._amount = float(amount)
@@ -170,20 +170,27 @@ class Credit:
     @property
     def currency(self) -> Currency:
         return self._currency
+
+    @property
+    def precision(self) -> int:
+        return self.currency.precision if self.currency else self.DEFAULT_PRECISION
     
     
     ###########
     # Methods #
     ###########
     
-    def is_zero(self, tolerance: float = 1e-9) -> bool:
-        return not self.is_positive(tolerance) and not self.is_negative(tolerance)
+    def is_zero(self) -> bool:
+        """Return True if the credit amount is approximately zero, based on precision."""
+        return not self.is_positive() and not self.is_negative()
     
-    def is_positive(self, tolerance: float = 1e-9) -> bool:
-        return self.amount > tolerance
+    def is_positive(self) -> bool:
+        """Return True if the credit amount is greater than zero, using the defined precision."""
+        return self.amount > 10 ** -self.precision
     
-    def is_negative(self, tolerance: float = 1e-9) -> bool:
-        return self.amount < -tolerance
+    def is_negative(self) -> bool:
+        """Return True if the credit amount is less than zero, using the defined precision."""
+        return self.amount < -10 ** -self.precision
     
     def to_dict(self) -> dict:
         return {"amount": self.amount, "currency": repr(self.currency)}
@@ -269,10 +276,10 @@ class Lender(Borrower):
     # Methods #
     ###########
     
-    def issue_credit(self):
+    def issue_credit(self, amount: float) -> Credit:
         self.counters.increment("credit_issued")
     
-    def redeem_credit(self):
+    def redeem_credit(self, credit: Credit) -> None:
         self.counters.increment("credit_redeemed")
     
     def loan_options(self, borrower: Borrower) -> list[LoanOption]:
