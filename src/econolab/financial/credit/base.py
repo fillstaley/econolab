@@ -51,6 +51,11 @@ class Credit:
     def from_dict(cls, data: dict) -> Credit:
         return cls(data["amount"], Currency.from_dict(data["currency"]))
     
+    
+    ###########
+    # Methods #
+    ###########
+    
     def _assert_compatible(self, other: Credit) -> None:
         """Raise ValueError if the currencies of two Credit objects are incompatible."""
         if self.currency != other.currency:
