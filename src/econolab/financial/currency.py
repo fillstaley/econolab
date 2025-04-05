@@ -58,7 +58,6 @@ class Currency:
     >>> jpy = Currency(name="Yen", unit_name="yen", symbol="¥", precision=0)
     >>> jpy(1200.1)
     '¥1200'
-    
     """
     
     __slots__ = (
@@ -104,7 +103,6 @@ class Currency:
         ------
         ValueError
             If the 'name' key is missing from the dictionary.
-        
         """
         
         if not (name := data.get("name")):
@@ -190,13 +188,21 @@ class Currency:
     def __format__(self, format_spec: str) -> str:
         return str(self).__format__(format_spec)
     
-    def __call__(self, amount: float, use_units: bool = False) -> str:
+    def __call__(
+            self,
+            amount: float, 
+            format_spec: str | None = None,
+            *,
+            use_units: bool = False,
+        ) -> str:
         """Return a formatted string representation of the given amount in the calling currency. 
 
         Parameters
         ----------
         amount : float
             The monetary amount to format.
+        format_spec : str, optional
+            A format specification string. (Currently ignored.)
         use_units : bool, optional
             Whether to use unit names instead of currency symbol; defaults to False.
             Singular/plural logic applies based on whether the (rounded) amount equals 1.0,
@@ -212,13 +218,15 @@ class Currency:
                 amount,
                 self.precision,
                 self.unit_name,
-                self.unit_plural
+                self.unit_plural,
+                format_spec
             )
         return self.format_with_symbol(
             amount,
             self.precision,
             self.symbol,
-            self.symbol_position
+            self.symbol_position,
+            format_spec
         )
     
     
@@ -277,7 +285,8 @@ class Currency:
         amount: float,
         precision: int,
         symbol: str,
-        position: Literal["prefix", "suffix"]
+        position: Literal["prefix", "suffix"],
+        format_spec: str | None = None
     ) -> str:
         """Format a numeric amount with a currency symbol.
 
@@ -291,12 +300,21 @@ class Currency:
             The currency symbol to use.
         position : {'prefix', 'suffix'}
             Whether the symbol appears before or after the number.
-
+        format_spec : str, optional
+            A format specification string. (Currently ignored.)
+        
         Returns
         -------
         str
             Formatted string with currency symbol.
         """
+        # FIXME: format_spec is currently ignored.
+        # In future versions, this should control formatting precision and style.
+        if format_spec:
+            logger.debug(
+                f"Ignoring format_spec='{format_spec}' in Currency.format_with_symbol()."
+            )
+        
         rounded = round(amount, precision)
         if position == "prefix":
             return f"{symbol}{rounded:.{precision}f}"
@@ -307,7 +325,8 @@ class Currency:
         amount: float,
         precision: int,
         unit_singular: str,
-        unit_plural: str
+        unit_plural: str,
+        format_spec: str | None = None
     ) -> str:
         """Format a numeric amount with singular or plural currency units.
 
@@ -321,12 +340,21 @@ class Currency:
             The singular form of the currency unit.
         unit_plural : str
             The plural form of the currency unit.
-
+        format_spec : str, optional
+            A format specification string. (Currently ignored.)
+        
         Returns
         -------
         str
             Formatted string with appropriate unit name.
         """
+        # FIXME: format_spec is currently ignored.
+        # In future versions, this should control formatting precision and style.
+        if format_spec:
+            logger.debug(
+                f"Ignoring format_spec='{format_spec}' in Currency.format_with_units()."
+            )
+        
         rounded = round(amount, precision)
         unit = unit_singular if abs(rounded - 1) < 10 ** -precision else unit_plural
         return f"{rounded:.{precision}f} {unit}"
