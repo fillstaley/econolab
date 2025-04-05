@@ -12,26 +12,29 @@ from .base import Credit
 
 
 class Borrower(BaseAgent):
-    def __init__(self, debt_limit: float | None = None, *args, **kwargs) -> None:
+    def __init__(self, *args, debt_limit: int | float | None = None, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         
         # initialize agent counters
         self.counters.add_counters(
             "debt_incurred",
             "debt_repaid",
-            "credit_inflow",
-            "credit_outflow",
+            "credit_taken",
+            "credit_given",
+            type_ = Credit,
         )
         
-        if isinstance(debt_limit, float) and debt_limit < 0:
-            raise ValueError("'debt_limit' must be nonnegative.")
+        if debt_limit is not None and (not isinstance(debt_limit, int | float) or debt_limit < 0):
+            raise ValueError(f"'debt_limit' must be nonnegative or 'None', got {debt_limit}.")
         self.debt_limit = debt_limit if debt_limit is not None else float("inf")
         
         self._open_loan_applications: list[LoanApplication] = []
         self._closed_loan_applications: list[LoanApplication] = []
         
-        self._loans: list[Loan] = [] 
-
+        self._loans: list[Loan] = []
+        
+        self.credit: Credit = Credit(0)
+    
     
     ##############
     # Properties #
@@ -58,6 +61,13 @@ class Borrower(BaseAgent):
     # Methods #
     ###########
     
+    def take_credit(self, credit: Credit) -> None:
+        self.credit += credit
+        self.counters.increment("credit_taken", credit.amount)
+    
+    def give_credit(self, amount: float) -> Credit:
+        self.counters.increment("credit_given")
+    
     def loan_payments_due(self, date: int) -> list[tuple[Loan, LoanPayment]]:
         return [
             (loan, payment)
@@ -67,7 +77,7 @@ class Borrower(BaseAgent):
 
 
 class Lender(Borrower):
-    def __init__(self, loan_options: list[dict] | None = None, *args, **kwargs) -> None:
+    def __init__(self, *args, loan_options: list[dict] | None = None, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         
         # initialize agent counters
