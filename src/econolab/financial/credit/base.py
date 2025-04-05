@@ -63,7 +63,7 @@ class Credit:
 
     def __eq__(self, other: object) -> bool:
         if isinstance(other, Credit):
-            return self.currency == other.currency and self.amount == other.amount
+            return False if self.currency != other.currency else (self - other).is_zero()
         elif isinstance(other, int | float):
             return self.amount == other
         return NotImplemented
@@ -77,7 +77,7 @@ class Credit:
         return NotImplemented
     
     def __hash__(self) -> int:
-        return hash((self._amount, self._currency))
+        return hash((round(self.amount, self.precision), self.currency))
     
     def __bool__(self) -> bool:
         return bool(self.amount)
