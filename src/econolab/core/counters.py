@@ -17,9 +17,10 @@ Usage examples and further details are documented within the classes.
 """
 
 
+from __future__ import annotations
 from collections.abc import Iterator
 from numbers import Number
-from typing import Protocol, runtime_checkable
+from typing import Protocol, runtime_checkable, Self
 
 
 @runtime_checkable
@@ -30,6 +31,11 @@ class ABFModel(Protocol):
 @runtime_checkable
 class ABFAgent(Protocol):
     model: ABFModel
+
+
+@runtime_checkable
+class Additive(Protocol):
+    def __add__(self, other: Self) -> Self: ...
 
 
 class Counter:
@@ -46,7 +52,7 @@ class Counter:
     ----------
     name : str
         A unique identifier for this counter.
-    value : Number
+    value : Additive
         The current numeric value of the counter.
     persistent : bool
         Flag indicating whether the counter is persistent (True) or
@@ -54,9 +60,9 @@ class Counter:
 
     Methods
     -------
-    reset(value: Number = 0)
+    reset(value: Additive = 0)
         If transient, reset the counter to the given value (default is 0).
-    increment(amount: Number = 1)
+    increment(amount: Additive = 1)
         Increase the counter by the specified amount (default is 1).
 
     Notes
@@ -76,7 +82,7 @@ class Counter:
     ##################
     
     @staticmethod
-    def validate(value: Number, type_: type[Number]) -> None:
+    def validate(value: Additive, type_: type[Additive]) -> None:
         if not isinstance(value, Number):
             raise ValueError(
                 f"'value' must be a number; got {type(value)} instead."
@@ -94,15 +100,15 @@ class Counter:
     def __init__(
         self, 
         name: str,
-        init_value: Number = 0,
-        type_: type[Number] = float,
+        init_value: Additive = 0,
+        type_: type[Additive] = float,
         persistent: bool = False
     ) -> None:
         self.validate(init_value, type_)
         
         self.name: str = name
-        self._value: Number = type_(init_value)
-        self._type: type[Number] = type_
+        self._value: Additive = type_(init_value)
+        self._type: type[Additive] = type_
         self.persistent = persistent
     
     def __repr__(self) -> str:
@@ -117,7 +123,7 @@ class Counter:
     ##############
     
     @property
-    def value(self) -> Number:
+    def value(self) -> Additive:
         """Returns the value of the counter."""
         return self._value
     
@@ -131,13 +137,13 @@ class Counter:
     # Methods #
     ###########
     
-    def reset(self, value: Number = 0):
+    def reset(self, value: Additive = 0):
         """Sets the counter (if it is not persistent), defaults to 0."""
         if not self.persistent:
             self.validate(value, self._type)
             self._value = self._type(value)
     
-    def increment(self, amount: Number = 1) -> None:
+    def increment(self, amount: Additive = 1) -> None:
         """Increases the counter by an amount, defaults to 1."""
         self.validate(amount, self._type)
         self._value = self._type(self.value + amount)
@@ -159,8 +165,8 @@ class CounterCollection:
 
     Methods
     -------
-    add_counters(type_: type[Number] = float, persistent: bool = False,
-                 *null_counters: str, **init_counters: Number) -> None
+    add_counters(type_: type[Additive] = float, persistent: bool = False,
+                 *null_counters: str, **init_counters: Additive) -> None
         Add one or more counters to the collection. Positional arguments
         specify counter names with an initial value of 0, while keyword
         arguments specify counters with explicit initial values. All
@@ -190,7 +196,7 @@ class CounterCollection:
     # Special Methods #
     ###################
     
-    def __getitem__(self, name: str) -> Number:
+    def __getitem__(self, name: str) -> Additive:
         if name not in self._counters:
             raise ValueError(f"Counter '{name}' not found.")
         else:
@@ -264,9 +270,9 @@ class CounterCollection:
     def add_counters(
         self,
         *null_counters: str,
-        type_: type[Number] = float,
+        type_: type[Additive] = float,
         persistent: bool = False,
-        **init_counters: Number
+        **init_counters: Additive
     ) -> None:
         """
         Add one or more counters to the collection.
@@ -292,7 +298,7 @@ class CounterCollection:
             If True, the counters cannot be reset (default: False).
         *null_counters : str
             Counter names that will be initialized with a value of 0.
-        **init_counters : Number
+        **init_counters : Additive
             Counter names and their corresponding initial values.
 
         Examples
@@ -312,7 +318,7 @@ class CounterCollection:
                 raise ValueError(f"Counter '{name}' already exists.")
             self._counters[name] = Counter(name, init_value, type_, persistent)
     
-    def increment(self, name: str, amount: Number = 1) -> None:
+    def increment(self, name: str, amount: Additive = 1) -> None:
         if name not in self._counters:
             raise ValueError(f"Counter '{name}' not found.")
         else:
