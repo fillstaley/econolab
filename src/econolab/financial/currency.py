@@ -134,14 +134,14 @@ class Currency:
     
     def __new__(cls, name: str, *args, **kwargs) -> Currency:
         """Implements singleton-style behavior by reusing instances by normalized name."""
-        # validate that a new currency can be created
-        cls._validate_new_args(
-            name, 
-            kwargs.get("unit_name"), 
-            kwargs.get("unit_plural"),
-            kwargs.get("precision"), 
-            kwargs.get("symbol_position")
-        )
+        # support positional arguments
+        unit_name = kwargs.get("unit_name", args[0] if args else None)
+        unit_plural = kwargs.get("unit_plural", args[1] if len(args) > 1 else None)
+        symbol = kwargs.get("symbol", args[2] if len(args) > 2 else None)
+        symbol_position = kwargs.get("symbol_position", args[3] if len(args) > 3 else "prefix")
+        precision = kwargs.get("precision", args[4] if len(args) > 4 else None)
+
+        cls._validate_new_args(name, unit_name, unit_plural, precision, symbol_position)
         normalized_name = cls._normalize_name(name)
         if normalized_name in cls._instances:
             logger.warning(
@@ -268,7 +268,7 @@ class Currency:
         if precision is not None and (not isinstance(precision, int) or precision < 0):
             raise ValueError("'precision' must be a nonnegative integer.")
         if symbol_position not in {"prefix", "suffix"}:
-            raise ValueError("'symbol_position' must be either 'prefix' or 'suffix'.")
+            raise ValueError(f"'symbol_position' must be either 'prefix' or 'suffix', got {symbol_position}.")
     
     @staticmethod
     def _normalize_name(name: str) -> str:
