@@ -20,6 +20,7 @@ class ABFModel(Protocol):
 @runtime_checkable
 class ABFAgent(Protocol):
     model: ABFModel
+    unique_id: int
 
 
 class Calendar:
