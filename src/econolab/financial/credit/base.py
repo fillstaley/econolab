@@ -30,11 +30,18 @@ class Credit:
     It supports optional currency metadata to track units of account and 
     precision.
     
+    Parameters
+    ----------
+    amount : int | float, optional
+        The numeric value representing the amount of credit, defaults to 0.
+    currency : Currency | None, optional
+        The currency associated with the credit, defaults to None.
+    
     """
     
     __slots__ = ("_amount", "_currency")
     
-    DEFAULT_PRECISION = Currency.DEFAULT_PRECISION
+    DEFAULT_PRECISION = Currency.DEFAULT_PRECISION  # Default precision for rounding
     
     #################
     # Class Methods #
@@ -44,23 +51,29 @@ class Credit:
     def from_dict(cls, data: dict) -> Credit:
         return cls(data["amount"], Currency.from_dict(data["currency"]))
     
+    def _assert_compatible(self, other: Credit) -> None:
+        """Raise ValueError if the currencies of two Credit objects are incompatible."""
+        if self.currency != other.currency:
+            raise ValueError("Cannot operate on Credit with different currencies.")
+    
     
     ###################
     # Special Methods #
     ###################
 
-    def __eq__(self, other: Credit) -> bool:
+    def __eq__(self, other: object) -> bool:
         if isinstance(other, Credit):
-            if self.currency != other.currency:
-                return NotImplemented
-            return self.amount == other.amount
+            return self.currency == other.currency and self.amount == other.amount
+        elif isinstance(other, int | float):
+            return self.amount == other
         return NotImplemented
     
-    def __lt__(self, other: Credit) -> bool:
+    def __lt__(self, other: object) -> bool:
         if isinstance(other, Credit):
-            if self.currency != other.currency:
-                return NotImplemented
+            self._assert_compatible(other)
             return self.amount < other.amount
+        elif isinstance(other, int | float):
+            return self.amount < other
         return NotImplemented
     
     def __hash__(self) -> int:
@@ -71,15 +84,13 @@ class Credit:
     
     def __add__(self, other: Credit) -> Credit:
         if isinstance(other, Credit):
-            if self.currency != other.currency:
-                raise ValueError("Cannot operate on Credit with different currencies.")
+            self._assert_compatible(other)
             return Credit(self.amount + other.amount, self.currency)
         return NotImplemented
     
     def __sub__(self, other: Credit) -> Credit:
         if isinstance(other, Credit):
-            if self.currency != other.currency:
-                raise ValueError("Cannot operate on Credit with different currencies.")
+            self._assert_compatible(other)
             return Credit(self.amount - other.amount, self.currency)
         return NotImplemented
     
@@ -94,8 +105,7 @@ class Credit:
         if isinstance(other, Credit):
             if other.amount == 0:
                 raise ZeroDivisionError("Division by zero-valued Credit")
-            if self.currency != other.currency:
-                raise ValueError("Cannot operate on Credit with different currencies.")
+            self._assert_compatible(other)
             return self.amount / other.amount
         elif isinstance(other, int | float):
             if other == 0:
@@ -107,8 +117,7 @@ class Credit:
         if isinstance(other, Credit):
             if other.amount == 0:
                 raise ZeroDivisionError("Division by zero-valued Credit")
-            if self.currency != other.currency:
-                raise ValueError("Cannot operate on Credit with different currencies.")
+            self._assert_compatible(other)
             return self.amount // other.amount
         return NotImplemented
     
@@ -116,15 +125,13 @@ class Credit:
         if isinstance(other, Credit):
             if other.amount == 0:
                 raise ZeroDivisionError("Division by zero-valued Credit")
-            if self.currency != other.currency:
-                raise ValueError("Cannot operate on Credit with different currencies.")
+            self._assert_compatible(other)
             return Credit(self.amount % other.amount, self.currency)
         return NotImplemented
     
     def __divmod__(self, other: Credit) -> tuple[int, Credit]:
         if isinstance(other, Credit):
-            if self.currency != other.currency:
-                raise ValueError("Cannot operate on Credit with different currencies.")
+            self._assert_compatible(other)
             return self // other, self % other
         return NotImplemented
 
@@ -154,10 +161,19 @@ class Credit:
         return f"Credit({self.amount}, currency={repr(self.currency)})"
 
     def __str__(self) -> str:
-        return (
-            self.currency(self.amount) if self.currency
-            else f"{round(self.amount, self.precision)}"
-            )
+        if self.currency:
+            return self.currency(self.amount)
+        return f"{self.amount:.{self.precision}f}"
+    
+    def __format__(self, format_spec: str) -> str:
+        # Default: defer to string if no format_spec
+        if not format_spec:
+            return str(self)
+
+        # Format using currency, if defined
+        if self.currency:
+            return self.currency(self.amount, format_spec)
+        return format(self.amount, format_spec)
     
     
     ##############
@@ -169,7 +185,7 @@ class Credit:
         return self._amount
     
     @property
-    def currency(self) -> Currency:
+    def currency(self) -> Currency | None:
         return self._currency
 
     @property
