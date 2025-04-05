@@ -83,13 +83,13 @@ class Counter:
     
     @staticmethod
     def validate(value: Additive, type_: type[Additive]) -> None:
-        if not isinstance(value, Number):
+        if not isinstance(value, Additive):
             raise ValueError(
-                f"'value' must be a number; got {type(value)} instead."
+                f"'value' must be an additive; got {type(value)} instead."
             )
-        if not issubclass(type_, Number):
+        if not issubclass(type_, Additive):
             raise ValueError(
-                f"'type_' must be a numeric type; got {type(type_)} instead."
+                f"'type_' must be an additive type; got {type(type_)} instead."
             )
     
     
