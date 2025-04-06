@@ -11,6 +11,9 @@ from ...core import BaseAgent
 from .base import Credit
 
 
+class InsufficientCreditError(Exception):
+    pass
+
 class Borrower(BaseAgent):
     def __init__(self, *args, debt_limit: int | float | None = None, **kwargs) -> None:
         super().__init__(*args, **kwargs)
@@ -62,11 +65,22 @@ class Borrower(BaseAgent):
     ###########
     
     def take_credit(self, credit: Credit) -> None:
+        """Receive a quantity of credit and add it to the wallet. Increments `credit_taken`."""
+        if not isinstance(credit, Credit):
+            raise ValueError(f"'credit' should be an instance of Credit; got {type(credit).__name__}.")
         self.credit += credit
-        self.counters.increment("credit_taken", credit.amount)
+        self.counters.increment("credit_taken", credit)
     
-    def give_credit(self, amount: float) -> Credit:
-        self.counters.increment("credit_given")
+    def give_credit(self, amount: float) -> Credit | None:
+        """Removes credit from this agent and returns it, raising an error if insufficient."""
+        if amount <= 0:
+            raise ValueError("'credit' must be positive.")
+        if self.credit < amount:
+            raise InsufficientCreditError(f"{self} has only {self.credit}, cannot give {amount}.")
+        credit = Credit(amount)
+        self.credit -= credit
+        self.counters.increment("credit_given", credit)
+        return credit
     
     def loan_payments_due(self, date: int) -> list[tuple[Loan, LoanPayment]]:
         return [
@@ -82,6 +96,8 @@ class Lender(Borrower):
         
         # initialize agent counters
         self.counters.add_counters(
+            "debt_created",
+            "debt_extinguished",
             "credit_issued",
             "credit_redeemed",
         )
@@ -102,10 +118,20 @@ class Lender(Borrower):
     ###########
     
     def issue_credit(self, amount: float) -> Credit:
-        self.counters.increment("credit_issued")
+        """Creates credit and returns it. Increments `credit_issued` and updates `outstanding_credit`."""
+        if amount <= 0:
+            raise ValueError("'amount' must be positive.")
+        credit = Credit(amount)
+        self.outstanding_credit += float(credit)
+        self.counters.increment("credit_issued", credit)
+        return credit
     
     def redeem_credit(self, credit: Credit) -> None:
-        self.counters.increment("credit_redeemed")
+        """Destroys credit. Increments `credit_redeemed` and updates `outstanding_credit`."""
+        if not isinstance(credit, Credit):
+            raise ValueError(f"'credit' must be a Credit instance, got {type(credit).__name__}")
+        self.outstanding_credit -= float(credit)
+        self.counters.increment("credit_redeemed", credit)
     
     def loan_options(self, borrower: Borrower) -> list[LoanOption]:
         # returns a list of loans for which the borrower is eligible
