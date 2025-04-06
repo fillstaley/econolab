@@ -153,7 +153,7 @@ class Credit:
         return int(self.amount)
 
     def __float__(self) -> float:
-        return round(self.amount, self.precision)
+        return float(self.amount)
     
     def __round__(self, ndigits: int | None = None) -> float:
         return round(self.amount, ndigits if ndigits is not None else self.precision)
