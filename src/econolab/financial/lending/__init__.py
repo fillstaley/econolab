@@ -4,12 +4,11 @@
 
 """
 
-import logging
-
-logger = logging.getLogger(__name__)
 
 from __future__ import annotations
 from collections import defaultdict, deque
+import logging
+logger = logging.getLogger(__name__)
 
 from ...core import BaseAgent
 from ...temporal import EconoDate, EconoDuration
