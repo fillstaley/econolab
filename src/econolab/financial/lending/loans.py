@@ -9,9 +9,9 @@ from __future__ import annotations
 import logging
 logger = logging.getLogger(__name__)
 
-from .agents import Borrower, Lender
 from ...temporal import EconoDate, EconoDuration
 from ..credit import Credit
+from .agents import Borrower, Lender
 
 
 class Loan:
