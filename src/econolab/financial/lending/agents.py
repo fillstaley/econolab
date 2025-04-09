@@ -17,7 +17,7 @@ from ...core import BaseAgent
 from ..credit import Credit
 
 if TYPE_CHECKING:
-    from .loans import Loan, LoanDisbursement, LoanPayment, LoanOption, LoanApplication
+    from .loan import Loan, LoanDisbursement, LoanPayment, LoanOption, LoanApplication
 
 
 class InsufficientCreditError(Exception):
