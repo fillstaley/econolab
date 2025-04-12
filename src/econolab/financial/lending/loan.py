@@ -83,7 +83,7 @@ class Loan:
     def disbursement_amount(self, date: EconoDate) -> Credit:
         return sum(disbursement.amount_due for disbursement in self.disbursement_schedule if disbursement.is_due(date))
     
-    def disbursements_due(self, date: EconoDate) -> set[LoanDisbursement]:
+    def disbursements_due(self, date: EconoDate) -> list[LoanDisbursement]:
         return {disbursement for disbursement in self.disbursement_schedule if disbursement.is_due(date)}
     
     def payment_due(self, date: EconoDate) -> bool:
@@ -92,7 +92,7 @@ class Loan:
     def payment_amount(self, date: EconoDate) -> Credit:
         return sum(payment.amount_due for payment in self.payment_schedule if payment.is_due(date))
     
-    def payments_due(self, date: EconoDate) -> set[LoanPayment]:
+    def payments_due(self, date: EconoDate) -> list[LoanPayment]:
         return {payment for payment in self.payment_schedule if payment.is_due(date)}
 
 
@@ -178,17 +178,18 @@ class LoanDisbursement:
             self.date_due <= date <= self.date_due + self.disbursement_window
         )
     
-    def complete(self, date: EconoDate) -> Credit:
+    def _complete(self, date: EconoDate) -> bool:
         if self.disbursed:
             logger.debug(f"LoanDisbursement already disbursed on {self._date_disbursed}: disburse() call ignored.")
-            return None
+            return False
         elif not self.is_due(date):
-            logger.warning(f"Attempted disbursement of {self} outside of window.")
-            return None
+            logger.warning(f"Attempted disbursement of {self} outside of payment window.")
+            return False
         credit = self.loan.lender.disburse_debt(self.amount_due)
+        self.loan.borrower.take_credit(credit)
         self._amount_disbursed = credit
         self._date_disbursed = date
-        return credit
+        return True
 
 
 class LoanPayment:
@@ -273,9 +274,12 @@ class LoanPayment:
     def is_overdue(self, date: EconoDate) -> bool:
         return not self.paid and date > self.date_due
     
-    def complete(self, date: EconoDate):
+    def _complete(self, date: EconoDate):
         if self.paid:
             logger.debug(f"LoanPayment already paid on {self._date_paid}: pay() call ignored.")
+            return False
+        elif not self.is_due(date):
+            logger.warning(f"Attempted payment of {self} outside of billing window.")
             return False
         credit = self.loan.borrower.give_credit(self.amount_due)
         self.loan.lender.extinguish_debt(credit)
@@ -301,18 +305,12 @@ class LoanOption:
     # Methods #
     ###########
     
-    def apply(self, borrower: Borrower, principal: Credit, date: EconoDate) -> LoanApplication:
+    def _apply(self, borrower: Borrower, principal: Credit | int | float, date: EconoDate) -> LoanApplication:
         if self.max_principal:
             principal = max(principal, self.max_principal)
+            principal = Credit(principal)
         
-        return LoanApplication(
-            lender=self.lender,
-            borrower=borrower,
-            date_opened=date,
-            principal=principal,
-            interest_rate=self.min_interest_rate,
-            term=self.term,
-        )
+        return self.lender.create_application(self, borrower, principal, date)
 
 
 class LoanApplication:
@@ -341,8 +339,6 @@ class LoanApplication:
         
         self._date_closed: EconoDate | None = None
         
-        
-        lender._received_loan_applications.append(self)
         logger.debug(
             f"LoanApplication created on {date_opened} by {borrower} and submitted to {lender}."
         )
@@ -384,7 +380,7 @@ class LoanApplication:
     # Methods #
     ###########
     
-    def approve(self, date: EconoDate) -> None:
+    def _approve(self, date: EconoDate) -> None:
         if self.reviewed:
             logger.debug("LoanApplication is already reviewed: approval attempt ignored.")
             return
@@ -392,14 +388,14 @@ class LoanApplication:
         self._date_reviewed = date
         logger.info(f"LoanApplication approved by {self.lender} on {date}.")
     
-    def deny(self, date: EconoDate) -> None:
+    def _deny(self, date: EconoDate) -> None:
         if self.reviewed:
             logger.debug("LoanApplication is already reviewed: denial attempt ignored.")
             return
         self._date_reviewed = date
         logger.info(f"LoanApplication rejected by {self.lender} on {date}.")
     
-    def accept(self, date: EconoDate) -> Loan | None:
+    def _accept(self, date: EconoDate) -> Loan | None:
         if self.decided:
             logger.warning("LoanApplication is already decided: acceptance attempt ignored.")
             return
@@ -409,14 +405,14 @@ class LoanApplication:
         self._accepted = True
         self._date_decided = date
         logger.info(f"LoanApplication accepted by {self.borrower} on {date}.")
-        return self.lender.create_debt(self, date)
+        return self.lender.create_loan(self, date)
     
-    def reject(self, date: EconoDate) -> None:
+    def _reject(self, date: EconoDate) -> None:
         if self.decided:
             logger.warning("LoanApplication is already decided: rejection attempt ignored.")
             return
         self._date_decided = date
         logger.info(f"LoanApplication rejected by {self.borrower} on {date}.")
     
-    def close(self, date: EconoDate) -> None:
+    def _close(self, date: EconoDate) -> None:
         self._date_closed = date
