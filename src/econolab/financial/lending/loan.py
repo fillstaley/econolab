@@ -185,9 +185,9 @@ class LoanDisbursement:
         elif not self.is_due(date):
             logger.warning(f"Attempted disbursement of {self} outside of payment window.")
             return False
-        credit = self.loan.lender.disburse_debt(self.amount_due)
-        self.loan.borrower.take_credit(credit)
-        self._amount_disbursed = credit
+        debt = self.loan.lender.disburse_debt(self.amount_due)
+        self.loan.borrower.receive_debt(debt)
+        self._amount_disbursed = debt
         self._date_disbursed = date
         return True
 
@@ -281,9 +281,9 @@ class LoanPayment:
         elif not self.is_due(date):
             logger.warning(f"Attempted payment of {self} outside of billing window.")
             return False
-        credit = self.loan.borrower.give_credit(self.amount_due)
-        self.loan.lender.extinguish_debt(credit)
-        self._amount_paid = credit
+        debt = self.loan.borrower.repay_debt(self.amount_due)
+        self.loan.lender.extinguish_debt(debt)
+        self._amount_paid = debt
         self._date_paid = date
         return True
 

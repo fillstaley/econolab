@@ -140,7 +140,6 @@ class Borrower(BaseAgent):
             if not self.can_receive_disbursement(disbursement) and self.should_receive_disbursement(disbursement):
                 break
             disbursement._complete()
-            self.counters.increment("debt_received", disbursement.amount_disbursed)
             successes += 1
         return successes
     
@@ -157,7 +156,6 @@ class Borrower(BaseAgent):
             if not self.can_pay_loan(payment) and self.should_pay_loan(payment):
                 break
             payment._complete()
-            self.counters.increment("debt_repaid", payment.amount_paid)
             successes += 1
         return successes
     
@@ -208,13 +206,6 @@ class Borrower(BaseAgent):
     # Methods #
     ###########
     
-    def take_credit(self, credit: Credit) -> None:
-        """Receive a quantity of credit and add it to the wallet. Increments `credit_taken`."""
-        if not isinstance(credit, Credit):
-            raise ValueError(f"'credit' should be an instance of Credit; got {type(credit).__name__}.")
-        self.credit += credit
-        self.counters.increment("credit_taken", credit)
-    
     def give_credit(self, amount: float) -> Credit | None:
         """Removes credit from this agent and returns it, raising an error if insufficient."""
         if amount <= 0:
@@ -225,6 +216,22 @@ class Borrower(BaseAgent):
         self.credit -= credit
         self.counters.increment("credit_given", credit)
         return credit
+    
+    def take_credit(self, credit: Credit) -> None:
+        """Receive a quantity of credit and add it to the wallet. Increments `credit_taken`."""
+        if not isinstance(credit, Credit):
+            raise ValueError(f"'credit' should be an instance of Credit; got {type(credit).__name__}.")
+        self.credit += credit
+        self.counters.increment("credit_taken", credit)
+    
+    def repay_debt(self, debt: Credit) -> Credit:
+        debt = self.give_credit(debt)
+        self.counters.increment("debt_repaid", debt)
+        return debt
+    
+    def receive_debt(self, debt: Credit) -> None:
+        self.take_credit(debt)
+        self.counters.increment("debt_received", debt)
     
     def loan_disbursements_due(self, date: EconoDate | None = None) -> list[LoanDisbursement]:
         date = date or self.calendar.today()
@@ -332,9 +339,9 @@ class Lender(Borrower):
             return loan
     
     def disburse_debt(self, amount: Credit | float) -> Credit:
-        credit = self.issue_credit(amount)
-        self.counters.increment("debt_disbursed", credit)
-        return credit
+        debt = self.issue_credit(amount)
+        self.counters.increment("debt_disbursed", debt)
+        return debt
     
     def extinguish_debt(self, amount: Credit) -> None:
         self.redeem_credit(amount)
