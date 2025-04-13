@@ -9,6 +9,8 @@ from __future__ import annotations
 import logging
 logger = logging.getLogger(__name__)
 
+from typing import Literal
+
 from ...temporal import EconoDate, EconoDuration
 from ..credit import Credit
 from .agents import Borrower, Lender
@@ -102,8 +104,11 @@ class LoanDisbursement:
         "_amount_due",
         "_date_due",
         "_disbursement_window",
+        "_amount_requested",
+        "_date_requested",
+        "_status",
         "_amount_disbursed",
-        "_date_disbursed"
+        "_date_disbursed",
     )
     
     
@@ -123,16 +128,20 @@ class LoanDisbursement:
         self._date_due = date_due
         self._disbursement_window = disbursement_window
         
+        # for now, set the amount requested to be the amount due
+        # ie. we assume all loans disbursements are requested by default
+        self._amount_requested: Credit | None = None
+        self._date_requested: EconoDate | None = None
+        
+        self._status: Literal["pending", "requested", "completed", "expired"] = "requested"
         self._amount_disbursed: Credit | None = None
         self._date_disbursed: EconoDate | None = None
     
     def __repr__(self) -> str:
-        status = "disbursed" if self.disbursed else "undisbursed"
-        return f"<LoanDisbursement of {self.amount_due} for {self.loan} due on {self.date_due} ({status})>"
+        return f"<LoanDisbursement of {self.amount_due} for {self.loan} due on {self.date_due} ({self.status})>"
     
     def __str__(self) -> str:
-        status = "Disbursed" if self.disbursed else "Undisbursed"
-        return f"Loan disbursement of {self.amount_due} due on {self.date_due} ({status})"
+        return f"Loan disbursement of {self.amount_due} due on {self.date_due} ({self.status})"
     
     
     ##############
@@ -156,8 +165,12 @@ class LoanDisbursement:
         return self._disbursement_window
     
     @property
-    def disbursed(self) -> bool:
-        return bool(self._amount_disbursed)
+    def amount_requested(self) -> Credit | None:
+        return self._amount_requested
+    
+    @property
+    def date_requested(self) -> EconoDate | None:
+        return self._date_requested
     
     @property
     def amount_disbursed(self) -> Credit | None:
@@ -166,6 +179,30 @@ class LoanDisbursement:
     @property
     def date_disbursed(self) -> EconoDate | None:
         return self._date_disbursed
+    
+    @property
+    def status(self) -> str:
+        return self._status
+    
+    @property
+    def pending(self) -> bool:
+        return self._status == "pending"
+    
+    @property
+    def requested(self) -> bool:
+        return self._status == "requested"
+    
+    @property
+    def completed(self) -> bool:
+        return self._status == "completed"
+    
+    @property
+    def expired(self) -> bool:
+        return self._status == "expired"
+    
+    @property
+    def disbursed(self) -> bool:
+        return self._status in {"completed", "expired"}
     
     
     ###########
@@ -178,9 +215,26 @@ class LoanDisbursement:
             self.date_due <= date <= self.date_due + self.disbursement_window
         )
     
+    def past_due(self, date: EconoDate) -> bool:
+        return date >= self.date_due + self.disbursement_window
+    
+    def _request(self, amount: Credit | int | float, date: EconoDate) -> bool:
+        if self.requested:
+            logger.debug(f"LoanDisbursement was requested on {self._date_requested}: _request() call ignored.")
+            return False
+        elif self.disbursed:
+            logger.debug(f"LoanDisbursement was disbursed on {self._date_disbursed}: _request() call ignored.")
+            return False
+        elif self.past_due(date):
+            logger.debug(f"LoanDisbursement was due on {self._date_due}: _request() call ignored.")
+            return False
+        self._amount_requested = amount
+        self._date_requested = date
+        return True
+    
     def _complete(self, date: EconoDate) -> bool:
         if self.disbursed:
-            logger.debug(f"LoanDisbursement already disbursed on {self._date_disbursed}: disburse() call ignored.")
+            logger.debug(f"LoanDisbursement was disbursed on {self._date_disbursed}: _complete() call ignored.")
             return False
         elif not self.is_due(date):
             logger.warning(f"Attempted disbursement of {self} outside of payment window.")
@@ -189,6 +243,21 @@ class LoanDisbursement:
         self.loan.borrower.receive_debt(debt)
         self._amount_disbursed = debt
         self._date_disbursed = date
+        self._status = "completed"
+        logger.info(f"Disbursement for {self.loan} completed on {date}.")
+        return True
+    
+    def _expire(self, date: EconoDate) -> bool:
+        if self.disbursed:
+            logger.debug(f"LoanDisbursement was disbursed on {self._date_disbursed}: _expire() call ignored.")
+            return False
+        elif not self.past_due(date):
+            logger.debug("LoanDisbursement could still be completed: _expire() call ignored.")
+            return False
+        self._amount_disbursed = None
+        self._date_disbursed = date
+        self._status = "expired"
+        logger.info(f"Disbursement for {self.loan} expired on {date}.")
         return True
 
 

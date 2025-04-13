@@ -72,7 +72,7 @@ class Borrower(BaseAgent):
     ##############
     
     @property
-    def reviewed_loan_applications(self) -> list[LoanApplication]:
+    def loan_offers(self) -> list[LoanApplication]:
         return [loan for loan in self._open_loan_applications if loan.reviewed]
     
     @property
@@ -101,51 +101,54 @@ class Borrower(BaseAgent):
                 successes += 1
         return successes
     
-    def respond_to_loan_offers(self, *reviewed_applications: LoanApplication) -> int:
-        applications = list(reviewed_applications) or self.reviewed_loan_applications
-        if not all(application.reviewed for application in applications):
+    def respond_to_loan_offers(self, *loan_offers: LoanApplication) -> int:
+        offers = list(loan_offers) or self.loan_offers
+        if not all(app.reviewed for app in offers):
             raise ValueError("All submitted applications must be reviewed; some are not.")
 
-        if not reviewed_applications:
-            self.prioritize_loan_offers(applications)
+        if not loan_offers:
+            self.prioritize_loan_offers(offers)
 
         successes = 0
-        for application in applications:
+        for app in offers:
             today = self.calendar.today()
-            if self.can_accept_loan(application) and self.should_accept_loan(application):
-                if loan := application._accept(today):
+            if self.can_accept_loan(app) and self.should_accept_loan(app):
+                if loan := app._accept(today):
                     self._loans.append(loan)
                     self.counters.increment("loans_incurred")
                     self.counters.increment("debt_incurred", loan.principal)
                     
-                    # TODO: remove this chunk
-                    # Immediately disburse any disbursements that are due at creation
-                    for disbursement in loan.disbursements_due(today):
-                        self.receive_debt(disbursement)
+                    # TODO: refactor this into a helper method
+                    for disbursement in loan.disbursement_schedule:
+                        disbursement._request(disbursement.amount_due, today)
                 successes += 1
             else:
-                application._reject(today)
+                app._reject(today)
         return successes
     
     def receive_loan_disbursements(self, *due_disbursements: LoanDisbursement) -> int:
-        disbursements = list(due_disbursements) or self.loan_disbursements_due()
-        if not all(disbursement.is_due() for disbursement in disbursements):
+        disbursements = list(due_disbursements) or self.loan_disbursements_owed()
+        today = self.calendar.today()
+        
+        if not all(disbursement.is_due(today) for disbursement in disbursements):
             raise ValueError("All submitted disbursements must be due; some are not.")
         
         if not due_disbursements:
-            self.prioritize_loan_disbursements(disbursements)
+            self.prioritize_loan_disbursements_owed(disbursements)
         
         successes = 0
         for disbursement in disbursements:
             if not self.can_receive_disbursement(disbursement) and self.should_receive_disbursement(disbursement):
                 break
-            disbursement._complete()
+            disbursement._complete(today)
             successes += 1
         return successes
     
     def make_loan_payments(self, *due_payments: LoanPayment) -> int:
         payments = list(due_payments) or self.loan_payments_due()
-        if not all(payment.is_due() for payment in payments):
+        today = self.calendar.today()
+        
+        if not all(payment.is_due(today) for payment in payments):
             raise ValueError("All submitted payments must be due; some are not.")
         
         if not due_payments:
@@ -155,7 +158,7 @@ class Borrower(BaseAgent):
         for payment in payments:
             if not self.can_pay_loan(payment) and self.should_pay_loan(payment):
                 break
-            payment._complete()
+            payment._complete(today)
             successes += 1
         return successes
     
@@ -183,7 +186,7 @@ class Borrower(BaseAgent):
     def should_accept_loan(self, approved_application: LoanApplication) -> bool:
         return True
     
-    def prioritize_loan_disbursements(self, due_disbursements: list[LoanDisbursement]) -> None:
+    def prioritize_loan_disbursements_owed(self, due_disbursements: list[LoanDisbursement]) -> None:
         pass
     
     def can_receive_disbursement(self, due_disbursement: LoanDisbursement) -> bool:
@@ -233,7 +236,7 @@ class Borrower(BaseAgent):
         self.take_credit(debt)
         self.counters.increment("debt_received", debt)
     
-    def loan_disbursements_due(self, date: EconoDate | None = None) -> list[LoanDisbursement]:
+    def loan_disbursements_owed(self, date: EconoDate | None = None) -> list[LoanDisbursement]:
         date = date or self.calendar.today()
         return [
             disbursement
@@ -251,7 +254,13 @@ class Borrower(BaseAgent):
 
 
 class Lender(Borrower):
-    def __init__(self, *args, loan_options: list[dict] | None = None, **kwargs) -> None:
+    def __init__(
+        self, 
+        *args,
+        loan_options: list[dict] | None = None,
+        limit_loan_applications_reviewed: int | None = None,
+        **kwargs
+    ) -> None:
         super().__init__(*args, **kwargs)
         
         # initialize agent counters
@@ -273,16 +282,110 @@ class Lender(Borrower):
             LoanOption(lender=self, **loan_option) for loan_option in (loan_options or [])
         ]
         
+        self.limit_loan_applications_reviewed = limit_loan_applications_reviewed
         self._received_loan_applications: deque[LoanApplication] = deque()
         
         self._loan_book: dict[Borrower, list[Loan]] = defaultdict(list)
+        self._undisbursed_loans: dict[Loan, list[LoanDisbursement]] = defaultdict(list)
         
-        self.outstanding_credit: Credit = 0
+        self.outstanding_credit: Credit = Credit(0)
+    
+    
+    ###########
+    # Actions #
+    ###########
+    
+    def review_loan_applications(self, *received_applications: LoanApplication) -> int:
+        applications = list(received_applications)
+        
+        if any(app.lender is not self for app in applications):
+            raise ValueError(f"All submitted applications must be for {self}; some are not.")
+
+        if not received_applications:
+            N = min(
+                self.limit_loan_applications_reviewed,
+                len(self._received_loan_applications)
+            )
+            applications = [
+                self._received_loan_applications.popleft() for _ in range(N)
+            ]
+
+        today = self.calendar.today()
+        successes = 0
+        for app in applications:
+            if self.can_approve_loan(app) and self.should_approve_loan(app):
+                app._approve(today)
+                successes += 1
+            # TODO: introduce deferred applications when lending becomes dynamic
+            else:
+                app._deny(today)
+        return successes
+    
+    def make_loan_disbursements(self, *due_disbursements: LoanDisbursement) -> int:
+        disbursements = list(due_disbursements) or self.loan_disbursements_due()
+        today = self.calendar.today()
+        
+        if not all(disbursement.is_due(today) for disbursement in disbursements):
+            raise ValueError("All submitted disbursements must be due; some are not.")
+        
+        if not due_disbursements:
+            self.prioritize_loan_disbursements_due(disbursements)
+        
+        successes = 0
+        for disbursement in disbursements:
+            tomorrow = today + self.calendar.new_duration(1)
+            expires_today = not disbursement.is_due(tomorrow)
+            
+            if self.can_disburse_loan(disbursement) and self.should_disburse_loan(disbursement):
+                disbursement._complete(today)
+                successes += 1
+            elif expires_today:
+                continue
+            else:
+                disbursement._expire(today)
+            
+            loan = disbursement.loan
+            self._undisbursed_loans[loan].remove(disbursement)
+            if not self._undisbursed_loans[loan]:
+                del self._undisbursed_loans[loan]
+        return successes
+    
+    
+    #########
+    # Hooks #
+    #########
+    
+    def prioritize_loan_applications(self, applications: list[LoanApplication]):
+        pass
+    
+    def can_approve_loan(self, application: LoanApplication) -> bool:
+        return True
+    
+    def should_approve_loan(self, application: LoanApplication) -> bool:
+        return True
+    
+    def prioritize_loan_disbursements_due(self, disbursements: list[LoanDisbursement]):
+        pass
+    
+    def can_disburse_loan(self, disbursement: LoanDisbursement) -> bool:
+        return True
+    
+    def should_disburse_loan(self, disbursement: LoanDisbursement) -> bool:
+        return disbursement.requested
     
     
     ###########
     # Methods #
     ###########
+    
+    def loan_disbursements_due(self, date: EconoDate | None = None) -> list[LoanDisbursement]:
+        date = date or self.calendar.today()
+        return [
+            disbursement
+            for disbursements in self._undisbursed_loans.values()
+            for disbursement in disbursements if disbursement.is_due(date)
+        ]
+    
     
     def issue_credit(self, amount: Credit | float) -> Credit:
         """Creates credit and returns it. Increments `credit_issued` and updates `outstanding_credit`."""
@@ -334,6 +437,7 @@ class Lender(Borrower):
                 billing_window=application.billing_window,
             )
             self._loan_book[borrower].append(loan)
+            self._undisbursed_loans[loan].extend(loan.disbursement_schedule)
             self.counters.increment("loans_created")
             self.counters.increment("debt_created", loan.principal)
             return loan
