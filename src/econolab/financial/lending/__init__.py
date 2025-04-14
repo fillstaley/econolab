@@ -8,7 +8,8 @@
 import logging
 logger = logging.getLogger(__name__)
 
-from .agents import Borrower, Lender
+from ._agents.borrower import Borrower
+from ._agents.lender import Lender
 
 # for now, for debugging
 from .loan import *

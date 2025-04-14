@@ -13,7 +13,7 @@ from typing import Literal
 
 from ...temporal import EconoDate, EconoDuration
 from ..credit import Credit
-from .agents import Borrower, Lender
+from .agents.borrower import Borrower, Lender
 
 
 class Loan:
