@@ -17,7 +17,7 @@ from ....temporal import EconoDate
 from ...credit import Credit
 
 if TYPE_CHECKING:
-    from ..loan import Loan, LoanDisbursement, LoanPayment, LoanOption, LoanApplication
+    from .._interfaces.loan import Loan, LoanDisbursement, LoanPayment, LoanOption, LoanApplication
 
 
 class InsufficientCreditError(Exception):

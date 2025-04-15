@@ -12,4 +12,4 @@ from ._agents.borrower import Borrower
 from ._agents.lender import Lender
 
 # for now, for debugging
-from .loan import *
+from ._interfaces.loan import *

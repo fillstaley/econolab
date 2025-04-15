@@ -11,9 +11,10 @@ logger = logging.getLogger(__name__)
 
 from typing import Literal
 
-from ...temporal import EconoDate, EconoDuration
-from ..credit import Credit
-from .agents.borrower import Borrower, Lender
+from ....temporal import EconoDate, EconoDuration
+from ...credit import Credit
+from .._agents.borrower import Borrower
+from .._agents.lender import Lender
 
 
 class Loan:
