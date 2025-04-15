@@ -63,11 +63,6 @@ class Lender(Borrower):
     # Methods #
     ###########
     
-    def loan_options(self, borrower: Borrower) -> list[LoanOption]:
-        # returns a list of loans for which the borrower is eligible
-        # for now it simply returns the whole list
-        return self._loan_options
-    
     def loan_disbursements_due(self, date: EconoDate | None = None) -> list[LoanDisbursement]:
         date = date or self.calendar.today()
         return [
