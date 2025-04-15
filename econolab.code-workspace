@@ -1,0 +1,22 @@
+{
+	"folders": [
+		{
+			"path": "."
+		},
+		{
+			"path": "models/boltzmann-banking"
+		},
+		{
+			"path": "models/boltzmann-business"
+		}
+	],
+	"settings": {
+		"cSpell.words": [
+			"agenttype",
+			"datacollector",
+			"econolab",
+			"multibank",
+			"undisbursed"
+		]
+	}
+}
