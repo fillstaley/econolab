@@ -60,8 +60,37 @@ class Lender(Borrower):
     
     
     ###########
+    # Methods #
+    ###########
+    
+    def loan_options(self, borrower: Borrower) -> list[LoanOption]:
+        # returns a list of loans for which the borrower is eligible
+        # for now it simply returns the whole list
+        return self._loan_options
+    
+    def loan_disbursements_due(self, date: EconoDate | None = None) -> list[LoanDisbursement]:
+        date = date or self.calendar.today()
+        return [
+            disbursement
+            for disbursements in self._undisbursed_loans.values()
+            for disbursement in disbursements if disbursement.is_due(date)
+        ]
+    
+    
+    ###########
     # Actions #
     ###########
+    
+    
+    # TODO: this should be moved to a different agent, maybe
+    def issue_credit(self, amount: Credit | float) -> Credit:
+        """Creates credit and returns it. Increments `credit_issued` and updates `outstanding_credit`."""
+        if amount <= 0:
+            raise ValueError("'amount' must be positive.")
+        credit = Credit(amount)
+        self.outstanding_credit += credit
+        self.counters.increment("credit_issued", credit)
+        return credit
     
     def review_loan_applications(self, *received_applications: LoanApplication) -> int:
         applications = list(received_applications)
@@ -142,36 +171,11 @@ class Lender(Borrower):
         return disbursement.requested
     
     
-    ###########
-    # Methods #
-    ###########
+    ##############
+    # Primitives #
+    ##############
     
-    def loan_disbursements_due(self, date: EconoDate | None = None) -> list[LoanDisbursement]:
-        date = date or self.calendar.today()
-        return [
-            disbursement
-            for disbursements in self._undisbursed_loans.values()
-            for disbursement in disbursements if disbursement.is_due(date)
-        ]
-    
-    
-    def issue_credit(self, amount: Credit | float) -> Credit:
-        """Creates credit and returns it. Increments `credit_issued` and updates `outstanding_credit`."""
-        if amount <= 0:
-            raise ValueError("'amount' must be positive.")
-        credit = Credit(amount)
-        self.outstanding_credit += credit
-        self.counters.increment("credit_issued", credit)
-        return credit
-    
-    def redeem_credit(self, credit: Credit) -> None:
-        """Destroys credit. Increments `credit_redeemed` and updates `outstanding_credit`."""
-        if not isinstance(credit, Credit):
-            raise ValueError(f"'credit' must be a Credit instance, got {type(credit).__name__}")
-        self.outstanding_credit -= credit
-        self.counters.increment("credit_redeemed", credit)
-    
-    def create_application(
+    def _create_application(
         self, 
         loan_option: LoanOption,
         borrower: Borrower, 
@@ -189,7 +193,7 @@ class Lender(Borrower):
         self._received_loan_applications.append(application)
         return application
     
-    def create_loan(self, application: LoanApplication) -> Loan | None:
+    def _create_debt(self, application: LoanApplication) -> Loan | None:
         if application.accepted and not application.closed:
             today = self.calendar.today()
             application.close(today)
@@ -210,16 +214,19 @@ class Lender(Borrower):
             self.counters.increment("debt_created", loan.principal)
             return loan
     
-    def disburse_debt(self, amount: Credit | float) -> Credit:
+    def _disburse_debt(self, amount: Credit | float) -> Credit:
         debt = self.issue_credit(amount)
         self.counters.increment("debt_disbursed", debt)
         return debt
     
-    def extinguish_debt(self, amount: Credit) -> None:
-        self.redeem_credit(amount)
-        self.counters.increment("debt_extinguished", amount)
+    # TODO: this should be moved to a different agent, maybe
+    def _redeem_credit(self, credit: Credit) -> None:
+        """Destroys credit. Increments `credit_redeemed` and updates `outstanding_credit`."""
+        if not isinstance(credit, Credit):
+            raise ValueError(f"'credit' must be a Credit instance, got {type(credit).__name__}")
+        self.outstanding_credit -= credit
+        self.counters.increment("credit_redeemed", credit)
     
-    def loan_options(self, borrower: Borrower) -> list[LoanOption]:
-        # returns a list of loans for which the borrower is eligible
-        # for now it simply returns the whole list
-        return self._loan_options
+    def _extinguish_debt(self, amount: Credit) -> None:
+        self._redeem_credit(amount)
+        self.counters.increment("debt_extinguished", amount)

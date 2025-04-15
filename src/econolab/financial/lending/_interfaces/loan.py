@@ -240,7 +240,7 @@ class LoanDisbursement:
         elif not self.is_due(date):
             logger.warning(f"Attempted disbursement of {self} outside of payment window.")
             return False
-        debt = self.loan.lender.disburse_debt(self.amount_due)
+        debt = self.loan.lender._disburse_debt(self.amount_due)
         self.loan.borrower._receive_debt(debt)
         self._amount_disbursed = debt
         self._date_disbursed = date
@@ -352,7 +352,7 @@ class LoanPayment:
             logger.warning(f"Attempted payment of {self} outside of billing window.")
             return False
         debt = self.loan.borrower._repay_debt(self.amount_due)
-        self.loan.lender.extinguish_debt(debt)
+        self.loan.lender._extinguish_debt(debt)
         self._amount_paid = debt
         self._date_paid = date
         return True
@@ -380,7 +380,7 @@ class LoanOption:
             principal = max(principal, self.max_principal)
             principal = Credit(principal)
         
-        return self.lender.create_application(self, borrower, principal, date)
+        return self.lender._create_application(self, borrower, principal, date)
 
 
 class LoanApplication:
@@ -475,7 +475,7 @@ class LoanApplication:
         self._accepted = True
         self._date_decided = date
         logger.info(f"LoanApplication accepted by {self.borrower} on {date}.")
-        return self.lender.create_loan(self, date)
+        return self.lender._create_debt(self, date)
     
     def _reject(self, date: EconoDate) -> None:
         if self.decided:
