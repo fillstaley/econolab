@@ -1,0 +1,22 @@
+{
+	"folders": [
+		{
+			"path": ".."
+		},
+		{
+			"path": "../models/boltzmann-banking"
+		},
+		{
+			"path": "../models/boltzmann-business"
+		}
+	],
+	"settings": {
+		"cSpell.import": [
+			"./.code/dictionary.json"
+		],
+		"cSpell.words": [
+			"multibank",
+			"undisbursed"
+		]
+	}
+}
