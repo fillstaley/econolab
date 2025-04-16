@@ -60,6 +60,7 @@ class BoltzmannBanking(mesa.Model):
             bank = self.random.choice(self.agents_by_type[Bank])
             i.primary_account = i.open_account(bank, initial_deposit=init_gift)
         
+        
         self.datacollector = mesa.DataCollector(
             model_reporters={
                 "Money Supply": "money_supply",

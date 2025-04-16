@@ -1,18 +1,28 @@
 {
 	"folders": [
 		{
+			"name": "root",
 			"path": ".."
 		},
 		{
+			"name": "banking",
 			"path": "../models/boltzmann-banking"
 		},
 		{
+			"name": "business",
 			"path": "../models/boltzmann-business"
 		}
 	],
 	"settings": {
-		"cSpell.import": [
-			"./.code/dictionary.json"
+		"cSpell.dictionaryDefinitions": [
+			{
+				"name": "econolab-terms",
+				"path": "${workspaceFolder:root}/.code/econolab-dictionary.txt",
+				"addWords": true
+			}
+		],
+		"cSpell.dictionaries": [
+			"econolab-terms"
 		],
 		"cSpell.words": [
 			"multibank",
