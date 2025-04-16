@@ -10,7 +10,7 @@ from __future__ import annotations
 import logging
 logger = logging.getLogger(__name__)
 
-from typing import Literal
+from typing import Literal, Protocol, runtime_checkable
 
 from ....temporal import EconoDate, EconoDuration
 from ...credit import Credit
@@ -18,14 +18,59 @@ from .._agents.borrower import Borrower
 from .._agents.lender import Lender
 
 
+
+class RandomLike(Protocol):
+    pass
+
+@runtime_checkable
+class ABFModel(Protocol):
+    random: RandomLike
+
+
+class LoanMarket:
+    """A centralized interface for loan coordination between borrowers and lenders."""
+
+    def __init__(self, model: ABFModel, /):
+        self.model = model
+        self._options: list[LoanOption] = []
+
+    def register(self, option: LoanOption):
+        """Add a loan option to the market."""
+        self._options.append(option)
+
+    def deregister(self, option: LoanOption):
+        """Remove a loan option from the market."""
+        self._options.remove(option)
+
+    def __call__(self, borrower: Borrower, date: EconoDate) -> LoanOption | None:
+        """Return a random eligible and available loan option for this borrower."""
+        options = self.search(borrower, date)
+        return self.model.random.choice(options) if options else None
+
+    def search(self, borrower: Borrower, date: EconoDate) -> list[LoanOption]:
+        """Return a list of loan options available and eligible for the borrower."""
+        return [
+            option for option in self._options
+            if option.is_available(date)
+            and isinstance(borrower, option.borrower_types)
+            and self._is_eligible(borrower, option)
+        ]
+
+    def sellers(self) -> set[Lender]:
+        """Return the set of lenders currently offering loans in this market."""
+        return {option.lender for option in self._options}
+
+    def _is_eligible(self, borrower: Borrower, option: LoanOption) -> bool:
+        """Stub for future logic: override this for custom borrower-eligibility logic."""
+        return True
+
 class LoanOption:
     def __init__(
         self,
         lender: Lender,                                                     # Who is offering the loan
         date_created: EconoDate,                                            # Date the loan option is created
         term: EconoDuration,                                                # Fixed duration of the loan (immutable, required)
-        borrower_type: type[Borrower] | None = None,                        # Who is allowed to apply; defaults to all Borrowers
-        *,
+        *borrower_types: type[Borrower],                                    # Additional positional arguments are treated as allowed borrower types.
         name: str | None = None,
         limit_per_borrower: int | None = 1,                                 # None means unlimited
         limit_kind: Literal["outstanding", "cumulative"] = "outstanding",
@@ -36,29 +81,112 @@ class LoanOption:
         available_from: EconoDate | None = None,
         available_until: EconoDate | None = None,
     ):
-        self.lender = lender
-        self.date_created = date_created
-        self.term = term
-        self.borrower_type = borrower_type or Borrower
+        self._lender = lender
+        self._date_created = date_created
+        self._term = term
+        self._borrower_types = tuple(borrower_types) if borrower_types else (Borrower,)
         
-        self.name = name or "Unnamed"
-        self.limit_per_borrower = limit_per_borrower
-        self.limit_kind = limit_kind
+        self._name = name or "Unnamed"
+        self._limit_per_borrower = limit_per_borrower
+        self._limit_kind = limit_kind
         
-        self.min_principal = min_principal or Credit(0)
-        self.max_principal = max_principal
-        self.min_interest_rate = min_interest_rate
-        self.max_interest_rate = max_interest_rate or min_interest_rate
-        self.available_from = available_from or date_created
-        self.available_until = available_until or EconoDate.max()
+        self._min_principal = min_principal or Credit(0)
+        self._max_principal = max_principal
+        self._min_interest_rate = min_interest_rate
+        self._max_interest_rate = max_interest_rate or min_interest_rate
+        self._available_from = available_from or date_created
+        self._available_until = available_until or EconoDate.max()
     
     
-    ###########
-    # Methods #
-    ###########
+    ##############
+    # Properties #
+    ##############
+    
+    @property
+    def lender(self) -> Lender:
+        return self._lender
+    
+    @property
+    def date_created(self) -> EconoDate:
+        return self._date_created
+    
+    @property
+    def term(self) -> EconoDuration:
+        return self._term
+    
+    @property
+    def borrower_types(self) -> tuple[type[Borrower], ...]:
+        return self._borrower_types
+    
+    @property
+    def name(self) -> str:
+        return self._name
+    
+    @property
+    def limit_per_borrower(self) -> int | None:
+        return self._limit_per_borrower
+    
+    @property
+    def limit_kind(self) -> Literal["outstanding", "cumulative"]:
+        return self._limit_kind
+    
+    @property
+    def min_principal(self) -> Credit | None:
+        return self._min_principal
+    
+    @property
+    def max_principal(self) -> Credit | None:
+        return self._max_principal
+    
+    @property
+    def min_interest_rate(self) -> float | None:
+        return self._min_interest_rate
+    
+    @property
+    def max_interest_rate(self) -> float | None:
+        return self._max_interest_rate
+    
+    @property
+    def available_from(self) -> EconoDate:
+        return self._available_from
+    
+    @property
+    def available_until(self) -> EconoDate:
+        return self._available_until
+    
+    ###############
+    # Update Method
+    ###############
+    
+    def update(
+        self,
+        *,
+        min_principal: Credit | None = None,
+        max_principal: Credit | None = None,
+        min_interest_rate: float | None = None,
+        max_interest_rate: float | None = None,
+        available_from: EconoDate | None = None,
+        available_until: EconoDate | None = None,
+    ) -> None:
+        if min_principal is not None:
+            self._min_principal = min_principal
+        if max_principal is not None:
+            self._max_principal = max_principal
+        if min_interest_rate is not None:
+            self._min_interest_rate = min_interest_rate
+        if max_interest_rate is not None:
+            self._max_interest_rate = max_interest_rate
+        if available_from is not None:
+            self._available_from = available_from
+        if available_until is not None:
+            self._available_until = available_until
+    
+    ###############
+    # Other Methods
+    ###############
     
     def is_available(self, date: EconoDate) -> bool:
-        return self.available_from <= date <= self.available_until
+        return self._available_from <= date <= self._available_until
     
     def _apply(self, borrower: Borrower, principal: Credit | int | float, date: EconoDate) -> LoanApplication:
         if self.max_principal:
