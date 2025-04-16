@@ -22,7 +22,9 @@ class LoanOption:
     def __init__(
         self,
         lender: Lender,
-        term: EconoDuration, 
+        term: EconoDuration | None, 
+        borrower_type: type[Borrower] | None = None,
+        *,
         min_principal: Credit | None = None,
         max_principal: Credit | None = None, 
         min_interest_rate: float = 0,
