@@ -21,27 +21,48 @@ from .._agents.lender import Lender
 class LoanOption:
     def __init__(
         self,
-        lender: Lender,
-        term: EconoDuration | None, 
-        borrower_type: type[Borrower] | None = None,
+        lender: Lender,                                                     # Who is offering the loan
+        date_created: EconoDate,                                            # Date the loan option is created
+        term: EconoDuration,                                                # Fixed duration of the loan (immutable, required)
+        borrower_type: type[Borrower] | None = None,                        # Who is allowed to apply; defaults to all Borrowers
         *,
-        min_principal: Credit | None = None,
-        max_principal: Credit | None = None, 
-        min_interest_rate: float = 0,
-        max_interest_rate: float = 0
+        name: str | None = None,
+        limit_per_borrower: int | None = 1,                                 # None means unlimited
+        limit_kind: Literal["outstanding", "cumulative"] = "outstanding",
+        min_principal: Credit | None = None,                                # Minimum principal allowed
+        max_principal: Credit | None = None,                                # Maximum principal allowed
+        min_interest_rate: float | None = None,                             # Lower bound for fixed-rate interest rate
+        max_interest_rate: float | None = None,                             # Upper bound; must be >= min
+        available_from: EconoDate | None = None,
+        available_until: EconoDate | None = None,
     ):
         self.lender = lender
+        self.date_created = date_created
         self.term = term
+        self.borrower_type = borrower_type or Borrower
+        
+        self.name = name or "Unnamed"
+        self.limit_per_borrower = limit_per_borrower
+        self.limit_kind = limit_kind
+        
+        self.min_principal = min_principal or Credit(0)
         self.max_principal = max_principal
         self.min_interest_rate = min_interest_rate
+        self.max_interest_rate = max_interest_rate or min_interest_rate
+        self.available_from = available_from or date_created
+        self.available_until = available_until or EconoDate.max()
+    
     
     ###########
     # Methods #
     ###########
     
+    def is_available(self, date: EconoDate) -> bool:
+        return self.available_from <= date <= self.available_until
+    
     def _apply(self, borrower: Borrower, principal: Credit | int | float, date: EconoDate) -> LoanApplication:
         if self.max_principal:
-            principal = max(principal, self.max_principal)
+            principal = min(principal, self.max_principal)
             principal = Credit(principal)
         
         return self.lender._create_application(self, borrower, principal, date)
