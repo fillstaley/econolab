@@ -23,8 +23,10 @@ class LoanOption:
         self,
         lender: Lender,
         term: EconoDuration, 
+        min_principal: Credit | None = None,
         max_principal: Credit | None = None, 
         min_interest_rate: float = 0,
+        max_interest_rate: float = 0
     ):
         self.lender = lender
         self.term = term
