@@ -121,6 +121,14 @@ class EconoDate:
         day = remainder % DAYS_PER_MONTH
         return cls(year, month, day)
     
+    @classmethod
+    def min(cls) -> EconoDate:
+        return cls(year=MINYEAR, month=1, day=1)
+    
+    @classmethod
+    def max(cls) -> EconoDate:
+        return cls(year=MAXYEAR, month=MONTHS_PER_YEAR, day=DAYS_PER_MONTH)
+    
     
     ###################
     # Special Methods #
