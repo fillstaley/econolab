@@ -15,9 +15,8 @@ from typing import TYPE_CHECKING
 from ....core import BaseAgent
 from ....temporal import EconoDate
 from ...credit import Credit
+from .._interfaces.loan import Loan, LoanDisbursement, LoanPayment, LoanOption, LoanApplication
 
-if TYPE_CHECKING:
-    from .._interfaces.loan import Loan, LoanDisbursement, LoanPayment, LoanOption, LoanApplication
 
 
 class InsufficientCreditError(Exception):

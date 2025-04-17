@@ -11,12 +11,14 @@ import logging
 logger = logging.getLogger(__name__)
 
 from dataclasses import dataclass
-from typing import Literal, Protocol, runtime_checkable
+from typing import Literal, Protocol, runtime_checkable, TYPE_CHECKING
 
 from ....temporal import EconoDate, EconoDuration
 from ...credit import Credit
-from .._agents.borrower import Borrower
-from .._agents.lender import Lender
+
+if TYPE_CHECKING:
+    from .._agents.borrower import Borrower
+    from .._agents.lender import Lender
 
 
 
@@ -30,11 +32,25 @@ class ABFModel(Protocol):
 
 class LoanMarket:
     """A centralized interface for loan coordination between borrowers and lenders."""
+    
+    ###################
+    # Special Methods #
+    ###################
+    
+    def __call__(self, borrower: Borrower, date: EconoDate) -> LoanOption | None:
+        """Return a random eligible and available loan option for this borrower."""
+        options = self.search(borrower, date)
+        return self.model.random.choice(options) if options else None
 
     def __init__(self, model: ABFModel, /):
         self.model = model
         self._options: list[LoanOption] = []
-
+    
+    
+    ###########
+    # Methods #
+    ###########
+    
     def register(self, option: LoanOption):
         """Add a loan option to the market."""
         self._options.append(option)
@@ -42,11 +58,6 @@ class LoanMarket:
     def deregister(self, option: LoanOption):
         """Remove a loan option from the market."""
         self._options.remove(option)
-
-    def __call__(self, borrower: Borrower, date: EconoDate) -> LoanOption | None:
-        """Return a random eligible and available loan option for this borrower."""
-        options = self.search(borrower, date)
-        return self.model.random.choice(options) if options else None
 
     def search(self, borrower: Borrower, date: EconoDate) -> list[LoanOption]:
         """Return a list of loan options available and eligible for the borrower."""
@@ -56,10 +67,6 @@ class LoanMarket:
             and isinstance(borrower, option.borrower_types)
             and self._is_eligible(borrower, option)
         ]
-
-    def sellers(self) -> set[Lender]:
-        """Return the set of lenders currently offering loans in this market."""
-        return {option.lender for option in self._options}
 
     def _is_eligible(self, borrower: Borrower, option: LoanOption) -> bool:
         """Stub for future logic: override this for custom borrower-eligibility logic."""
@@ -127,7 +134,11 @@ class LoanOption:
         self._lender = lender
         self._date_created = date_created
         
-        self._borrower_types = tuple(borrower_types) if borrower_types else (Borrower,)
+        # if no borrower_types are given, default to the most general possible borrower
+        if not borrower_types:
+            from .._agents.borrower import Borrower
+            borrower_types = (Borrower,)
+        self._borrower_types = tuple(borrower_types)
         
         self._min_principal = min_principal or Credit(0)
         self._max_principal = max_principal

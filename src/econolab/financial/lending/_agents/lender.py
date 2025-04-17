@@ -15,10 +15,9 @@ from typing import TYPE_CHECKING
 
 from ....temporal import EconoDate
 from ...credit import Credit
+from .._interfaces.loan import Loan, LoanDisbursement, LoanPayment, LoanOption, LoanApplication, LoanSpecs
 from .borrower import Borrower
 
-if TYPE_CHECKING:
-    from .._interfaces.loan import Loan, LoanDisbursement, LoanPayment, LoanOption, LoanApplication, LoanSpecs
 
 
 class Lender(Borrower):
