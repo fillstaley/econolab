@@ -349,8 +349,10 @@ class EconoDuration:
     EconoDuration(7)
     >>> abs(-duration)
     EconoDuration(7)
-    
     """
+    
+    __slots__ = ("_days",)
+    
     
     ###################
     # Special Methods #
@@ -418,6 +420,9 @@ class EconoDuration:
     
     def __abs__(self) -> EconoDuration:
         return EconoDuration(abs(self.days))
+    
+    def __hash__(self):
+        return hash(self._days)
     
     def __init__(self, days: int | float = 0, weeks: int | float = 0):
         self._days = int(floor(days + weeks * DAYS_PER_WEEK))
