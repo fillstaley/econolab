@@ -10,6 +10,7 @@ from __future__ import annotations
 import logging
 logger = logging.getLogger(__name__)
 
+from dataclasses import dataclass
 from typing import Literal, Protocol, runtime_checkable
 
 from ....temporal import EconoDate, EconoDuration
@@ -64,16 +65,47 @@ class LoanMarket:
         """Stub for future logic: override this for custom borrower-eligibility logic."""
         return True
 
+
+@dataclass(frozen=True)
+class LoanSpecs:
+    """
+    Immutable specifications for a class of loans.
+
+    A LoanSpecs object defines the structural and financial characteristics of a loan
+    that may be offered by one or more lenders. These specs serve as blueprints
+    for constructing LoanOption instances during model initialization or runtime.
+
+    Attributes
+    ----------
+    name : str
+        Human-readable name for the loan specification (also used for factory naming).
+    term : EconoDuration
+        Duration of the loan in model time units.
+    limit_per_borrower : int or None
+        Maximum number of concurrent loans of this type allowed per borrower.
+    limit_kind : {"outstanding", "cumulative"}
+        Constraint type applied to the loan limit.
+    disbursement_structure : {"bullet", "custom"}
+        Disbursement scheduling pattern
+    payment_structure : {"bullet", "custom"}
+        Repayment scheduling pattern
+    """
+    name: str
+    term: EconoDuration
+    limit_per_borrower: int | None = 1
+    limit_kind: Literal["outstanding", "cumulative"] = "outstanding"
+    disbursement_structure: Literal["bullet", "custom"] = "bullet"
+    payment_structure: Literal["bullet", "custom"] = "bullet"
+
+
 class LoanOption:
     def __init__(
         self,
+        loan_specs: LoanSpecs,
+        /,
         lender: Lender,                                                     # Who is offering the loan
         date_created: EconoDate,                                            # Date the loan option is created
-        term: EconoDuration,                                                # Fixed duration of the loan (immutable, required)
         *borrower_types: type[Borrower],                                    # Additional positional arguments are treated as allowed borrower types.
-        name: str | None = None,
-        limit_per_borrower: int | None = 1,                                 # None means unlimited
-        limit_kind: Literal["outstanding", "cumulative"] = "outstanding",
         min_principal: Credit | None = None,                                # Minimum principal allowed
         max_principal: Credit | None = None,                                # Maximum principal allowed
         min_interest_rate: float | None = None,                             # Lower bound for fixed-rate interest rate
@@ -81,14 +113,15 @@ class LoanOption:
         available_from: EconoDate | None = None,
         available_until: EconoDate | None = None,
     ):
+        self._name = loan_specs.name
+        self._term = loan_specs.term
+        self._limit_per_borrower = loan_specs.limit_per_borrower
+        self._limit_kind = loan_specs.limit_kind
+        
         self._lender = lender
         self._date_created = date_created
-        self._term = term
-        self._borrower_types = tuple(borrower_types) if borrower_types else (Borrower,)
         
-        self._name = name or "Unnamed"
-        self._limit_per_borrower = limit_per_borrower
-        self._limit_kind = limit_kind
+        self._borrower_types = tuple(borrower_types) if borrower_types else (Borrower,)
         
         self._min_principal = min_principal or Credit(0)
         self._max_principal = max_principal

@@ -18,7 +18,7 @@ from ...credit import Credit
 from .borrower import Borrower
 
 if TYPE_CHECKING:
-    from .._interfaces.loan import Loan, LoanDisbursement, LoanPayment, LoanOption, LoanApplication
+    from .._interfaces.loan import Loan, LoanDisbursement, LoanPayment, LoanOption, LoanApplication, LoanSpecs
 
 
 class Lender(Borrower):
@@ -76,7 +76,6 @@ class Lender(Borrower):
     # Actions #
     ###########
     
-    
     # TODO: this should be moved to a different agent, maybe
     def issue_credit(self, amount: Credit | float) -> Credit:
         """Creates credit and returns it. Increments `credit_issued` and updates `outstanding_credit`."""
@@ -86,6 +85,36 @@ class Lender(Borrower):
         self.outstanding_credit += credit
         self.counters.increment("credit_issued", credit)
         return credit
+    
+    def create_loan_option(
+        self,
+        loan_specs: LoanSpecs,
+        *borrower_types: type[Borrower]
+    ) -> None:
+        """
+        Create a LoanOption for the lender from a predefined LoanSpecs template.
+
+        This method constructs a loan offering by combining a lender's identity with
+        the structural and financial parameters provided by a LoanSpecs instance.
+        Optionally, borrower eligibility can be constrained by passing one or more
+        borrower types. If no borrower types are provided, defaults to all borrowers.
+
+        Parameters
+        ----------
+        specs : LoanSpecs
+            The specification template defining the loan's term, limits, rates, and structure.
+        date_created : EconoDate
+            The date the loan option is created and potentially made available.
+        *borrower_types : type[Borrower]
+            Optional list of borrower types eligible to apply for this loan.
+        """
+        loan_option = LoanOption(
+            loan_specs,
+            lender=self,
+            date_created=self.calendar.today(),
+            *borrower_types,
+        )
+        self._loan_options.append(loan_option)
     
     def review_loan_applications(self, *received_applications: LoanApplication) -> int:
         applications = list(received_applications)
