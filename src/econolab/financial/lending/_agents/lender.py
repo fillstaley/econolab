@@ -116,6 +116,12 @@ class Lender(Borrower):
         )
         self._loan_options.append(loan_option)
     
+    def update_loan_option(self, loan_option: LoanOption) -> None:
+        raise NotImplemented
+    
+    def remove_loan_option(self, loan_option: LoanOption) -> None:
+        raise NotImplemented
+    
     def review_loan_applications(self, *received_applications: LoanApplication) -> int:
         applications = list(received_applications)
         
