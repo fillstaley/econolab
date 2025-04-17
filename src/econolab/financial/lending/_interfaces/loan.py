@@ -373,6 +373,7 @@ class Loan:
         self.interest_rate = interest_rate
         self.term = term
         self.disbursement_window = disbursement_window
+        self.payment_structure = payment_structure
         self.payment_window = payment_window
         
         self.disbursement_schedule = (
@@ -608,7 +609,7 @@ class LoanDisbursement:
         self._amount_disbursed = debt
         self._date_disbursed = date
         
-        # add logic to create loan payments
+        self.loan.payment_schedule.extend(self.loan.payment_structure(self))
         
         self._status = "completed"
         logger.info(f"Disbursement for {self.loan} completed on {date}.")
@@ -632,7 +633,7 @@ class LoanPaymentStructure:
     def __init__(
         self,
         name: str,
-        rule: callable[Loan, list[LoanPayment]]
+        rule: callable[LoanDisbursement, list[LoanPayment]]
     ) -> None:
         self._name = name
         self._rule = rule
@@ -643,8 +644,8 @@ class LoanPaymentStructure:
     def __str__(self) -> str:
         return f"{self.name.capitalize()} loan payment structure"
     
-    def __call__(self, loan: Loan) -> list[LoanPayment]:
-        return self._rule(loan)
+    def __call__(self, loan_disbursement: LoanDisbursement) -> list[LoanPayment]:
+        return self._rule(loan_disbursement)
     
     
     ##############
@@ -765,8 +766,15 @@ def get_disbursement_structure(name: str) -> LoanDisbursementStructure:
     return DISBURSEMENT_STRUCTURES[name]
 
 
-def bullet_loan_payment_structure(loan: Loan) -> list[LoanPayment]:
-    return [LoanPayment(loan, loan.principal, loan.date_created + loan.term, loan.payment_window)]
+def bullet_loan_payment_structure(loan_disbursement: LoanDisbursement) -> list[LoanPayment]:
+    return [
+        LoanPayment(
+            loan_disbursement,
+            loan_disbursement.principal,
+            loan_disbursement.date_disbursed + loan_disbursement.loan.term,
+            loan_disbursement.loan.payment_window
+        )
+    ]
 
 BULLET_PAYMENT = LoanPaymentStructure("bullet", rule = bullet_loan_payment_structure)
 
