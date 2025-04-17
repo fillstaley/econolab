@@ -95,7 +95,9 @@ class LoanSpecs:
     limit_per_borrower: int | None = 1
     limit_kind: Literal["outstanding", "cumulative"] = "outstanding"
     disbursement_structure: Literal["bullet", "custom"] = "bullet"
+    disbursement_window: EconoDuration = EconoDuration(0)
     payment_structure: Literal["bullet", "custom"] = "bullet"
+    payment_window: EconoDuration = EconoDuration(0)
 
 
 class LoanOption:
@@ -117,6 +119,10 @@ class LoanOption:
         self._term = loan_specs.term
         self._limit_per_borrower = loan_specs.limit_per_borrower
         self._limit_kind = loan_specs.limit_kind
+        self._disbursement_structure = loan_specs.disbursement_structure
+        self._disbursement_window = loan_specs.disbursement_window
+        self._payment_structure = loan_specs.payment_structure
+        self._payment_window = loan_specs.payment_window
         
         self._lender = lender
         self._date_created = date_created
@@ -337,6 +343,11 @@ class LoanApplication:
 class Loan:
     """Creates money."""
     
+    # TODO: implement this
+    @classmethod
+    def from_application(cls, loan_application: LoanApplication) -> Loan:
+        raise NotImplemented
+
     
     ###################
     # Special Methods #
@@ -346,22 +357,29 @@ class Loan:
         self,
         lender: Lender,
         borrower: Borrower,
-        date_issued: EconoDate,
+        date_created: EconoDate,
         principal: Credit,
         interest_rate: float = 0.0,
         term: EconoDuration | None = None,
-        disbursement_schedule: list[LoanDisbursement] | None = None,
-        payment_schedule: list[LoanPayment] | None = None,
+        disbursement_structure: LoanDisbursementStructure | None = None,
+        disbursement_window: EconoDuration = EconoDuration(0),
+        payment_structure: LoanPaymentStructure | None = None,
+        payment_window: EconoDuration = EconoDuration(0)
     ) -> None:
         self.lender = lender
         self.borrower = borrower
-        self.date_issued = date_issued
+        self.date_issued = date_created
         self._principal = principal
         self.interest_rate = interest_rate
         self.term = term
+        self.disbursement_window = disbursement_window
+        self.payment_window = payment_window
         
-        self.disbursement_schedule = disbursement_schedule or [LoanDisbursement(self, principal, date_issued)]
-        self.payment_schedule = payment_schedule or [LoanPayment(self, principal, date_issued + term)]
+        self.disbursement_schedule = (
+            disbursement_structure(self) if disbursement_structure else
+            get_disbursement_structure("bullet")(self)
+        )
+        self.payment_schedule = []
     
     def __repr__(self) -> str:
         return f"<Loan of {self.principal} from {self.lender} to {self.borrower} on {self.date_issued}>"
@@ -414,6 +432,34 @@ class Loan:
     
     def payments_due(self, date: EconoDate) -> list[LoanPayment]:
         return {payment for payment in self.payment_schedule if payment.is_due(date)}
+
+
+class LoanDisbursementStructure:
+    def __init__(
+        self,
+        name: str,
+        rule: callable[Loan, list[LoanDisbursement]]
+    ) -> None:
+        self._name = name
+        self._rule = rule
+    
+    def __repr__(self) -> str:
+        return f"<LoanDisbursementStructure '{self.name}'>"
+    
+    def __str__(self) -> str:
+        return f"{self.name.capitalize()} loan disbursement structure"
+    
+    def __call__(self, loan: Loan) -> list[LoanDisbursement]:
+        return self._rule(loan)
+    
+    
+    ##############
+    # Properties #
+    ##############
+    
+    @property
+    def name(self) -> str:
+        return self._name
 
 
 class LoanDisbursement:
@@ -561,6 +607,9 @@ class LoanDisbursement:
         self.loan.borrower._receive_debt(debt)
         self._amount_disbursed = debt
         self._date_disbursed = date
+        
+        # add logic to create loan payments
+        
         self._status = "completed"
         logger.info(f"Disbursement for {self.loan} completed on {date}.")
         return True
@@ -577,6 +626,34 @@ class LoanDisbursement:
         self._status = "expired"
         logger.info(f"Disbursement for {self.loan} expired on {date}.")
         return True
+
+
+class LoanPaymentStructure:
+    def __init__(
+        self,
+        name: str,
+        rule: callable[Loan, list[LoanPayment]]
+    ) -> None:
+        self._name = name
+        self._rule = rule
+    
+    def __repr__(self) -> str:
+        return f"<LoanPaymentStructure '{self.name}'>"
+    
+    def __str__(self) -> str:
+        return f"{self.name.capitalize()} loan payment structure"
+    
+    def __call__(self, loan: Loan) -> list[LoanPayment]:
+        return self._rule(loan)
+    
+    
+    ##############
+    # Properties #
+    ##############
+    
+    @property
+    def name(self) -> str:
+        return self._name
 
 
 class LoanPayment:
@@ -673,3 +750,29 @@ class LoanPayment:
         self._amount_paid = debt
         self._date_paid = date
         return True
+
+
+def bullet_loan_disbursement_structure(loan: Loan) -> list[LoanDisbursement]:
+    return [LoanDisbursement(loan, loan.principal, loan.date_created, loan.disbursement_window)]
+
+BULLET_DISBURSEMENT = LoanDisbursementStructure("bullet", rule = bullet_loan_disbursement_structure)
+
+DISBURSEMENT_STRUCTURES = {
+    "bullet": BULLET_DISBURSEMENT
+}
+
+def get_disbursement_structure(name: str) -> LoanDisbursementStructure:
+    return DISBURSEMENT_STRUCTURES[name]
+
+
+def bullet_loan_payment_structure(loan: Loan) -> list[LoanPayment]:
+    return [LoanPayment(loan, loan.principal, loan.date_created + loan.term, loan.payment_window)]
+
+BULLET_PAYMENT = LoanPaymentStructure("bullet", rule = bullet_loan_payment_structure)
+
+PAYMENT_STRUCTURES = {
+        "bullet": BULLET_PAYMENT
+}
+
+def get_payment_structure(name: str) -> LoanPaymentStructure:
+    return PAYMENT_STRUCTURES[name]
