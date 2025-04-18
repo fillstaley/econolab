@@ -105,6 +105,12 @@ class LoanSpecs:
     disbursement_window: EconoDuration = EconoDuration(0)
     payment_structure: Literal["bullet", "custom"] = "bullet"
     payment_window: EconoDuration = EconoDuration(0)
+    borrower_types: tuple[type[Borrower]] | None = None
+    
+    def __post_init__(self) -> None:
+        if self.borrower_types is None:
+            from .._agents.borrower import Borrower
+            object.__setattr__(self, "borrower_types", (Borrower,))
 
 
 class LoanOption:
