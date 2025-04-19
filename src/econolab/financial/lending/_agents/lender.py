@@ -45,6 +45,7 @@ class Lender(Borrower):
             type_ = Credit
         )
         
+        # FIXME: this is no longer how LoanOptions are created
         self._loan_options: list[LoanOption] = [
             LoanOption(lender=self, **loan_option) for loan_option in (loan_options or [])
         ]
@@ -88,7 +89,6 @@ class Lender(Borrower):
     def create_loan_option(
         self,
         loan_specs: LoanSpecs,
-        *borrower_types: type[Borrower]
     ) -> None:
         """
         Create a LoanOption for the lender from a predefined LoanSpecs template.
@@ -111,7 +111,6 @@ class Lender(Borrower):
             loan_specs,
             lender=self,
             date_created=self.calendar.today(),
-            *borrower_types,
         )
         self._loan_options.append(loan_option)
     

@@ -108,6 +108,7 @@ class LoanSpecs:
     borrower_types: tuple[type[Borrower]] | None = None
     
     def __post_init__(self) -> None:
+        # borrower_types defaults to the most general possible borrower in none are given
         if self.borrower_types is None:
             from .._agents.borrower import Borrower
             object.__setattr__(self, "borrower_types", (Borrower,))
@@ -136,15 +137,10 @@ class LoanOption:
         self._disbursement_window = loan_specs.disbursement_window
         self._payment_structure = loan_specs.payment_structure
         self._payment_window = loan_specs.payment_window
+        self._borrower_types = loan_specs.borrower_types
         
         self._lender = lender
         self._date_created = date_created
-        
-        # if no borrower_types are given, default to the most general possible borrower
-        if not borrower_types:
-            from .._agents.borrower import Borrower
-            borrower_types = (Borrower,)
-        self._borrower_types = tuple(borrower_types)
         
         self._min_principal = min_principal or Credit(0)
         self._max_principal = max_principal
