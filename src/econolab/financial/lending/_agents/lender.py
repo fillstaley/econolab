@@ -107,7 +107,7 @@ class Lender(Borrower):
         *borrower_types : type[Borrower]
             Optional list of borrower types eligible to apply for this loan.
         """
-        loan_option = LoanOption(
+        loan_option = LoanOption.from_specifications(
             loan_specs,
             lender=self,
             date_created=self.calendar.today(),

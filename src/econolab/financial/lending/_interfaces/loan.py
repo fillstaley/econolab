@@ -10,7 +10,7 @@ from __future__ import annotations
 import logging
 logger = logging.getLogger(__name__)
 
-from dataclasses import dataclass
+from dataclasses import dataclass, asdict
 from typing import Literal, Protocol, runtime_checkable, TYPE_CHECKING
 
 from ....temporal import EconoDate, EconoDuration
@@ -112,35 +112,78 @@ class LoanSpecs:
         if self.borrower_types is None:
             from .._agents.borrower import Borrower
             object.__setattr__(self, "borrower_types", (Borrower,))
+    
+    def to_dict(self) -> dict:
+        return asdict(self)
 
 
 class LoanOption:
-    def __init__(
-        self,
+    
+    @classmethod
+    def from_specifications(
+        cls,
         loan_specs: LoanSpecs,
         /,
-        lender: Lender,                                                     # Who is offering the loan
-        date_created: EconoDate,                                            # Date the loan option is created
-        *borrower_types: type[Borrower],                                    # Additional positional arguments are treated as allowed borrower types.
-        min_principal: Credit | None = None,                                # Minimum principal allowed
-        max_principal: Credit | None = None,                                # Maximum principal allowed
-        min_interest_rate: float | None = None,                             # Lower bound for fixed-rate interest rate
-        max_interest_rate: float | None = None,                             # Upper bound; must be >= min
+        lender: Lender,
+        date_created: EconoDate,
+        *,
+        min_principal: Credit | None = None,
+        max_principal: Credit | None = None,
+        min_interest_rate: float | None = None,
+        max_interest_rate: float | None = None,
         available_from: EconoDate | None = None,
-        available_until: EconoDate | None = None,
+        available_until: EconoDate | None = None
+    ) -> LoanOption:
+        return cls(
+            lender,
+            date_created,
+            **loan_specs.to_dict(),
+            min_principal=min_principal,
+            max_principal=max_principal,
+            min_interest_rate=min_interest_rate,
+            max_interest_rate=max_interest_rate,
+            available_from=available_from,
+            available_until=available_until
+        )
+    
+    
+    ###################
+    # Special Methods #
+    ###################
+    
+    def __init__(
+        self,
+        lender: Lender,
+        date_created: EconoDate,
+        name: str,
+        term: EconoDuration,
+        limit_per_borrower: int | None,
+        limit_kind: Literal["outstanding", "cumulative"],
+        disbursement_structure: Literal["bullet", "custom"],
+        disbursement_window: EconoDuration,
+        payment_structure: Literal["bullet", "custom"],
+        payment_window: EconoDuration,
+        borrower_types: tuple[type[Borrower]],
+        *,
+        min_principal: Credit | None = None,
+        max_principal: Credit | None = None,
+        min_interest_rate: float | None = None,
+        max_interest_rate: float | None = None,
+        available_from: EconoDate | None = None,
+        available_until: EconoDate | None = None
     ):
-        self._name = loan_specs.name
-        self._term = loan_specs.term
-        self._limit_per_borrower = loan_specs.limit_per_borrower
-        self._limit_kind = loan_specs.limit_kind
-        self._disbursement_structure = loan_specs.disbursement_structure
-        self._disbursement_window = loan_specs.disbursement_window
-        self._payment_structure = loan_specs.payment_structure
-        self._payment_window = loan_specs.payment_window
-        self._borrower_types = loan_specs.borrower_types
-        
         self._lender = lender
         self._date_created = date_created
+        
+        self._name = name
+        self._term = term
+        self._limit_per_borrower = limit_per_borrower
+        self._limit_kind = limit_kind
+        self._disbursement_structure = disbursement_structure
+        self._disbursement_window = disbursement_window
+        self._payment_structure = payment_structure
+        self._payment_window = payment_window
+        self._borrower_types = borrower_types
         
         self._min_principal = min_principal or Credit(0)
         self._max_principal = max_principal
