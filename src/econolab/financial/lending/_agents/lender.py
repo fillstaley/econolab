@@ -24,7 +24,7 @@ class Lender(Borrower):
     def __init__(
         self, 
         *args,
-        loan_options: list[dict] | None = None,
+        loan_specs: list[LoanSpecs] | None = None,
         limit_loan_applications_reviewed: int | None = None,
         **kwargs
     ) -> None:
@@ -45,10 +45,9 @@ class Lender(Borrower):
             type_ = Credit
         )
         
-        # FIXME: this is no longer how LoanOptions are created
-        self._loan_options: list[LoanOption] = [
-            LoanOption(lender=self, **loan_option) for loan_option in (loan_options or [])
-        ]
+        if loan_specs:
+            for specs in loan_specs:
+                self.create_loan_option(specs)
         
         self.limit_loan_applications_reviewed = limit_loan_applications_reviewed
         self._received_loan_applications: deque[LoanApplication] = deque()
