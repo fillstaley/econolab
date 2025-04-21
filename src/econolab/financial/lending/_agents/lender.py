@@ -136,10 +136,9 @@ class Lender(Borrower):
             raise ValueError(f"All submitted applications must be for {self}; some are not.")
 
         if not received_applications:
-            N = min(
-                self.limit_loan_applications_reviewed,
-                len(self._received_loan_applications)
-            )
+            N = len(self._received_loan_applications)
+            if self.limit_loan_applications_reviewed is not None:
+                N = min(N, self.limit_loan_applications_reviewed)
             applications = [
                 self._received_loan_applications.popleft() for _ in range(N)
             ]
@@ -233,17 +232,16 @@ class Lender(Borrower):
     def _create_debt(self, application: LoanApplication) -> Loan | None:
         if application.accepted and not application.closed:
             today = self.calendar.today()
-            application.close(today)
+            application._close(today)
             
             borrower = application.borrower
             loan = Loan(
-                bank=self,
+                lender=self,
                 borrower=borrower,
-                date_issued=today,
+                date_created=today,
                 principal=application.principal,
                 interest_rate=application.interest_rate,
                 term=application.term,
-                billing_window=application.billing_window,
             )
             self._loan_book[borrower].append(loan)
             self._undisbursed_loans[loan].extend(loan.disbursement_schedule)

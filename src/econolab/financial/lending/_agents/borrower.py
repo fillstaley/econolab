@@ -281,7 +281,7 @@ class Borrower(BaseAgent):
     #########
     
     # TODO: implement this
-    def search_for_loans(self, limit: int) -> list[LoanOption]:
+    def search_for_loans(self, limit: int = 1) -> list[LoanOption]:
         """Return a list of available loan options up to a specified limit.
         
         This method can be overridden to define how a borrower searches for loan opportunities.
@@ -298,7 +298,7 @@ class Borrower(BaseAgent):
         """
         
         if getattr(self.model, "loan_market", None) is not None:
-            return self.model.loan_market.sample(self)
+            return self.model.loan_market.sample(self, limit)
     
     def can_apply_for(self, loan_option: LoanOption, money_demand: float) -> bool:
         """Check if the borrower is eligible to apply for a loan.

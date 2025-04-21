@@ -65,6 +65,7 @@ class LoanMarket:
         ...
         """
         options = self.search(borrower)
+        k = min(k, len(options))
         return self.model.random.sample(options, k) if options else []
 
     def search(
@@ -308,6 +309,7 @@ class LoanOption:
         )
     
     def _apply(self, borrower: Borrower, principal: Credit | int | float, date: EconoDate) -> LoanApplication:
+        principal = Credit(principal)
         if self.max_principal:
             principal = min(principal, self.max_principal)
             principal = Credit(principal)
@@ -407,7 +409,7 @@ class LoanApplication:
         self._accepted = True
         self._date_decided = date
         logger.info(f"LoanApplication accepted by {self.borrower} on {date}.")
-        return self.lender._create_debt(self, date)
+        return self.lender._create_debt(self)
     
     def _reject(self, date: EconoDate) -> None:
         if self.decided:
@@ -448,22 +450,25 @@ class Loan:
     ) -> None:
         self.lender = lender
         self.borrower = borrower
-        self.date_issued = date_created
+        self.date_created = date_created
         self._principal = principal
         self.interest_rate = interest_rate
         self.term = term
-        self.disbursement_window = disbursement_window
-        self.payment_structure = payment_structure
-        self.payment_window = payment_window
         
-        self.disbursement_schedule = (
-            disbursement_structure(self) if disbursement_structure else
-            get_disbursement_structure("bullet")(self)
+        self.disbursement_window = disbursement_window
+        self.disbursement_structure = (
+            disbursement_structure or get_disbursement_structure("bullet")
+        )
+        self.disbursement_schedule = self.disbursement_structure(self)
+        
+        self.payment_window = payment_window
+        self.payment_structure = (
+            payment_structure or get_payment_structure("bullet")
         )
         self.payment_schedule = []
     
     def __repr__(self) -> str:
-        return f"<Loan of {self.principal} from {self.lender} to {self.borrower} on {self.date_issued}>"
+        return f"<Loan of {self.principal} from {self.lender} to {self.borrower} on {self.date_created}>"
     
     
     ##############
@@ -476,7 +481,7 @@ class Loan:
     
     @property
     def due_date(self) -> EconoDate:
-        return self.date_issued + self.term if self.term else None
+        return self.date_created + self.term if self.term else None
 
     @property
     def interest(self) -> Credit:
@@ -849,8 +854,8 @@ def get_disbursement_structure(name: str) -> LoanDisbursementStructure:
 def bullet_loan_payment_structure(loan_disbursement: LoanDisbursement) -> list[LoanPayment]:
     return [
         LoanPayment(
-            loan_disbursement,
-            loan_disbursement.principal,
+            loan_disbursement.loan,
+            loan_disbursement.amount_disbursed,
             loan_disbursement.date_disbursed + loan_disbursement.loan.term,
             loan_disbursement.loan.payment_window
         )
