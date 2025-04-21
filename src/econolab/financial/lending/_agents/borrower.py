@@ -296,7 +296,9 @@ class Borrower(BaseAgent):
         list of LoanOption
             The loan options visible to this borrower.
         """
-        return []
+        
+        if getattr(self.model, "loan_market", None) is not None:
+            return self.model.loan_market.sample(self)
     
     def can_apply_for(self, loan_option: LoanOption, money_demand: float) -> bool:
         """Check if the borrower is eligible to apply for a loan.

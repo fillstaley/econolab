@@ -31,6 +31,13 @@ class Lender(Borrower):
         super().__init__(*args, **kwargs)
         
         # initialize agent counters
+        # TODO: this should be moved to a different agent, maybe
+        self.counters.add_counters(
+            "credit_issued",
+            "credit_redeemed",
+            type_ = Credit
+        )
+        
         self.counters.add_counters(
             "loans_created",
             type_ = int
@@ -40,10 +47,10 @@ class Lender(Borrower):
             "debt_created",
             "debt_disbursed",
             "debt_extinguished",
-            "credit_issued",
-            "credit_redeemed",
             type_ = Credit
         )
+        
+        self._loan_options = []
         
         if loan_specs:
             for specs in loan_specs:
@@ -112,6 +119,9 @@ class Lender(Borrower):
             date_created=self.calendar.today(),
         )
         self._loan_options.append(loan_option)
+        
+        if getattr(self.model, "loan_market", None) is not None:
+            self.model.loan_market.register(loan_option)
     
     def update_loan_option(self, loan_option: LoanOption) -> None:
         raise NotImplemented

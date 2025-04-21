@@ -58,19 +58,37 @@ class LoanMarket:
     def deregister(self, option: LoanOption):
         """Remove a loan option from the market."""
         self._options.remove(option)
+    
+    def sample(self, borrower: Borrower, k: int = 1) -> list[LoanOption]:
+        """Return a random sample of loan options for a borrower.
+        
+        ...
+        """
+        options = self.search(borrower)
+        return self.model.random.sample(options, k) if options else []
 
-    def search(self, borrower: Borrower, date: EconoDate) -> list[LoanOption]:
-        """Return a list of loan options available and eligible for the borrower."""
-        return [
+    def search(
+        self,
+        borrower: Borrower,
+        date: EconoDate | None = None,
+        lender: Lender | None = None
+    ) -> list[LoanOption]:
+        """Return the whole list of loan options for a borrower."""
+        if date is None:
+            date = self.model.calendar.today()
+        
+        filtered_options = [
             option for option in self._options
-            if option.is_available(date)
-            and isinstance(borrower, option.borrower_types)
-            and self._is_eligible(borrower, option)
+            if option.is_available(date or self.calendar.today())
+            and option.is_eligible(borrower)
         ]
-
-    def _is_eligible(self, borrower: Borrower, option: LoanOption) -> bool:
-        """Stub for future logic: override this for custom borrower-eligibility logic."""
-        return True
+        
+        if lender:
+            filtered_options = [
+                option for option in filtered_options if option.lender is lender
+            ]
+        
+        return filtered_options
 
 
 @dataclass(frozen=True)
@@ -282,6 +300,12 @@ class LoanOption:
     
     def is_available(self, date: EconoDate) -> bool:
         return self._available_from <= date <= self._available_until
+    
+    def is_eligible(self, borrower: Borrower) -> bool:
+        return (
+            isinstance(borrower, self.borrower_types)
+            and len(self.lender._loan_book[borrower]) < self.limit_per_borrower
+        )
     
     def _apply(self, borrower: Borrower, principal: Credit | int | float, date: EconoDate) -> LoanApplication:
         if self.max_principal:
