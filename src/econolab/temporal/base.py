@@ -113,12 +113,12 @@ class EconoDate:
             raise ValueError("'days' must be an integer and at least 1")
         
         days_in_year = DAYS_PER_MONTH * MONTHS_PER_YEAR
-        year = MINYEAR + days // days_in_year
+        year = MINYEAR + (days - 1) // days_in_year
         if year > MAXYEAR:
-            raise ValueError("Too many days: exceeds maximum number of years")
-        remainder = days % days_in_year
+            raise ValueError(f"Too many days: {days} exceeds maximum number of years")
+        remainder = (days - 1) % days_in_year
         month = 1 + remainder // DAYS_PER_MONTH
-        day = remainder % DAYS_PER_MONTH
+        day = 1 + remainder % DAYS_PER_MONTH
         return cls(year, month, day)
     
     @classmethod
