@@ -2,22 +2,22 @@
 	"folders": [
 		{
 			"name": "root",
-			"path": ".."
+			"path": "."
 		},
 		{
 			"name": "banking",
-			"path": "../models/boltzmann-banking"
+			"path": "models/boltzmann-banking"
 		},
 		{
 			"name": "business",
-			"path": "../models/boltzmann-business"
+			"path": "models/boltzmann-business"
 		}
 	],
 	"settings": {
 		"cSpell.dictionaryDefinitions": [
 			{
 				"name": "econolab-terms",
-				"path": "${workspaceFolder:root}/.code/econolab-dictionary.txt",
+				"path": "${workspaceFolder:root}/.vscode/econolab-dictionary.txt",
 				"addWords": true
 			}
 		],
