@@ -22,6 +22,9 @@ class Individual(lending.Borrower, Agent):
             application_limit=application_limit,
             debt_limit=debt_limit
         )
+    
+    def act(self) -> None:
+        pass
 
 
 class Bank(lending.Lender, Agent):
@@ -36,3 +39,6 @@ class Bank(lending.Lender, Agent):
             loan_specs=loan_specs,
             limit_loan_applications_reviewed=limit_loan_applications_reviewed,
         )
+    
+    def act(self) -> None:
+        pass
