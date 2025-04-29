@@ -21,6 +21,10 @@ packages = [{include = "econolab", from = "src"}]
 jupyter = "^1.1.1"
 ipykernel = "^6.29.5"
 pytest = "^8.3.5"
+sphinx = "^8.2.3"
+sphinx-autodoc-typehints = "^3.2.0"
+sphinx-rtd-theme = "^3.0.2"
+sphinxcontrib-napoleon = "^0.7"
 
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]
