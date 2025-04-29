@@ -25,8 +25,6 @@ extensions = [
     'sphinx.ext.napoleon',           # NumPy & Google style
     'sphinx_autodoc_typehints',      # show PEP 484 annotations
     'sphinx.ext.viewcode',           # add “view source” links
-    # 'myst_parser',                   # OPTIONAL: let Sphinx read .md files
-
 ]
 
 templates_path = ['_templates']
