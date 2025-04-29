@@ -5,8 +5,8 @@
 
 import os
 import sys
+
 # ─────── point Sphinx at your src/ layout ───────
-# conf.py lives at docs/source/, so ../.. is project root
 sys.path.insert(0, os.path.abspath('../../src'))
 
 # -- Project information -----------------------------------------------------
