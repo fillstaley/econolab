@@ -4,7 +4,7 @@
 """
 
 import pytest
-from econolab.temporal import EconoDate, EconoDuration, MINYEAR, MAXYEAR, DAYS_PER_MONTH, MONTHS_PER_YEAR
+from econolab.temporal import EconoDate, EconoDuration
 
 
 @pytest.mark.parametrize("year,month,day", [

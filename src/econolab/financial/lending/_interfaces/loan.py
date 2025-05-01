@@ -121,11 +121,12 @@ class LoanSpecs:
     limit_per_borrower: int | None = 1
     limit_kind: Literal["outstanding", "cumulative"] = "outstanding"
     disbursement_structure: Literal["bullet", "custom"] = "bullet"
-    disbursement_window: EconoDuration = EconoDuration(0)
+    disbursement_window: EconoDuration | None = None
     payment_structure: Literal["bullet", "custom"] = "bullet"
-    payment_window: EconoDuration = EconoDuration(0)
+    payment_window: EconoDuration | None = None
     borrower_types: tuple[type[Borrower]] | None = None
     
+    # TODO: add some logic for the default windows
     def __post_init__(self) -> None:
         # borrower_types defaults to the most general possible borrower in none are given
         if self.borrower_types is None:
@@ -444,9 +445,9 @@ class Loan:
         interest_rate: float = 0.0,
         term: EconoDuration | None = None,
         disbursement_structure: LoanDisbursementStructure | None = None,
-        disbursement_window: EconoDuration = EconoDuration(0),
+        disbursement_window: EconoDuration | None = None,
         payment_structure: LoanPaymentStructure | None = None,
-        payment_window: EconoDuration = EconoDuration(0)
+        payment_window: EconoDuration | None = None
     ) -> None:
         self.lender = lender
         self.borrower = borrower
@@ -571,7 +572,7 @@ class LoanDisbursement:
         loan: Loan,
         amount_due: Credit,
         date_due: EconoDate,
-        disbursement_window: EconoDuration = EconoDuration(0)
+        disbursement_window: EconoDuration | None = None
     ) -> None:
         self._loan = loan
         self._amount_due = amount_due
@@ -762,7 +763,7 @@ class LoanPayment:
         loan: Loan,
         amount_due: Credit, 
         date_due: EconoDate, 
-        payment_window: EconoDuration = EconoDuration(0)
+        payment_window: EconoDuration |None = None
     ) -> None:
         self._loan = loan
         self._amount_due = amount_due
