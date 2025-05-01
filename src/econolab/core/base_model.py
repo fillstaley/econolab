@@ -9,9 +9,9 @@ from typing import Optional, Type
 
 from ..temporal import (
     TemporalStructure,
-    Calendar as BaseCalendar,
     EconoDate as BaseDate,
     EconoDuration as BaseDuration,
+    Calendar as BaseCalendar,
 )
 from .counters import CounterCollection
 
@@ -49,18 +49,18 @@ class BaseModel:
         self.logger.debug("Initializing model '%s'", self.name)
 
         # Use temporal structure from class/instance attribute only
-        ts = self._temporal_structure
+        ts = self.temporal_structure
         if ts is None:
             self.logger.error(
-                "No TemporalStructure provided for model '%s' (must set `_temporal_structure` on class)",
+                "No TemporalStructure provided for model '%s' (must set `temporal_structure` on class)",
                 self.name
             )
             raise RuntimeError(
-                "Models must declare `_temporal_structure` as a class attribute before initialization."
+                "Models must declare `temporal_structure` as a class attribute before initialization."
             )
-        self._temporal_structure = ts
+        self.temporal_structure = ts
         self.logger.debug(
-            "Using TemporalStructure: %s", self._temporal_structure
+            "Using TemporalStructure: %s", self.temporal_structure
         )
 
         # Dynamically create and bind temporal subclasses
@@ -68,7 +68,7 @@ class BaseModel:
         self.logger.debug("Bound temporal types for model '%s'", self.name)
 
         # instantiate calendar and counters
-        self.calendar = self.Calendar()
+        self.calendar = self.Calendar(self)
         self.counters = CounterCollection(self)
         self.logger.debug("Calendar and counters initialized for '%s'", self.name)
 

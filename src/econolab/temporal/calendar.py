@@ -5,9 +5,6 @@
 """
 
 
-import logging
-logger = logging.getLogger(__name__)
-
 import math
 from typing import Sequence, Protocol, runtime_checkable
 
