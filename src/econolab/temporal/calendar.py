@@ -1,4 +1,7 @@
 """A class that specifies the temporal structure of an EconoLab model.
+
+...
+
 """
 
 
@@ -6,26 +9,34 @@ import logging
 logger = logging.getLogger(__name__)
 
 import math
-from typing import Protocol, runtime_checkable
+from typing import Sequence, Protocol, runtime_checkable
 
+from .temporal_structure import TemporalStructure
 from .base import EconoDate, EconoDuration
 
 
 
 @runtime_checkable
-class ABFModel(Protocol):
+class EconoModel(Protocol):
+    temporal_structure: TemporalStructure
     steps: int
 
 
 @runtime_checkable
-class ABFAgent(Protocol):
-    model: ABFModel
+class EconoAgent(Protocol):
+    model: EconoModel
     unique_id: int
 
 
 class Calendar:
     """A class that specifies the temporal structure of an EconoLab model.
+
+    ...
+    
     """
+    
+    _model: EconoModel | None = None
+    __slots__ = ("_agent",)
     
     ####################
     # Class Attributes #
@@ -36,59 +47,6 @@ class Calendar:
     _start_year: int = 1
     _start_month: int = 1
     _start_day: int = 1
-    
-    
-    ####################
-    # Class Properties #
-    ####################
-    
-    @property
-    def step_units(self) -> int:
-        return self.__class__._step_units
-    
-    @step_units.setter
-    def step_units(self, value: int) -> None:
-        raise AttributeError("Attribute 'step_units' is readonly. Use Calendar.set_steps_days_ratio() to change it.")
-    
-    @property
-    def day_units(self) -> int:
-        return self.__class__._day_units
-    
-    @day_units.setter
-    def day_units(self, value: int) -> None:
-        raise AttributeError("Attribute 'day_units' is readonly. Use Calendar.set_steps_days_ratio() to change it.")
-    
-    @property
-    def start_year(self) -> int:
-        return self.__class__._start_year
-    
-    @start_year.setter
-    def start_year(self, value: int) -> None:
-        raise AttributeError("Attribute 'start_year' is readonly. Use Calendar.set_start_date(year, month, day) to change it.")
-    
-    @property
-    def start_month(self) -> int:
-        return self.__class__._start_month
-    
-    @start_month.setter
-    def start_month(self, value: int) -> None:
-        raise AttributeError("Attribute 'start_month' is readonly. Use Calendar.set_start_date(year, month, day) to change it.")
-    
-    @property
-    def start_day(self) -> int:
-        return self.__class__._start_day
-    
-    @start_day.setter
-    def start_day(self, value: int) -> None:
-        raise AttributeError("Attribute 'start_day' is readonly. Use Calendar.set_start_date(year, month, day) to change it.")
-    
-    @property
-    def start_date(self) -> EconoDate:
-        return self.__class__.get_start_date()
-    
-    @start_date.setter
-    def start_date(self, value: EconoDate) -> None:
-        raise AttributeError("Attribute 'start_date' is readonly. Use Calendar.set_start_date(year, month, day) to change it.")
     
     
     #################
@@ -132,6 +90,8 @@ class Calendar:
         EconoDate(1, 1, 9)
         
         """
+        if cls._model is None:
+            raise RuntimeError(f"{cls} is not bound to a model.")
         if not isinstance(steps, int) or steps < 1:
             raise ValueError("'steps' must be an integer and at least 1")
         if not isinstance(days, int) or days < 1:
@@ -139,10 +99,10 @@ class Calendar:
         
         if (gcd := math.gcd(steps, days)) != 1:
             steps, days = steps // gcd, days // gcd
-            logger.debug("'steps' and 'days' were not relatively prime; divided both by their GCD (%s)", gcd)
+            cls._model.logger.debug("'steps' and 'days' were not relatively prime; divided both by their GCD (%s)", gcd)
         
         cls._step_units, cls._day_units = steps, days
-        logger.info(
+        cls._model.logger.info(
             "Updated steps-to-days ratio; now %s equals %s",
             f"{steps} step" if steps == 1 else f"{steps} steps",
             f"{days} day" if days == 1 else f"{days} days",
@@ -181,16 +141,19 @@ class Calendar:
         EconoDate(2025, 2, 15)
         
         """
-        
-        if not isinstance(year, int) or year < 1:
-            raise ValueError("'year' must be an integer and at least 1")
-        if not isinstance(month, int) or month < 1 or month > 12:
-            raise ValueError("'month' must be an integer between 1 and 12")
-        if not isinstance(day, int) or day < 1 or day > 31:
-            raise ValueError("'day' must be an integer between 1 and 31")
+        if cls._model is None:
+            raise RuntimeError(f"{cls} is not bound to a model.")
+        ts = cls._model.temporal_structure
+        if not isinstance(year, int) or year < ts.minyear or year > ts.maxyear:
+            raise ValueError(f"'year' must be an integer between {ts.minyear} and {ts.maxyear}")
+        if not isinstance(month, int) or month < 1 or month > ts.months_per_year:
+            raise ValueError(f"'month' must be an integer between 1 and {ts.months_per_year}")
+        days_in_month = ts.days_per_month[month-1] if isinstance(ts.days_per_month, Sequence) else ts.days_per_month
+        if not isinstance(day, int) or day < 1 or day > days_in_month:
+            raise ValueError(f"'day' must be an integer between 1 and {days_in_month}")
         
         cls._start_year, cls._start_month, cls._start_day = year, month, day
-        logger.info("Updated start date; now the calendar begins on year %s", cls.get_start_date())
+        cls._model.logger.info("Updated start date; now the calendar begins on year %s", cls.get_start_date())
     
     @classmethod
     def convert_steps_to_days(cls, steps: int) -> int:
@@ -222,7 +185,6 @@ class Calendar:
         8
         
         """
-        
         return steps * cls._day_units // cls._step_units
     
     @classmethod
@@ -289,13 +251,14 @@ class Calendar:
         EconoDate(1, 1, 9)
         
         """
-        
+        if cls._model is None:
+            raise RuntimeError(f"{cls} is not bound to a model.")
         if steps is not None:
-            return cls.get_start_date() + EconoDuration(cls.convert_steps_to_days(steps))
+            return cls.get_start_date() + cls.new_duration(cls.convert_steps_to_days(steps))
         if year is None or month is None or day is None:
             raise ValueError("year, month, and day must be provided")
         
-        return EconoDate(year, month, day)
+        return cls._model.EconoDate(year, month, day)
     
     @classmethod
     def new_duration(cls, days: int = 0, *, steps: int = 0) -> EconoDuration:
@@ -331,10 +294,11 @@ class Calendar:
         EconoDuration(10)
         
         """
-        
+        if cls._model is None:
+            raise RuntimeError(f"{cls} is not bound to a model.")
         if steps:
-            return EconoDuration(cls.convert_steps_to_days(steps))
-        return EconoDuration(days)
+            return cls._model.EconoDuration(cls.convert_steps_to_days(steps))
+        return cls._model.EconoDuration(days)
     
     
     ###################
@@ -343,18 +307,81 @@ class Calendar:
     
     def __init__(
         self,
-        owner: ABFModel | ABFAgent,
+        owner: EconoModel | EconoAgent,
     ) -> None:
-        if not isinstance(owner, ABFModel) and not isinstance(owner, ABFAgent):
+        if self.model is None:
+            raise RuntimeError(f"{type(self).__name__} is not bound to a model.")
+        if not isinstance(owner, EconoModel) and not isinstance(owner, EconoAgent):
             raise TypeError("Calendar 'owner' must be a valid model or agent object")
         
-        self.model = owner if isinstance(owner, ABFModel) else owner.model
-        self.agent = owner if isinstance(owner, ABFAgent) else None
+        self._agent = owner if isinstance(owner, EconoAgent) else None
         
-        logger.debug(
+        self._model.logger.debug(
             "New calendar created; it belongs to %s",
             f"agent #{self.agent.unique_id}" if self.agent else f"the model {self.model}"
         )
+    
+    
+    ##############
+    # Properties #
+    ##############
+    
+    @property
+    def agent(self) -> EconoAgent | None:
+        return self._agent
+
+    @property
+    def model(self) -> EconoModel | None:
+        return type(self)._model
+    
+    @property
+    def step_units(self) -> int:
+        return type(self)._step_units
+    
+    @step_units.setter
+    def step_units(self, value: int) -> None:
+        raise AttributeError("Attribute 'step_units' is readonly. Use Calendar.set_steps_days_ratio() to change it.")
+    
+    @property
+    def day_units(self) -> int:
+        return type(self)._day_units
+    
+    @day_units.setter
+    def day_units(self, value: int) -> None:
+        raise AttributeError("Attribute 'day_units' is readonly. Use Calendar.set_steps_days_ratio() to change it.")
+    
+    @property
+    def start_year(self) -> int:
+        return type(self)._start_year
+    
+    @start_year.setter
+    def start_year(self, value: int) -> None:
+        raise AttributeError("Attribute 'start_year' is readonly. Use Calendar.set_start_date(year, month, day) to change it.")
+    
+    @property
+    def start_month(self) -> int:
+        return type(self)._start_month
+    
+    @start_month.setter
+    def start_month(self, value: int) -> None:
+        raise AttributeError("Attribute 'start_month' is readonly. Use Calendar.set_start_date(year, month, day) to change it.")
+    
+    @property
+    def start_day(self) -> int:
+        return type(self)._start_day
+    
+    @start_day.setter
+    def start_day(self, value: int) -> None:
+        raise AttributeError("Attribute 'start_day' is readonly. Use Calendar.set_start_date(year, month, day) to change it.")
+    
+    @property
+    def start_date(self) -> EconoDate:
+        return type(self).get_start_date()
+    
+    @start_date.setter
+    def start_date(self, value: EconoDate) -> None:
+        raise AttributeError("Attribute 'start_date' is readonly. Use Calendar.set_start_date(year, month, day) to change it.")
+    
     
     ###########
     # Methods #

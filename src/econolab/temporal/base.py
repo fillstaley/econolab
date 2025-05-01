@@ -118,7 +118,7 @@ class EconoDate:
         
         """
         if cls._model is None:
-            raise ValueError(f"{cls} must be bound to a model.")
+            raise RuntimeError(f"{cls} is not bound to a model.")
         
         if not isinstance(days, int) or days < 1:
             raise ValueError("'days' must be an integer and at least 1")
@@ -189,7 +189,7 @@ class EconoDate:
     
     def __init__(self, year: int, month: int, day: int):
         if self._model is None:
-            raise ValueError("EconoDate._model must be set before use")
+            raise RuntimeError(f"{type(self)} is not bound to a model.")
 
         ts = self._model.temporal_structure
 
