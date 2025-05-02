@@ -9,6 +9,7 @@ from typing import Optional, Type
 
 from ..temporal import (
     TemporalStructure,
+    DEFAULT_TEMPORAL_STRUCTURE,
     EconoDate as BaseDate,
     EconoDuration as BaseDuration,
     Calendar as BaseCalendar,
@@ -48,20 +49,22 @@ class BaseModel:
         self.logger = logging.getLogger(f"EconoLab.Model.{self.name}")
         self.logger.debug("Initializing model '%s'", self.name)
 
-        # Use temporal structure from class/instance attribute only
-        ts = self.temporal_structure
-        if ts is None:
-            self.logger.error(
-                "No TemporalStructure provided for model '%s' (must set `temporal_structure` on class)",
-                self.name
+        # Validate temporal_structure or use a default if none is provided
+        if isinstance(self.temporal_structure, TemporalStructure):
+            self.logger.debug(
+                "Using TemporalStructure %s for model %s.", self.temporal_structure, self.name
             )
-            raise RuntimeError(
-                "Models must declare `temporal_structure` as a class attribute before initialization."
+        elif self.temporal_structure is None:
+            self.temporal_structure = DEFAULT_TEMPORAL_STRUCTURE
+            self.logger.info(
+                "No TemporalStructure provided for model '%s'; using %s as a default.",
+                self.name, self.temporal_structure
             )
-        self.temporal_structure = ts
-        self.logger.debug(
-            "Using TemporalStructure: %s", self.temporal_structure
-        )
+        else:
+            raise ValueError(
+                f"The temporal_structure attribute should be a TemporalStructure; "
+                f"got {type(self.temporal_structure).__name__}"
+            )
 
         # Dynamically create and bind temporal subclasses
         self._bind_temporal_types()

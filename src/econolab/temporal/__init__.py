@@ -1,6 +1,10 @@
 """The temporal structure of an econolab module.
+
+...
+
 """
 
 
-from .base import TemporalStructure, EconoDate, EconoDuration
+from .temporal_structure import TemporalStructure, DEFAULT_TEMPORAL_STRUCTURE
 from .calendar import Calendar
+from .base import EconoDate, EconoDuration
