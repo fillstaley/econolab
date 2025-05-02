@@ -23,6 +23,10 @@ def test_model(create_mock_mesa_model):
     return TestModel()
 
 
+def test_model_has_calendar(test_model):
+    assert hasattr(test_model, "calendar")
+
+
 def test_calendar_get_start_date(test_model):
     test_calendar = test_model.calendar
     start_date = test_calendar.get_start_date()

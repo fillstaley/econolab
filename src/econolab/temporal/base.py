@@ -12,86 +12,161 @@ from typing import Sequence, Protocol, runtime_checkable
 
 from numpy import floor
 
+from .temporal_structure import TemporalStructure
+
 
 @runtime_checkable
 class EconoModel(Protocol):
     temporal_structure: TemporalStructure
 
 
-@dataclass(frozen=True)
-class TemporalStructure:
-    """Defines the temporal structure of an EconoLab model.
+@total_ordering
+class EconoDuration:
+    """A duration of EconoLab time, measured in days.
     
     Parameters
     ----------
-    minyear : int
-        Smallest possible year (must be > 0).
-    maxyear : int
-        Largest possible year (must be > ``minyear``).
-    days_per_week : int
-        Number of days in a week (must be > 0).
-    days_per_month : int or sequence of int
-        If int, number of days in each month (must be > 0).
-        If sequence, elements specify days in each month and the length
-        specifies ``months_per_year``.
-    months_per_year : int, optional
-        Number of months in a year (must be > 0). Should be omitted if
-        ``days_per_month`` is a sequence (it will be inferred from its length).
+    days : int
+        The number of days in the duration, default is 0
+    weeks : int
+        The additional number of weeks in the duration, default is 0
     
     Attributes
     ----------
-    minyear : int
-    maxyear : int
-    days_per_week : int
-    days_per_month : int or sequence of int
-    months_per_year : int
-    days_per_year : int
-        Total days in a year, summing per-month lengths or uniform months.
+    days : int
+        The number of days in the duration
+    
+    Examples
+    --------
+    >>> duration = EconoDuration(7)
+    >>> duration
+    EconoDuration(7)
+    >>> print(duration)
+    7 days
+    >>> duration.days
+    7
+    >>> duration + EconoDuration(10)
+    EconoDuration(17)
+    >>> duration - EconoDuration(3)
+    EconoDuration(4)
+    >>> duration * 2
+    EconoDuration(14)
+    >>> duration / 2
+    EconoDuration(3)
+    >>> duration // 2
+    EconoDuration(3)
+    >>> duration // EconoDuration(3)
+    EconoDuration(2)
+    >>> duration % EconoDuration(3)
+    EconoDuration(1)
+    >>> divmod(duration, EconoDuration(3))
+    (EconoDuration(2), EconoDuration(1))
+    >>> -duration
+    EconoDuration(-7)
+    >>> abs(duration)
+    EconoDuration(7)
+    >>> abs(-duration)
+    EconoDuration(7)
     """
-    minyear: int = field()
-    maxyear: int = field()
-    days_per_week: int = field()
-    days_per_month: int | Sequence[int] = field()
-    months_per_year: int  | None = field(default=None)
+    
+    _model: EconoModel | None = None
+    __slots__ = ("_days",)
     
     
-    def __post_init__(self):
-        # Validate integer fields
-        for name in ("minyear", "maxyear", "days_per_week"):  # these must be positive ints
-            val = getattr(self, name)
-            if not isinstance(val, int) or val <= 0:
-                raise ValueError(f"{name} must be a positive integer, got {val!r}")
+    ###################
+    # Special Methods #
+    ###################
+    
+    def __eq__(self, other: EconoDuration) -> bool:
+        if isinstance(other, type(self)):
+            return self.days == other.days
+        return NotImplemented
 
-        # Validate maxyear
-        if self.maxyear < self.minyear:
-            raise ValueError(f"maxyear ({self.maxyear}) must be at least equal to minyear ({self.minyear})")
+    def __lt__(self, other: EconoDuration) -> bool:
+        if isinstance(other, type(self)):
+            return self.days < other.days
+        return NotImplemented
+    
+    def __bool__(self) -> bool:
+        return bool(self.days)
 
-        # Validate days_per_month and infer months_per_year
-        dpm = self.days_per_month
-        if isinstance(dpm, int):
-            if dpm <= 0:
-                raise ValueError(f"days_per_month must be positive, got {dpm!r}")
-            # ensure months_per_year provided
-            if self.months_per_year is None:
-                raise ValueError(
-                    "months_per_year must be provided when days_per_month is an int"
-                )
-        elif isinstance(dpm, Sequence):
-            # sequence case: validate elements and infer months_per_year
-            for i, dm in enumerate(dpm):
-                if not isinstance(dm, int) or dm <= 0:
-                    raise ValueError(f"days_per_month[{i}] must be a positive integer, got {dm!r}")
-            object.__setattr__(self, 'months_per_year', len(dpm))
-        else:
-            raise TypeError(
-                f"days_per_month must be an int or sequence of ints, got {type(dpm).__name__}"
-            )
+    def __add__(self, other: EconoDuration) -> EconoDuration:
+        if isinstance(other, type(self)):
+            return type(self)(self.days + other.days)
+        return NotImplemented
 
+    def __sub__(self, other: EconoDuration) -> EconoDuration:
+        if isinstance(other, type(self)):
+            return type(self)(self.days - other.days)
+        return NotImplemented
+    
+    def __mul__(self, other: int | float) -> EconoDuration:
+        if isinstance(other, int | float):
+            return type(self)(self.days * other)
+        return NotImplemented
+    
+    __rmul__ = __mul__
+    
+    def __truediv__(self, other: EconoDuration | int | float) -> float | EconoDuration:
+        if isinstance(other, type(self)):
+            return self.days / other.days
+        elif isinstance(other, int | float):
+            return type(self)(self.days / other)
+        return NotImplemented
+    
+    def __floordiv__(self, other: EconoDuration | int) -> int | EconoDuration:
+        if isinstance(other, type(self)):
+            return self.days // other.days
+        elif isinstance(other, int):
+            return type(self)(self.days // other)
+        return NotImplemented
+    
+    def __mod__(self, other: EconoDuration) -> EconoDuration:
+        if isinstance(other, type(self)):
+            return type(self)(self.days % other.days)
+        return NotImplemented
+    
+    def __divmod__(self, other: EconoDuration) -> tuple[int, EconoDuration]:
+        if isinstance(other, type(self)):
+            return self // other, self % other
+        return NotImplemented
+    
+    def __neg__(self) -> EconoDuration:
+        return type(self)(-self.days)
+    
+    def __pos__(self) -> EconoDuration:
+        return self
+    
+    def __abs__(self) -> EconoDuration:
+        return type(self)(abs(self.days))
+    
+    def __hash__(self):
+        return hash(self._days)
+    
+    def __init__(self, days: int | float = 0, weeks: int | float = 0):
+        self._days = int(
+            floor(days + weeks * self._model.temporal_structure.days_per_week)
+        )
+
+    def __repr__(self):
+        return f"{type(self).__name__}(days={self.days})"
+    
+    def __str__(self) -> str:
+        return "1 day" if self.days == 1 else f"{self.days} days"
+    
+    
+    ##############
+    # Properties #
+    ##############
+    
     @property
-    def days_per_year(self) -> int:
-        """Total days in a year, summing per-month lengths or uniform months."""
-        dpm = self.days_per_month
-        return sum(dpm) if isinstance(dpm, Sequence) else self.months_per_year * dpm
+    def days(self) -> int:
+        """The number of days in the duration."""
+        return self._days
+    
+    @days.setter
+    def days(self, value: int) -> None:
+        raise AttributeError("readonly attribute")
 
 
 @total_ordering
@@ -418,162 +493,3 @@ class EconoDate:
         """
         
         raise NotImplementedError("The 'weekday()' method is not implemented yet.")
-
-
-@total_ordering
-class EconoDuration:
-    """A duration of EconoLab time, measured in days.
-    
-    Parameters
-    ----------
-    days : int
-        The number of days in the duration, default is 0
-    weeks : int
-        The additional number of weeks in the duration, default is 0
-    
-    Attributes
-    ----------
-    days : int
-        The number of days in the duration
-    
-    Examples
-    --------
-    >>> duration = EconoDuration(7)
-    >>> duration
-    EconoDuration(7)
-    >>> print(duration)
-    7 days
-    >>> duration.days
-    7
-    >>> duration + EconoDuration(10)
-    EconoDuration(17)
-    >>> duration - EconoDuration(3)
-    EconoDuration(4)
-    >>> duration * 2
-    EconoDuration(14)
-    >>> duration / 2
-    EconoDuration(3)
-    >>> duration // 2
-    EconoDuration(3)
-    >>> duration // EconoDuration(3)
-    EconoDuration(2)
-    >>> duration % EconoDuration(3)
-    EconoDuration(1)
-    >>> divmod(duration, EconoDuration(3))
-    (EconoDuration(2), EconoDuration(1))
-    >>> -duration
-    EconoDuration(-7)
-    >>> abs(duration)
-    EconoDuration(7)
-    >>> abs(-duration)
-    EconoDuration(7)
-    """
-    
-    _model: EconoModel | None = None
-    __slots__ = ("_days",)
-    
-    
-    ###################
-    # Special Methods #
-    ###################
-    
-    def __eq__(self, other: EconoDuration) -> bool:
-        if isinstance(other, type(self)):
-            return self.days == other.days
-        return NotImplemented
-
-    def __lt__(self, other: EconoDuration) -> bool:
-        if isinstance(other, type(self)):
-            return self.days < other.days
-        return NotImplemented
-    
-    def __bool__(self) -> bool:
-        return bool(self.days)
-
-    def __add__(self, other: EconoDuration) -> EconoDuration:
-        if isinstance(other, type(self)):
-            return type(self)(self.days + other.days)
-        return NotImplemented
-
-    def __sub__(self, other: EconoDuration) -> EconoDuration:
-        if isinstance(other, type(self)):
-            return type(self)(self.days - other.days)
-        return NotImplemented
-    
-    def __mul__(self, other: int | float) -> EconoDuration:
-        if isinstance(other, int | float):
-            return type(self)(self.days * other)
-        return NotImplemented
-    
-    __rmul__ = __mul__
-    
-    def __truediv__(self, other: EconoDuration | int | float) -> float | EconoDuration:
-        if isinstance(other, type(self)):
-            return self.days / other.days
-        elif isinstance(other, int | float):
-            return type(self)(self.days / other)
-        return NotImplemented
-    
-    def __floordiv__(self, other: EconoDuration | int) -> int | EconoDuration:
-        if isinstance(other, type(self)):
-            return self.days // other.days
-        elif isinstance(other, int):
-            return type(self)(self.days // other)
-        return NotImplemented
-    
-    def __mod__(self, other: EconoDuration) -> EconoDuration:
-        if isinstance(other, type(self)):
-            return type(self)(self.days % other.days)
-        return NotImplemented
-    
-    def __divmod__(self, other: EconoDuration) -> tuple[int, EconoDuration]:
-        if isinstance(other, type(self)):
-            return self // other, self % other
-        return NotImplemented
-    
-    def __neg__(self) -> EconoDuration:
-        return type(self)(-self.days)
-    
-    def __pos__(self) -> EconoDuration:
-        return self
-    
-    def __abs__(self) -> EconoDuration:
-        return type(self)(abs(self.days))
-    
-    def __hash__(self):
-        return hash(self._days)
-    
-    def __init__(self, days: int | float = 0, weeks: int | float = 0):
-        self._days = int(
-            floor(days + weeks * self._model.temporal_structure.days_per_week)
-        )
-
-    def __repr__(self):
-        return f"EconoDuration({self.days})"
-    
-    def __str__(self) -> str:
-        return "1 day" if self.days == 1 else f"{self.days} days"
-    
-    
-    ##############
-    # Properties #
-    ##############
-    
-    @property
-    def days(self) -> int:
-        """The number of days in the duration."""
-        return self._days
-    
-    @days.setter
-    def days(self, value: int) -> None:
-        raise AttributeError("readonly attribute")
-
-
-# A sensible default (Gregorian-like) temporal structure
-DEFAULT_TEMPORAL_STRUCTURE = TemporalStructure(
-    minyear=1,
-    maxyear=9999,
-    days_per_week=7,
-    days_per_month=30,
-    months_per_year=12,
-)

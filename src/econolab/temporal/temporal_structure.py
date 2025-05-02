@@ -4,7 +4,7 @@ from dataclasses import dataclass, field
 from typing import Sequence
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class TemporalStructure:
     """Defines the temporal structure of an EconoLab model.
     
