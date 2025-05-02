@@ -5,6 +5,7 @@
 """
 
 import logging
+import re
 from typing import Optional, Type
 
 from ..temporal import (
@@ -23,7 +24,10 @@ class BaseModel:
     
     """
     
-    # Model-builders must specify this at class level (or override on instance before init)
+    ####################
+    # Class Attributes #
+    ####################
+    
     name: str | None = None
     temporal_structure: TemporalStructure | None = None
     
@@ -43,7 +47,7 @@ class BaseModel:
 
         # resolve model name: explicit name arg > attribute > class name
         resolved_name = name or self.name or type(self).__name__
-        self.name = resolved_name
+        self.name = self._sanitize_name(resolved_name)
 
         # set up a logger for this model instance
         self.logger = logging.getLogger(f"EconoLab.Model.{self.name}")
@@ -71,10 +75,29 @@ class BaseModel:
         self.logger.debug("Bound temporal types for model '%s'", self.name)
 
         # instantiate calendar and counters
-        self.calendar = self.Calendar(self)
+        self.calendar = self._Calendar(self)
         self.counters = CounterCollection(self)
-        self.logger.debug("Calendar and counters initialized for '%s'", self.name)
-
+        self.logger.debug("Calendar instance and counters initialized for '%s'", self.name)
+    
+    
+    ###########
+    # Methods #
+    ###########
+    
+    def reset_counters(self) -> None:
+        """Resets all of a model's (transient) counters to 0."""
+        self.logger.debug(
+            "Resetting counters for model '%s'", self.name
+        )
+        for counter in self.counters.transient.values():
+            counter.reset()
+            self.logger.debug("Reset counter %s", counter.name)
+    
+    
+    ##################
+    # Helper Methods #
+    ##################
+    
     def _bind_temporal_types(self):
         """
         For each base temporal class, create an instance-bound subclass
@@ -89,17 +112,15 @@ class BaseModel:
                     "_model": self,
                 }
             )
-            setattr(self, BaseCls.__name__, Sub)
+            if BaseCls is BaseCalendar:
+                setattr(self, f"_{BaseCls.__name__}", Sub)
+            else:
+                setattr(self, BaseCls.__name__, Sub)
             self.logger.debug("Created temporal subclass %s", cls_name)
-
-    def reset_counters(self) -> None:
-        """Resets all of a model's (transient) counters to 0."""
-        self.logger.debug(
-            "Resetting counters for model '%s'", self.name
-        )
-        for counter in self.counters.transient.values():
-            counter.reset()
-            self.logger.debug("Reset counter %s", counter.name)
+    
+    @staticmethod
+    def _sanitize_name(name: str) -> str:
+        return re.sub(r"\s+", "", name.strip())
 
 # --- Usage contract ---
 # Model-builders must do:

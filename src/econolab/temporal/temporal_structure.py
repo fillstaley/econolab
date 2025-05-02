@@ -79,6 +79,7 @@ class TemporalStructure:
         dpm = self.days_per_month
         return sum(dpm) if isinstance(dpm, Sequence) else self.months_per_year * dpm
 
+
 # A sensible default (Gregorian-like) temporal structure
 DEFAULT_TEMPORAL_STRUCTURE = TemporalStructure(
     minyear=1,

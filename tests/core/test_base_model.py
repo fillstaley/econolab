@@ -1,70 +1,101 @@
 import pytest
 
-from econolab.temporal import TemporalStructure
-from econolab.temporal import Calendar as BaseCalendar, \
-                              EconoDate as BaseDate, \
-                              EconoDuration as BaseDuration
-from econolab.core.base_model import BaseModel
+from econolab.core import BaseModel, CounterCollection
+from econolab.temporal import (
+    TemporalStructure,
+    DEFAULT_TEMPORAL_STRUCTURE,
+    Calendar,
+    EconoDate,
+    EconoDuration,
+)
 
 
-class NoTSModel(BaseModel):
-    """Never sets `temporal_structure` → should fail."""
-    pass
-
-def test_missing_temporal_structure_raises():
-    with pytest.raises(RuntimeError):
-        NoTSModel()
+class MesaModel:
+    steps = 0
 
 
-class DummyTS(TemporalStructure):
-    """A minimal TemporalStructure for testing."""
-    def __init__(self):
-        # use small, round numbers so tests are easy to reason about
-        super().__init__(
+class TestInitialization:
+    @pytest.fixture
+    def simple_model(self):
+        class SimpleModel(BaseModel, MesaModel):
+            pass
+        return SimpleModel()
+    
+    def test_name_set_by_constructor(self):
+        class SimpleModel(BaseModel, MesaModel):
+            name = "TestModel"
+        model = SimpleModel(name="Test")
+        
+        assert model.name == "Test"
+    
+    
+    def test_name_set_by_attribute(self):
+        class SimpleModel(BaseModel, MesaModel):
+            name = "TestModel"
+        model = SimpleModel()
+        
+        assert model.name == "TestModel"
+    
+    
+    def test_name_set_by_default(self, simple_model):
+        assert simple_model.name == "SimpleModel"
+    
+    
+    @pytest.mark.parametrize("raw,expected", [
+        (" Test ", "Test"),
+        ("Long Name", "LongName"),
+        ("\tTabbed\nName ", "TabbedName"),
+    ])
+    def test__sanitize_name(self, raw, expected):
+        assert BaseModel._sanitize_name(raw) == expected
+
+
+    def test_model_uses_given_temporal_structure(self):
+        ts = TemporalStructure(
             minyear=1,
             maxyear=9999,
             days_per_week=7,
-            days_per_month=30,
-            months_per_year=12,
+            days_per_month=28,
+            months_per_year=4
         )
+        class SimpleModel(BaseModel, MesaModel):
+            temporal_structure = ts
+        model = SimpleModel()
+        
+        assert model.temporal_structure == ts
 
-class GoodModel(BaseModel):
-    temporal_structure = DummyTS()
-    steps = 1
 
-def test_temporal_binding_and_calendar():
-    m = GoodModel(name="MyTestModel")
+    def test_model_uses_default_temporal_structure(self, simple_model):
+        assert simple_model.temporal_structure == DEFAULT_TEMPORAL_STRUCTURE
 
-    # 1) the three bound classes should exist on the instance
-    for attr, Base in (("Calendar", BaseCalendar),
-                       ("EconoDate", BaseDate),
-                       ("EconoDuration", BaseDuration)):
-        Bound = getattr(m, attr)
-        # must be a subclass
-        assert issubclass(Bound, Base)
-        # and must carry a back-pointer to the model
-        assert getattr(Bound, "_model") is m
 
-    # 2) `m.calendar` should be an instance of the bound Calendar
-    assert isinstance(m.calendar, m.Calendar)
-    # that calendar should also point back to `m`
-    assert getattr(type(m.calendar), "_model") is m
+    def test__bind_temporal_types(self, simple_model):
+        # Ensure that a named subclass of Calendar is bound to the model
+        assert hasattr(simple_model, "_Calendar")
+        assert issubclass(simple_model._Calendar, Calendar)
+        assert simple_model._Calendar.__name__.startswith(simple_model.name)
+        assert simple_model._Calendar._model is simple_model
 
-    # 3) All date objects created by `m.calendar` are the bound date type
-    today = m.calendar.get_start_date()
-    assert isinstance(today, m.EconoDate)
-    assert type(today)._model is m
-
-    # 4) You can create durations and add them
-    dur = m.EconoDuration(days=1)
-    tomorrow = today + dur
-    assert isinstance(tomorrow, m.EconoDate)
-    # and rolling over months/years works…
-    end_of_month = m.EconoDate(today.year, today.month, m.temporal_structure.days_per_month)
-    next_day = end_of_month + dur
-    assert next_day.month == today.month % m.temporal_structure.months_per_year + 1
-
-def test_reset_counters_no_error():
-    m = GoodModel()
-    # if there are any transient counters at all, it shouldn’t crash
-    m.reset_counters()
+        # Ensure that a named subclass of EconoDate is bound to the model
+        assert hasattr(simple_model, "EconoDate")
+        assert issubclass(simple_model.EconoDate, EconoDate)
+        assert simple_model.EconoDate.__name__.startswith(simple_model.name)
+        assert simple_model.EconoDate._model is simple_model
+        
+        # Ensure that a named subclass of EconoDuration is bound to the model
+        assert hasattr(simple_model, "EconoDuration")
+        assert issubclass(simple_model.EconoDuration, EconoDuration)
+        assert simple_model.EconoDuration.__name__.startswith(simple_model.name)
+        assert simple_model.EconoDuration._model is simple_model
+    
+    
+    def test_model_calendar_instance(self, simple_model):
+        assert hasattr(simple_model, "calendar")
+        assert isinstance(simple_model.calendar, simple_model._Calendar)
+        assert simple_model.calendar._model is simple_model
+    
+    
+    def test_model_counters(self, simple_model):
+        assert hasattr(simple_model, "counters")
+        assert isinstance(simple_model.counters, CounterCollection)
+        assert simple_model.counters.model is simple_model
