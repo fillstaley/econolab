@@ -41,7 +41,7 @@ class Calendar:
     
     _step_units: int = 1
     _day_units: int = 1
-    _start_year: int = 1
+    _start_year: int | None = None
     _start_month: int = 1
     _start_day: int = 1
     
@@ -153,6 +153,13 @@ class Calendar:
         cls._model.logger.info("Updated start date; now the calendar begins on year %s", cls.get_start_date())
     
     @classmethod
+    def get_start_date(cls) -> EconoDate:
+        if cls._model is None:
+            raise RuntimeError(f"{cls} is not bound to a model.")
+        ts = cls._model.temporal_structure
+        return cls.new_date(cls._start_year or ts.minyear, cls._start_month, cls._start_day)
+    
+    @classmethod
     def convert_steps_to_days(cls, steps: int) -> int:
         """Convert the number of steps to the number of days since the start of the simulation.
         
@@ -183,10 +190,6 @@ class Calendar:
         
         """
         return steps * cls._day_units // cls._step_units
-    
-    @classmethod
-    def get_start_date(cls) -> EconoDate:
-        return cls.new_date(cls._start_year, cls._start_month, cls._start_day)
     
     @classmethod
     def new_date(
@@ -349,7 +352,9 @@ class Calendar:
     
     @property
     def start_year(self) -> int:
-        return type(self)._start_year
+        if self.model is None:
+            raise RuntimeError(f"{type(self).__name__} is not bound to a model.")
+        return type(self)._start_year or type(self)._model.temporal_structure.minyear
     
     @start_year.setter
     def start_year(self, value: int) -> None:

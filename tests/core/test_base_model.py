@@ -10,18 +10,16 @@ from econolab.temporal import (
 )
 
 
-class MesaModel:
-    steps = 0
-
-
 class TestInitialization:
     @pytest.fixture
-    def simple_model(self):
+    def simple_model(self, create_mock_mesa_model):
+        MesaModel = create_mock_mesa_model()
         class SimpleModel(BaseModel, MesaModel):
             pass
         return SimpleModel()
     
-    def test_name_set_by_constructor(self):
+    def test_name_set_by_constructor(self, create_mock_mesa_model):
+        MesaModel = create_mock_mesa_model()
         class SimpleModel(BaseModel, MesaModel):
             name = "TestModel"
         model = SimpleModel(name="Test")
@@ -29,7 +27,8 @@ class TestInitialization:
         assert model.name == "Test"
     
     
-    def test_name_set_by_attribute(self):
+    def test_name_set_by_attribute(self, create_mock_mesa_model):
+        MesaModel = create_mock_mesa_model()
         class SimpleModel(BaseModel, MesaModel):
             name = "TestModel"
         model = SimpleModel()
@@ -50,7 +49,7 @@ class TestInitialization:
         assert BaseModel._sanitize_name(raw) == expected
 
 
-    def test_model_uses_given_temporal_structure(self):
+    def test_model_uses_given_temporal_structure(self, create_mock_mesa_model):
         ts = TemporalStructure(
             minyear=1,
             maxyear=9999,
@@ -58,6 +57,7 @@ class TestInitialization:
             days_per_month=28,
             months_per_year=4
         )
+        MesaModel = create_mock_mesa_model()
         class SimpleModel(BaseModel, MesaModel):
             temporal_structure = ts
         model = SimpleModel()
