@@ -18,11 +18,49 @@ def test_model(create_mock_mesa_model):
     return TestModel()
 
 
-class TestBaseDuration:
-    def test_model_has_EconoDuration(self, test_model):
+class TestEconoDuration:
+    def test_model_binding(self, create_mock_mesa_model):
+        MesaModel = create_mock_mesa_model()
+        ts = TemporalStructure(
+                minyear=2000,
+                maxyear=2005,
+                days_per_week=7,
+                days_per_month=30,
+                months_per_year=12
+        )
+        class TestModel(BaseModel, MesaModel):
+            temporal_structure = ts
+        test_model = TestModel()
+        
+        # Ensure that EconoDuration is bound correctly to the model class
         assert hasattr(test_model, "EconoDuration")
+        assert isinstance(test_model.EconoDuration, type)
         assert issubclass(test_model.EconoDuration, EconoDuration)
+        assert test_model.EconoDuration.__name__.startswith(test_model.name)
+        assert test_model.EconoDuration._model is test_model
+        assert test_model.EconoDuration._model.temporal_structure is ts
 
+    @pytest.mark.parametrize("days_per_week, days, weeks, expected_days", [
+        (7, 1, 2, 15),
+        (5, 2, 3, 17),
+        (6, 4, 1, 10),
+        (10, 3, 0.5, 8),
+    ])
+    def test_duration_constructor(self, create_mock_mesa_model, days_per_week, days, weeks, expected_days):
+        MesaModel = create_mock_mesa_model()
+        class TestModel(BaseModel, MesaModel):
+            temporal_structure = TemporalStructure(
+                minyear=1,
+                maxyear=9999,
+                days_per_week=days_per_week,
+                days_per_month=30,
+                months_per_year=12,
+            )
+        model = TestModel()
+        EconoDuration = model.EconoDuration
+        duration = EconoDuration(days=days, weeks=weeks)
+        assert duration.days == expected_days
+    
     def test_duration_exposes_days(self, test_model):
         EconoDuration = test_model.EconoDuration
         dur = EconoDuration(2)
