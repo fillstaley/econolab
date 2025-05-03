@@ -338,8 +338,6 @@ class EconoDate:
             return self._model.EconoDuration(self.to_days() - other.to_days())
         return NotImplemented
     
-    __rsub__ = __sub__
-    
     def __init__(self, year: int, month: int, day: int):
         if self._model is None:
             raise RuntimeError(f"{type(self)} is not bound to a model.")
@@ -362,7 +360,7 @@ class EconoDate:
         self._day = day
     
     def __repr__(self):
-        return f"EconoDate({self.year}, {self.month}, {self.day})"
+        return f"{type(self).__name__}(year={self.year}, month={self.month}, day={self.day})"
     
     def __str__(self):
         return f"{self.year}-{self.month}-{self.day}"
@@ -441,7 +439,8 @@ class EconoDate:
         return days
     
     def replace(
-        self, 
+        self,
+        *, 
         year: int = None,
         month: int = None, 
         day: int = None
@@ -474,10 +473,9 @@ class EconoDate:
         EconoDate(2021, 2, 1)
         
         """
-        
-        year = year if year is not None else self.year
-        month = month if month is not None else self.month
-        day = day if day is not None else self.day
+        year = year or self.year
+        month = month or self.month
+        day = day or self.day
         return type(self)(year, month, day)
     
     def weekday(self) -> int:

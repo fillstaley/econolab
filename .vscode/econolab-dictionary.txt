@@ -1,3 +1,5 @@
 agenttype
 datacollector
 econolab
+maxdate
+mindate

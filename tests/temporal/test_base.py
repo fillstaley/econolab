@@ -40,6 +40,19 @@ class TestEconoDuration:
         assert test_model.EconoDuration._model is test_model
         assert test_model.EconoDuration._model.temporal_structure is ts
     
+    def test_duration_construction(self, test_model):
+        EconoDuration = test_model.EconoDuration
+        duration1 = EconoDuration(1)
+        duration2 = EconoDuration(2, 3)
+        duration3 = EconoDuration(days=4)
+        duration4 = EconoDuration(days=5, weeks=6)
+        
+        assert isinstance(duration1, EconoDuration)
+        assert isinstance(duration2, EconoDuration)
+        assert isinstance(duration3, EconoDuration)
+        assert isinstance(duration4, EconoDuration)
+        assert duration1 is not duration2
+    
     def test_duration_exposes_days(self, test_model):
         EconoDuration = test_model.EconoDuration
         duration = EconoDuration(2)
@@ -54,7 +67,7 @@ class TestEconoDuration:
         (6, 4, 1, 10),
         (10, 3, 0.5, 8),
     ])
-    def test_duration_constructor(self, create_mock_mesa_model, days_per_week, days, weeks, expected_days):
+    def test_duration_signature(self, create_mock_mesa_model, days_per_week, days, weeks, expected_days):
         MesaModel = create_mock_mesa_model()
         class TestModel(BaseModel, MesaModel):
             temporal_structure = TemporalStructure(
@@ -149,7 +162,6 @@ class TestEconoDuration:
         d1 = EconoDuration(4)
         d2 = EconoDuration(6)
 
-        # Comparison operations: <, >, <=, >=, ==, !=
         assert d1 < d2
         assert d2 > d1
         assert d1 != d2
@@ -199,19 +211,19 @@ class TestEconoDate:
         assert test_model.EconoDate.__name__.startswith(test_model.name)
         assert test_model.EconoDate._model is test_model
         assert test_model.EconoDate._model.temporal_structure is ts
-
-    def test_date_exposes_year_month_day(self, create_mock_mesa_model):
-        MesaModel = create_mock_mesa_model()
-        class TestModel(BaseModel, MesaModel):
-            temporal_structure = TemporalStructure(
-                minyear=1,
-                maxyear=9999,
-                days_per_week=7,
-                days_per_month=30,
-                months_per_year=12,
-            )
-        model = TestModel()
-        EconoDate = model.EconoDate
+    
+    def test_date_construction(self, test_model):
+        EconoDate = test_model.EconoDate
+        
+        date1 = EconoDate(2001, 2, 3)
+        date2 = EconoDate(year=2004, month=5, day=6)
+        
+        assert isinstance(date1, EconoDate)
+        assert isinstance(date2, EconoDate)
+        assert date1 is not date2
+    
+    def test_date_exposes_year_month_day(self, test_model):
+        EconoDate = test_model.EconoDate
         date = EconoDate(year=2001, month=2, day=3)
 
         assert hasattr(date, "year")
@@ -225,3 +237,97 @@ class TestEconoDate:
         assert hasattr(date, "day")
         assert isinstance(date.day, int)
         assert date.day == 3
+
+    def test_date_comparisons(self, test_model):
+        EconoDate = test_model.EconoDate
+        date1 = EconoDate(2001, 2, 3)
+        date2 = EconoDate(2001, 4, 5)
+
+        # check ordering
+        assert date1 < date2
+        assert date2 > date1
+        assert date1 <= date2
+        assert date2 >= date1
+
+        # check equality
+        assert date1 <= date1
+        assert date2 >= date2
+        assert date1 != date2
+        assert date1 == date1
+        assert date1 == EconoDate(2001, 2, 3)
+    
+    def test_date_arithmetic(self, test_model):
+        EconoDate = test_model.EconoDate
+        EconoDuration = test_model.EconoDuration
+        
+        date1 = EconoDate(2001, 2, 3)
+        date2 = EconoDate(2001, 2, 5)
+        duration = EconoDuration(2)
+        
+        addition_right = date1 + duration
+        assert addition_right == date2
+        
+        addition_left = duration + date1
+        assert addition_left == date2
+        
+        subtraction_date = date2 - date1
+        assert subtraction_date == duration
+        
+        subtraction_duration = date2 - duration
+        assert subtraction_duration == date1
+    
+    @pytest.mark.parametrize("days, expected", [
+        (1, (2000, 1, 1)),
+        (30, (2000, 1, 30)),
+        (31, (2000, 2, 1)),
+        (360, (2000, 12, 30)),
+        (361, (2001, 1, 1)),
+    ])
+    def test_date_from_days(self, test_model, days, expected):
+        EconoDate = test_model.EconoDate
+        
+        result = EconoDate.from_days(days)
+        assert isinstance(result, EconoDate)
+        assert (result.year, result.month, result.day) == expected
+    
+    def test_date_min(self, test_model):
+        EconoDate = test_model.EconoDate
+        
+        mindate = EconoDate.min()
+        assert (mindate.year, mindate.month, mindate.day) == (2000, 1, 1)
+    
+    def test_date_max(self, test_model):
+        EconoDate = test_model.EconoDate
+        
+        maxdate = EconoDate.max()
+        assert (maxdate.year, maxdate.month, maxdate.day) == (2005, 12, 30)
+    
+    def test_date_to_days(self, test_model):
+        EconoDate = test_model.EconoDate
+        
+        assert EconoDate(2000, 1, 1).to_days() == 1
+        assert EconoDate(2001, 1, 1).to_days() == 361
+    
+    def test_date_replace(self, test_model):
+        EconoDate = test_model.EconoDate
+        
+        date = EconoDate(2001, 2, 3)
+        assert date.replace() == EconoDate(2001, 2, 3)
+        assert date.replace(year=2002) == EconoDate(2002, 2, 3)
+        assert date.replace(month=5) == EconoDate(2001, 5, 3)
+        assert date.replace(day=7) == EconoDate(2001, 2, 7)
+        assert date.replace(year=2002, month=5, day=7) == EconoDate(2002, 5, 7)
+    
+    def test_date_from_to_days_cycle(self, test_model):
+        EconoDate = test_model.EconoDate
+        
+        date = EconoDate(2001, 2, 3)
+        assert EconoDate.from_days(date.to_days()) == date
+        assert EconoDate.from_days(1000).to_days() == 1000
+
+    def test_date_string_representation(self, test_model):
+        EconoDate = test_model.EconoDate
+
+        date = EconoDate(2001, 2, 3)
+        assert str(date) == "2001-2-3"
+        assert repr(date) == "TestModelEconoDate(year=2001, month=2, day=3)"
