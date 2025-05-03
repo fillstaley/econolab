@@ -4,28 +4,23 @@ from econolab.core import BaseModel, CounterCollection
 from econolab.temporal import (
     TemporalStructure,
     DEFAULT_TEMPORAL_STRUCTURE,
-    Calendar,
+    EconoCalendar,
     EconoDate,
     EconoDuration,
 )
 
 
+@pytest.fixture
+def simple_model(create_mock_mesa_model):
+    MesaModel = create_mock_mesa_model()
+    class SimpleModel(BaseModel, MesaModel):
+        pass
+    return SimpleModel()
+
+
 class TestInitialization:
-    @pytest.fixture
-    def simple_model(self, create_mock_mesa_model):
-        MesaModel = create_mock_mesa_model()
-        class SimpleModel(BaseModel, MesaModel):
-            pass
-        return SimpleModel()
-    
-    def test_name_set_by_constructor(self, create_mock_mesa_model):
-        MesaModel = create_mock_mesa_model()
-        class SimpleModel(BaseModel, MesaModel):
-            name = "TestModel"
-        model = SimpleModel(name="Test")
-        
-        assert model.name == "Test"
-    
+    def test_name_set_by_default(self, simple_model):
+        assert simple_model.name == "SimpleModel"
     
     def test_name_set_by_attribute(self, create_mock_mesa_model):
         MesaModel = create_mock_mesa_model()
@@ -35,10 +30,13 @@ class TestInitialization:
         
         assert model.name == "TestModel"
     
-    
-    def test_name_set_by_default(self, simple_model):
-        assert simple_model.name == "SimpleModel"
-    
+    def test_name_set_by_constructor(self, create_mock_mesa_model):
+        MesaModel = create_mock_mesa_model()
+        class SimpleModel(BaseModel, MesaModel):
+            name = "TestModel"
+        model = SimpleModel(name="Test")
+        
+        assert model.name == "Test"
     
     @pytest.mark.parametrize("raw,expected", [
         (" Test ", "Test"),
@@ -48,6 +46,8 @@ class TestInitialization:
     def test__sanitize_name(self, raw, expected):
         assert BaseModel._sanitize_name(raw) == expected
 
+    def test_model_uses_default_temporal_structure(self, simple_model):
+        assert simple_model.temporal_structure == DEFAULT_TEMPORAL_STRUCTURE
 
     def test_model_uses_given_temporal_structure(self, create_mock_mesa_model):
         ts = TemporalStructure(
@@ -64,15 +64,10 @@ class TestInitialization:
         
         assert model.temporal_structure == ts
 
-
-    def test_model_uses_default_temporal_structure(self, simple_model):
-        assert simple_model.temporal_structure == DEFAULT_TEMPORAL_STRUCTURE
-
-
     def test__bind_temporal_types(self, simple_model):
         # Ensure that a named subclass of Calendar is bound to the model
         assert hasattr(simple_model, "EconoCalendar")
-        assert issubclass(simple_model.EconoCalendar, Calendar)
+        assert issubclass(simple_model.EconoCalendar, EconoCalendar)
         assert simple_model.EconoCalendar.__name__.startswith(simple_model.name)
         assert simple_model.EconoCalendar._model is simple_model
 
@@ -88,12 +83,10 @@ class TestInitialization:
         assert simple_model.EconoDuration.__name__.startswith(simple_model.name)
         assert simple_model.EconoDuration._model is simple_model
     
-    
     def test_model_calendar_instance(self, simple_model):
         assert hasattr(simple_model, "calendar")
         assert isinstance(simple_model.calendar, simple_model.EconoCalendar)
         assert simple_model.calendar._model is simple_model
-    
     
     def test_model_counters(self, simple_model):
         assert hasattr(simple_model, "counters")

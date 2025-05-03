@@ -6,13 +6,13 @@
 
 from typing import Protocol, runtime_checkable
 
-from ..temporal import Calendar
+from ..temporal import EconoCalendar
 from .counters import CounterCollection
 
 
 @runtime_checkable
 class EconoModel(Protocol):
-    EconoCalendar: Calendar
+    EconoCalendar: EconoCalendar
 
 
 class BaseAgent:

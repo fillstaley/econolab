@@ -192,6 +192,46 @@ class EconoCalendar:
         return steps * cls._day_units // cls._step_units
     
     @classmethod
+    def new_duration(cls, days: int = 0, *, steps: int = 0) -> EconoDuration:
+        """Create a new EconoDuration object.
+        
+        This method can be used to create a new EconoDuration object in one of two ways:
+        
+        1. By providing the number of days as an integer.
+        2. By providing the number of steps since the start of the simulation.
+        
+        If the number of steps is provided, they must be explicitly passed as a keyword
+        argument. In which case, the days argument will be ignored. Otherwise, the days
+        argument is used, which defaults to 0.
+
+        Parameters
+        ----------
+        days : int, optional
+            The number of days, by default 0
+        steps : int, optional
+            The number of steps since the start of the simulation, by default 0
+
+        Returns
+        -------
+        EconoDuration
+            A new EconoDuration object
+        
+        Examples
+        --------
+        >>> Calendar.new_duration(45)
+        EconoDuration(45)
+        >>> Calendar.set_steps_days_ratio(3, 2)
+        >>> Calendar.new_duration(steps=15)
+        EconoDuration(10)
+        
+        """
+        if cls._model is None:
+            raise RuntimeError(f"{cls} is not bound to a model.")
+        if steps:
+            return cls._model.EconoDuration(cls.convert_steps_to_days(steps))
+        return cls._model.EconoDuration(days)
+    
+    @classmethod
     def new_date(
         cls,
         year: int | None = None,
@@ -261,44 +301,28 @@ class EconoCalendar:
         return cls._model.EconoDate(year, month, day)
     
     @classmethod
-    def new_duration(cls, days: int = 0, *, steps: int = 0) -> EconoDuration:
-        """Create a new EconoDuration object.
+    def today(cls) -> EconoDate:
+        """The current date in the simulation, relative to the start date.
         
-        This method can be used to create a new EconoDuration object in one of two ways:
-        
-        1. By providing the number of days as an integer.
-        2. By providing the number of steps since the start of the simulation.
-        
-        If the number of steps is provided, they must be explicitly passed as a keyword
-        argument. In which case, the days argument will be ignored. Otherwise, the days
-        argument is used, which defaults to 0.
-
-        Parameters
-        ----------
-        days : int, optional
-            The number of days, by default 0
-        steps : int, optional
-            The number of steps since the start of the simulation, by default 0
-
         Returns
         -------
-        EconoDuration
-            A new EconoDuration object
+        EconoDate
+            The date in the simulation assuming that step 0 is the start date
         
         Examples
         --------
-        >>> Calendar.new_duration(45)
-        EconoDuration(45)
-        >>> Calendar.set_steps_days_ratio(3, 2)
-        >>> Calendar.new_duration(steps=15)
-        EconoDuration(10)
+        >>> Calendar.set_steps_days_ratio(1, 1) # default ratio
+        >>> Calendar.set_start_date(1, 1, 1) # default start date
+        >>> model.calendar.today()
+        EconoDate(1, 1, 1)
+        >>> for _ range(100):
+        >>>     model.step()
+        >>> model.calendar.today
+        EconoDate(1, 4, 11) # assuming 30 days per month
         
         """
-        if cls._model is None:
-            raise RuntimeError(f"{cls} is not bound to a model.")
-        if steps:
-            return cls._model.EconoDuration(cls.convert_steps_to_days(steps))
-        return cls._model.EconoDuration(days)
+        
+        return cls.new_date(steps=cls._model.steps) 
     
     
     ###################
@@ -383,31 +407,3 @@ class EconoCalendar:
     @start_date.setter
     def start_date(self, value: EconoDate) -> None:
         raise AttributeError("Attribute 'start_date' is readonly. Use Calendar.set_start_date(year, month, day) to change it.")
-    
-    
-    ###########
-    # Methods #
-    ###########
-    
-    def today(self) -> EconoDate:
-        """The current date in the simulation, relative to the start date.
-        
-        Returns
-        -------
-        EconoDate
-            The date in the simulation assuming that step 0 is the start date
-        
-        Examples
-        --------
-        >>> Calendar.set_steps_days_ratio(1, 1) # default ratio
-        >>> Calendar.set_start_date(1, 1, 1) # default start date
-        >>> model.calendar.today()
-        EconoDate(1, 1, 1)
-        >>> for _ range(100):
-        >>>     model.step()
-        >>> model.calendar.today
-        EconoDate(1, 4, 11) # assuming 30 days per month
-        
-        """
-        
-        return self.new_date(steps=self.model.steps)
