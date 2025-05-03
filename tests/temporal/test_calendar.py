@@ -2,7 +2,7 @@ import pytest
 
 from econolab.temporal import (
     TemporalStructure,
-    Calendar,
+    EconoCalendar,
     EconoDate,
     EconoDuration
 )

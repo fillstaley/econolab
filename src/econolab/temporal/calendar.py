@@ -25,7 +25,7 @@ class EconoAgent(Protocol):
     unique_id: int
 
 
-class Calendar:
+class EconoCalendar:
     """A class that specifies the temporal structure of an EconoLab model.
 
     ...

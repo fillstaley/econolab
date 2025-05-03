@@ -71,10 +71,10 @@ class TestInitialization:
 
     def test__bind_temporal_types(self, simple_model):
         # Ensure that a named subclass of Calendar is bound to the model
-        assert hasattr(simple_model, "_Calendar")
-        assert issubclass(simple_model._Calendar, Calendar)
-        assert simple_model._Calendar.__name__.startswith(simple_model.name)
-        assert simple_model._Calendar._model is simple_model
+        assert hasattr(simple_model, "EconoCalendar")
+        assert issubclass(simple_model.EconoCalendar, Calendar)
+        assert simple_model.EconoCalendar.__name__.startswith(simple_model.name)
+        assert simple_model.EconoCalendar._model is simple_model
 
         # Ensure that a named subclass of EconoDate is bound to the model
         assert hasattr(simple_model, "EconoDate")
@@ -91,7 +91,7 @@ class TestInitialization:
     
     def test_model_calendar_instance(self, simple_model):
         assert hasattr(simple_model, "calendar")
-        assert isinstance(simple_model.calendar, simple_model._Calendar)
+        assert isinstance(simple_model.calendar, simple_model.EconoCalendar)
         assert simple_model.calendar._model is simple_model
     
     

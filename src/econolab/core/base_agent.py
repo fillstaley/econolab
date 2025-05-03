@@ -1,16 +1,33 @@
-"""Base class for agents in an EconoLab model."""
+"""Base class for agents in an EconoLab model.
+
+...
+
+"""
+
+from typing import Protocol, runtime_checkable
 
 from ..temporal import Calendar
 from .counters import CounterCollection
 
 
+@runtime_checkable
+class EconoModel(Protocol):
+    EconoCalendar: Calendar
+
+
 class BaseAgent:
-    """Base class for agents in an EconoLab model."""
+    """Base class for agents in an EconoLab model.
+    
+    ...
+    
+    """
+
+    model: EconoModel
 
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         
-        self.calendar = Calendar(self)
+        self.calendar = self.model.EconoCalendar(self)
         self.counters = CounterCollection(self)
     
     

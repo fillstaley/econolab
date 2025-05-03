@@ -11,9 +11,9 @@ from typing import Optional, Type
 from ..temporal import (
     TemporalStructure,
     DEFAULT_TEMPORAL_STRUCTURE,
+    EconoCalendar as BaseCalendar,
     EconoDate as BaseDate,
-    EconoDuration as BaseDuration,
-    Calendar as BaseCalendar,
+    EconoDuration as BaseDuration
 )
 from .counters import CounterCollection
 
@@ -75,7 +75,7 @@ class BaseModel:
         self.logger.debug("Bound temporal types for model '%s'", self.name)
 
         # instantiate calendar and counters
-        self.calendar = self._Calendar(self)
+        self.calendar = self.EconoCalendar(self)
         self.counters = CounterCollection(self)
         self.logger.debug("Calendar instance and counters initialized for '%s'", self.name)
     
@@ -112,10 +112,7 @@ class BaseModel:
                     "_model": self,
                 }
             )
-            if BaseCls is BaseCalendar:
-                setattr(self, f"_{BaseCls.__name__}", Sub)
-            else:
-                setattr(self, BaseCls.__name__, Sub)
+            setattr(self, BaseCls.__name__, Sub)
             self.logger.debug("Created temporal subclass %s", cls_name)
     
     @staticmethod
