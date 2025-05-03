@@ -39,6 +39,14 @@ class TestEconoDuration:
         assert test_model.EconoDuration.__name__.startswith(test_model.name)
         assert test_model.EconoDuration._model is test_model
         assert test_model.EconoDuration._model.temporal_structure is ts
+    
+    def test_duration_exposes_days(self, test_model):
+        EconoDuration = test_model.EconoDuration
+        duration = EconoDuration(2)
+
+        assert hasattr(duration, "days")
+        assert isinstance(duration.days, int)
+        assert duration.days == 2
 
     @pytest.mark.parametrize("days_per_week, days, weeks, expected_days", [
         (7, 1, 2, 15),
@@ -60,14 +68,6 @@ class TestEconoDuration:
         EconoDuration = model.EconoDuration
         duration = EconoDuration(days=days, weeks=weeks)
         assert duration.days == expected_days
-    
-    def test_duration_exposes_days(self, test_model):
-        EconoDuration = test_model.EconoDuration
-        dur = EconoDuration(2)
-
-        assert hasattr(dur, "days")
-        assert isinstance(dur.days, int)
-        assert dur.days == 2
 
     @pytest.mark.parametrize("value", [5, -5])
     def test_duration_unary_arithmetic(self, test_model, value):
@@ -177,3 +177,51 @@ class TestEconoDuration:
         assert str(dur_plural) == "7 days"
         assert repr(dur_plural) == "TestModelEconoDuration(days=7)"
 
+
+class TestEconoDate:
+    def test_model_binding(self, create_mock_mesa_model):
+        MesaModel = create_mock_mesa_model()
+        ts = TemporalStructure(
+                minyear=2000,
+                maxyear=2005,
+                days_per_week=7,
+                days_per_month=30,
+                months_per_year=12
+        )
+        class TestModel(BaseModel, MesaModel):
+            temporal_structure = ts
+        test_model = TestModel()
+        
+        # Ensure that EconoDuration is bound correctly to the model class
+        assert hasattr(test_model, "EconoDate")
+        assert isinstance(test_model.EconoDate, type)
+        assert issubclass(test_model.EconoDate, EconoDate)
+        assert test_model.EconoDate.__name__.startswith(test_model.name)
+        assert test_model.EconoDate._model is test_model
+        assert test_model.EconoDate._model.temporal_structure is ts
+
+    def test_date_exposes_year_month_day(self, create_mock_mesa_model):
+        MesaModel = create_mock_mesa_model()
+        class TestModel(BaseModel, MesaModel):
+            temporal_structure = TemporalStructure(
+                minyear=1,
+                maxyear=9999,
+                days_per_week=7,
+                days_per_month=30,
+                months_per_year=12,
+            )
+        model = TestModel()
+        EconoDate = model.EconoDate
+        date = EconoDate(year=2001, month=2, day=3)
+
+        assert hasattr(date, "year")
+        assert isinstance(date.year, int)
+        assert date.year == 2001
+
+        assert hasattr(date, "month")
+        assert isinstance(date.month, int)
+        assert date.month == 2
+
+        assert hasattr(date, "day")
+        assert isinstance(date.day, int)
+        assert date.day == 3
