@@ -771,7 +771,7 @@ class LoanPayment:
         self._payment_window = payment_window
         
         self._amount_paid: Credit | None = None
-        self._date_paid: EconoDuration | None = None
+        self._date_paid: EconoDate | None = None
     
     def __repr__(self) -> str:
         status = "paid" if self.paid else "unpaid"
