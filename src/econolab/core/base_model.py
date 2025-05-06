@@ -8,6 +8,7 @@ import logging
 import re
 from typing import Optional, Type
 
+from .counters import CounterCollection
 from ..temporal import (
     TemporalStructure,
     DEFAULT_TEMPORAL_STRUCTURE,
@@ -15,7 +16,8 @@ from ..temporal import (
     EconoDate,
     EconoDuration
 )
-from .counters import CounterCollection
+from ..financial.monetary import EconoCurrency
+
 
 class BaseModel:
     """Base class for all EconoLab models.
@@ -74,6 +76,10 @@ class BaseModel:
         self._bind_temporal_types()
         self.logger.debug("Bound temporal types for model '%s'", self.name)
 
+        # Dynamically create and bind monetary subclasses
+        self._bind_monetary_types()
+        self.logger.debug("Bound monetary types for model '%s'", self.name)
+
         # instantiate calendar and counters
         self.calendar = self.EconoCalendar(self)
         self.counters = CounterCollection(self)
@@ -116,6 +122,24 @@ class BaseModel:
             # bind to the model with BaseCls.__name__, regardless of cls_name
             setattr(self, BaseCls.__name__, Sub)
             self.logger.debug("Created temporal subclass %s", cls_name)
+
+    def _bind_monetary_types(self):
+        """
+        For each base monetary class, create an instance-bound subclass
+        that carries both the model reference and currency-specific configuration.
+        """
+        # Placeholder base classes for now — these should be imported properly
+        for BaseCls in (EconoCurrency,):
+            cls_name = f"{BaseCls.__name__}"
+            Sub: Type = type(
+                BaseCls.__name__,
+                (BaseCls,),
+                {
+                    "_model": self,
+                }
+            )
+            setattr(self, BaseCls.__name__, Sub)
+            self.logger.debug("Created monetary subclass %s", cls_name)
     
     @staticmethod
     def _sanitize_name(name: str) -> str:
