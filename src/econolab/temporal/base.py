@@ -140,15 +140,15 @@ class EconoDuration:
     def __abs__(self) -> EconoDuration:
         return type(self)(abs(self.days))
     
-    def __hash__(self):
+    def __hash__(self) -> int:
         return hash(self._days)
     
-    def __init__(self, days: int | float = 0, weeks: int | float = 0):
+    def __init__(self, days: int | float = 0, weeks: int | float = 0) -> None:
         self._days = int(
             floor(days + weeks * self._model.temporal_structure.days_per_week)
         )
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"{type(self).__name__}(days={self.days})"
     
     def __str__(self) -> str:
@@ -338,7 +338,10 @@ class EconoDate:
             return self._model.EconoDuration(self.to_days() - other.to_days())
         return NotImplemented
     
-    def __init__(self, year: int, month: int, day: int):
+    def __hash__(self) -> int:
+        return hash((self.year, self.month, self.day))
+
+    def __init__(self, year: int, month: int, day: int) -> None:
         if self._model is None:
             raise RuntimeError(f"{type(self)} is not bound to a model.")
 
@@ -359,10 +362,10 @@ class EconoDate:
         self._month = month
         self._day = day
     
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"{type(self).__name__}(year={self.year}, month={self.month}, day={self.day})"
     
-    def __str__(self):
+    def __str__(self) -> str:
         return f"{self.year}-{self.month}-{self.day}"
     
     
