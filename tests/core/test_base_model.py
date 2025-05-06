@@ -68,19 +68,16 @@ class TestInitialization:
         # Ensure that a named subclass of Calendar is bound to the model
         assert hasattr(simple_model, "EconoCalendar")
         assert issubclass(simple_model.EconoCalendar, EconoCalendar)
-        assert simple_model.EconoCalendar.__name__.startswith(simple_model.name)
         assert simple_model.EconoCalendar._model is simple_model
 
         # Ensure that a named subclass of EconoDate is bound to the model
         assert hasattr(simple_model, "EconoDate")
         assert issubclass(simple_model.EconoDate, EconoDate)
-        assert simple_model.EconoDate.__name__.startswith(simple_model.name)
         assert simple_model.EconoDate._model is simple_model
         
         # Ensure that a named subclass of EconoDuration is bound to the model
         assert hasattr(simple_model, "EconoDuration")
         assert issubclass(simple_model.EconoDuration, EconoDuration)
-        assert simple_model.EconoDuration.__name__.startswith(simple_model.name)
         assert simple_model.EconoDuration._model is simple_model
     
     def test_model_calendar_instance(self, simple_model):

@@ -144,12 +144,15 @@ class EconoDuration:
         return hash(self._days)
     
     def __init__(self, days: int | float = 0, weeks: int | float = 0) -> None:
+        # Ensures model is present before use
+        if self.model is None:
+            raise RuntimeError(f"{type(self).__name__} is not bound to a model.")
         self._days = int(
-            floor(days + weeks * self._model.temporal_structure.days_per_week)
+            floor(days + weeks * self.model.temporal_structure.days_per_week)
         )
 
     def __repr__(self) -> str:
-        return f"{type(self).__name__}(days={self.days})"
+        return f"{self.model.name}.{type(self).__name__}(days={self.days})"
     
     def __str__(self) -> str:
         return "1 day" if self.days == 1 else f"{self.days} days"
@@ -158,6 +161,10 @@ class EconoDuration:
     ##############
     # Properties #
     ##############
+    
+    @property
+    def model(self) -> EconoModel:
+        return type(self)._model
     
     @property
     def days(self) -> int:
@@ -325,27 +332,27 @@ class EconoDate:
         return NotImplemented
     
     def __add__(self, other: EconoDuration) -> EconoDate:
-        if isinstance(other, EconoDuration) and self._model is other._model:
+        if isinstance(other, EconoDuration) and self.model is other.model:
             return type(self).from_days(self.to_days() + other.days)
         return NotImplemented
     
     __radd__ = __add__
     
     def __sub__(self, other: EconoDuration | EconoDate) -> EconoDate | EconoDuration:
-        if isinstance(other, EconoDuration) and self._model is other._model:
+        if isinstance(other, EconoDuration) and self.model is other.model:
             return type(self).from_days(self.to_days() - other.days)
         elif isinstance(other, type(self)):
-            return self._model.EconoDuration(self.to_days() - other.to_days())
+            return self.model.EconoDuration(self.to_days() - other.to_days())
         return NotImplemented
     
     def __hash__(self) -> int:
         return hash((self.year, self.month, self.day))
 
     def __init__(self, year: int, month: int, day: int) -> None:
-        if self._model is None:
-            raise RuntimeError(f"{type(self)} is not bound to a model.")
+        if self.model is None:
+            raise RuntimeError(f"{type(self).__name__} is not bound to a model.")
 
-        ts = self._model.temporal_structure
+        ts = self.model.temporal_structure
 
         if not ts.minyear <= year <= ts.maxyear:
             raise ValueError(f"year must be between {ts.minyear} and {ts.maxyear}")
@@ -363,7 +370,10 @@ class EconoDate:
         self._day = day
     
     def __repr__(self) -> str:
-        return f"{type(self).__name__}(year={self.year}, month={self.month}, day={self.day})"
+        return (
+            f"{self.model.name}.{type(self).__name__}"
+            f"(year={self.year}, month={self.month}, day={self.day})"
+        )
     
     def __str__(self) -> str:
         return f"{self.year}-{self.month}-{self.day}"
@@ -372,6 +382,10 @@ class EconoDate:
     ##############
     # Properties #
     ##############
+    
+    @property
+    def model(self) -> EconoModel:
+        return type(self)._model
     
     @property
     def year(self) -> int:
@@ -431,7 +445,7 @@ class EconoDate:
         360 * (2021 - MINYEAR)
         
         """
-        ts = self._model.temporal_structure
+        ts = self.model.temporal_structure
         days  = self.day
         days += (
             sum(ts.days_per_month[:self.month - 1])

@@ -41,7 +41,6 @@ class TestEconoCalendar:
         assert hasattr(test_model, "EconoCalendar")
         assert isinstance(test_model.EconoCalendar, type)
         assert issubclass(test_model.EconoCalendar, EconoCalendar)
-        assert test_model.EconoCalendar.__name__.startswith(test_model.name)
         assert test_model.EconoCalendar._model is test_model
         assert test_model.EconoCalendar._model.temporal_structure is ts
     

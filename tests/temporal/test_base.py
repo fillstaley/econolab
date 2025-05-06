@@ -36,7 +36,6 @@ class TestEconoDuration:
         assert hasattr(test_model, "EconoDuration")
         assert isinstance(test_model.EconoDuration, type)
         assert issubclass(test_model.EconoDuration, EconoDuration)
-        assert test_model.EconoDuration.__name__.startswith(test_model.name)
         assert test_model.EconoDuration._model is test_model
         assert test_model.EconoDuration._model.temporal_structure is ts
     
@@ -88,10 +87,10 @@ class TestEconoDuration:
         dur_plural = EconoDuration(7)
 
         assert str(dur_singular) == "1 day"
-        assert repr(dur_singular) == "TestModelEconoDuration(days=1)"
+        assert repr(dur_singular) == "TestModel.EconoDuration(days=1)"
 
         assert str(dur_plural) == "7 days"
-        assert repr(dur_plural) == "TestModelEconoDuration(days=7)"
+        assert repr(dur_plural) == "TestModel.EconoDuration(days=7)"
     
     def test_duration_comparison(self, test_model):
         EconoDuration = test_model.EconoDuration
@@ -214,7 +213,6 @@ class TestEconoDate:
         assert hasattr(test_model, "EconoDate")
         assert isinstance(test_model.EconoDate, type)
         assert issubclass(test_model.EconoDate, EconoDate)
-        assert test_model.EconoDate.__name__.startswith(test_model.name)
         assert test_model.EconoDate._model is test_model
         assert test_model.EconoDate._model.temporal_structure is ts
     
@@ -249,7 +247,7 @@ class TestEconoDate:
 
         date = EconoDate(2001, 2, 3)
         assert str(date) == "2001-2-3"
-        assert repr(date) == "TestModelEconoDate(year=2001, month=2, day=3)"
+        assert repr(date) == "TestModel.EconoDate(year=2001, month=2, day=3)"
     
     def test_date_comparisons(self, test_model):
         EconoDate = test_model.EconoDate
