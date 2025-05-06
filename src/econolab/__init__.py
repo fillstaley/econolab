@@ -1,9 +1,11 @@
-"""...
+"""A package for building agent-based models of economic activity.
+
+...
+
 """
 
 
-import logging
-logger = logging.getLogger(__name__)
+from .__version__ import __version__
 
 from . import temporal
 from . import banking
