@@ -15,6 +15,7 @@ from .base import EconoDate, EconoDuration
 
 @runtime_checkable
 class EconoModel(Protocol):
+    name: str
     temporal_structure: TemporalStructure
     steps: int
 
@@ -343,6 +344,12 @@ class EconoCalendar:
         self._model.logger.debug(
             "New calendar created; it belongs to %s",
             f"agent #{self.agent.unique_id}" if self.agent else f"the model {self.model}"
+        )
+    
+    def __repr__(self) -> str:
+        model = self.model
+        return (
+            f"<{model.name}.{type(self).__name__}(owner={repr(self.agent or model)})>"
         )
     
     
