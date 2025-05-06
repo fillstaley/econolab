@@ -11,9 +11,9 @@ from typing import Optional, Type
 from ..temporal import (
     TemporalStructure,
     DEFAULT_TEMPORAL_STRUCTURE,
-    EconoCalendar as BaseCalendar,
-    EconoDate as BaseDate,
-    EconoDuration as BaseDuration
+    EconoCalendar,
+    EconoDate,
+    EconoDuration
 )
 from .counters import CounterCollection
 
@@ -103,8 +103,9 @@ class BaseModel:
         For each base temporal class, create an instance-bound subclass
         that carries both the model reference and its temporal constants.
         """
-        for BaseCls in (BaseCalendar, BaseDate, BaseDuration):
-            cls_name = f"{self.name}{BaseCls.__name__}"
+        for BaseCls in (EconoCalendar, EconoDate, EconoDuration):
+            # choose a name for the subclasses
+            cls_name = BaseCls.__name__
             Sub: Type = type(
                 cls_name,
                 (BaseCls,),
@@ -112,6 +113,7 @@ class BaseModel:
                     "_model": self,
                 }
             )
+            # bind to the model with BaseCls.__name__, regardless of cls_name
             setattr(self, BaseCls.__name__, Sub)
             self.logger.debug("Created temporal subclass %s", cls_name)
     
