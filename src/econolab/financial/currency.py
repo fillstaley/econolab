@@ -308,8 +308,6 @@ class Currency:
         str
             Formatted string with currency symbol.
         """
-        # FIXME: format_spec is currently ignored.
-        # In future versions, this should control formatting precision and style.
         if format_spec:
             logger.debug(
                 f"Ignoring format_spec='{format_spec}' in Currency.format_with_symbol()."
@@ -348,8 +346,6 @@ class Currency:
         str
             Formatted string with appropriate unit name.
         """
-        # FIXME: format_spec is currently ignored.
-        # In future versions, this should control formatting precision and style.
         if format_spec:
             logger.debug(
                 f"Ignoring format_spec='{format_spec}' in Currency.format_with_units()."
