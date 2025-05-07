@@ -16,7 +16,11 @@ from ..temporal import (
     EconoDate,
     EconoDuration
 )
-from ..financial.monetary import EconoCurrency
+from ..financial.monetary import (
+    CurrencySpecification,
+    DEFAULT_CURRENCY_SPECIFICATION,
+    EconoCurrency
+)
 
 
 class BaseModel:
@@ -42,6 +46,7 @@ class BaseModel:
         self,
         *args,
         name: Optional[str] = None,
+        currency_specification: CurrencySpecification | None = None,
         **kwargs
     ) -> None:
         # allow cooperative multiple inheritance
@@ -77,7 +82,7 @@ class BaseModel:
         self.logger.debug("Bound temporal types for model '%s'", self.name)
 
         # Dynamically create and bind monetary subclasses
-        self._bind_monetary_types()
+        self._bind_monetary_types(currency_specification)
         self.logger.debug("Bound monetary types for model '%s'", self.name)
 
         # instantiate calendar and counters
@@ -123,23 +128,24 @@ class BaseModel:
             setattr(self, BaseCls.__name__, Sub)
             self.logger.debug("Created temporal subclass %s", cls_name)
 
-    def _bind_monetary_types(self):
+    def _bind_monetary_types(self, currency_specification: CurrencySpecification | None) -> None:
         """
         For each base monetary class, create an instance-bound subclass
         that carries both the model reference and currency-specific configuration.
         """
-        # Placeholder base classes for now — these should be imported properly
+        if currency_specification is None:
+            currency_specification = DEFAULT_CURRENCY_SPECIFICATION
         for BaseCls in (EconoCurrency,):
-            cls_name = f"{BaseCls.__name__}"
             Sub: Type = type(
                 BaseCls.__name__,
                 (BaseCls,),
                 {
                     "_model": self,
+                    **currency_specification.to_dict()
                 }
             )
             setattr(self, BaseCls.__name__, Sub)
-            self.logger.debug("Created monetary subclass %s", cls_name)
+            self.logger.debug("Created monetary subclass %s", Sub.__name__)
     
     @staticmethod
     def _sanitize_name(name: str) -> str:
