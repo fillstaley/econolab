@@ -9,14 +9,12 @@ from econolab.financial.monetary import (
 
 
 def test_currency_creation(create_mock_mesa_model):
-    class EconoModel:
-        pass
-    model = EconoModel
     specs = CurrencySpecification(
-        name="US Dollar",
+        code="USD",
         symbol="$",
         unit_name="dollar",
         unit_plural="dollars",
+        full_name="US Dollar",
         precision=2,
         symbol_position="prefix"
     )
@@ -24,12 +22,11 @@ def test_currency_creation(create_mock_mesa_model):
         EconoCurrency.__name__,
         (EconoCurrency,),
         {
-            "_model": model,
             **specs.to_dict()
         }
     )
     
-    assert Currency.name == specs.name
+    assert Currency.code == specs.code
 
 
 class TestArithmetic:
