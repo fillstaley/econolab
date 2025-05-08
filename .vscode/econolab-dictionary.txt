@@ -3,3 +3,4 @@ datacollector
 econolab
 maxdate
 mindate
+Renminbi

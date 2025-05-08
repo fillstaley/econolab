@@ -140,7 +140,6 @@ class BaseModel:
                 BaseCls.__name__,
                 (BaseCls,),
                 {
-                    "_model": self,
                     **currency_specification.to_dict()
                 }
             )
