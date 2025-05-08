@@ -8,7 +8,7 @@ from econolab.financial.monetary import (
 )
 
 
-class TestCurrencyCreation:
+class TestCreation:
     @pytest.fixture(params=[
         # full specification
         (
@@ -146,6 +146,17 @@ class TestCurrencyCreation:
         
         assert specs.symbol_position == expected["symbol_position"]
 
+
+class TestAccess:
+    @pytest.fixture
+    def currency_instance(self):
+        return
+    
+    def test_amount(self, currency_instance):
+        pass
+
+class TestComparisons:
+    pass
 
 class TestArithmetic:
     
