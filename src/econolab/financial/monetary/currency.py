@@ -148,17 +148,7 @@ class EconoCurrency:
     def __init_subclass__(cls, **kwargs):
         super().__init_subclass__(**kwargs)
         
-        if missing := [
-            attr for attr in cls.required_cls_attrs() if not hasattr(cls, attr)
-        ]:
-            raise TypeError(
-                f"Can't create EconoCurrency subclass {cls.__name__}; "
-                f"missing attributes: {missing}"
-            )
-    
-    @classmethod
-    def required_cls_attrs(cls) -> set[str]:
-        return {
+        required_attrs = {
             "code",
             "symbol",
             "unit_name",
@@ -166,6 +156,14 @@ class EconoCurrency:
             "precision",
             "symbol_position",
         }
+        
+        if missing := [
+            attr for attr in required_attrs if not hasattr(cls, attr)
+        ]:
+            raise TypeError(
+                f"Can't create EconoCurrency subclass {cls.__name__}; "
+                f"missing attributes: {missing}"
+            )
     
     
     ###################
@@ -241,13 +239,19 @@ class EconoCurrency:
     def __new__(cls, *args, **kwargs):
         if cls is EconoCurrency:
             raise TypeError("EconoCurrency is an abstract base class and cannot be instantiated directly.")
-        return super().__new__(cls, *args, **kwargs)
+        return super().__new__(cls)
     
     def __init__(self, amount: Real = 0) -> None:
         self._amount = float(amount)
     
     def __repr__(self) -> str:
         return f"{self._model.name}.{type(self).__name__}(amount={self.amount})"
+    
+    def __call__(self, *, with_units: bool = False):
+        if with_units:
+            return self.format_with_units(
+                self.amount, 
+            )
     
     
     ##############
@@ -263,30 +267,17 @@ class EconoCurrency:
         raise AttributeError("readonly attribute")
     
     
-    ##################
-    # Static Methods #
-    ##################
+    ###########
+    # Methods #
+    ###########
     
-    @staticmethod
-    def format_with_symbol(
-        amount: float,
-        precision: int,
-        symbol: str,
-        position: Literal["prefix", "suffix"],
-        format_spec: str | None = None
-    ) -> str:
+    def format_with_symbol(self, format_spec: str | None = None) -> str:
         """Format a numeric amount with a currency symbol.
 
         Parameters
         ----------
         amount : float
             The amount to format.
-        precision : int
-            Number of decimal places to round to.
-        symbol : str
-            The currency symbol to use.
-        position : {'prefix', 'suffix'}
-            Whether the symbol appears before or after the number.
         format_spec : str, optional
             A format specification string. (Currently ignored.)
         
@@ -302,31 +293,18 @@ class EconoCurrency:
                 f"Ignoring format_spec='{format_spec}' in Currency.format_with_symbol()."
             )
         
-        rounded = round(amount, precision)
-        if position == "prefix":
-            return f"{symbol}{rounded:.{precision}f}"
-        return f"{rounded:.{precision}f} {symbol}"
+        rounded = round(self.amount, self.precision)
+        if self.symbol_position == "prefix":
+            return f"{self.symbol}{rounded:.{self.precision}f}"
+        return f"{rounded:.{self.precision}f} {self.symbol}"
     
-    @staticmethod
-    def format_with_units(
-        amount: float,
-        precision: int,
-        unit_singular: str,
-        unit_plural: str,
-        format_spec: str | None = None
-    ) -> str:
+    def format_with_units(self, format_spec: str | None = None) -> str:
         """Format a numeric amount with singular or plural currency units.
 
         Parameters
         ----------
         amount : float
             The amount to format.
-        precision : int
-            Number of decimal places to round to.
-        unit_singular : str
-            The singular form of the currency unit.
-        unit_plural : str
-            The plural form of the currency unit.
         format_spec : str, optional
             A format specification string. (Currently ignored.)
         
@@ -342,9 +320,12 @@ class EconoCurrency:
                 f"Ignoring format_spec='{format_spec}' in Currency.format_with_units()."
             )
         
-        rounded = round(amount, precision)
-        unit = unit_singular if abs(rounded - 1) < 10 ** -precision else unit_plural
-        return f"{rounded:.{precision}f} {unit}"
+        rounded = round(self.amount, self.precision)
+        unit = (
+            self.unit_singular if abs(rounded - 1) < 10 ** -self.precision else
+            self.unit_plural
+        )
+        return f"{rounded:.{self.precision}f} {unit}"
 
 
 USD_SPECIFICATION = CurrencySpecification(
