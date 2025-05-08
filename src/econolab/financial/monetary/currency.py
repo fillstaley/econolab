@@ -10,16 +10,11 @@ from __future__ import annotations
 import logging
 logger = logging.getLogger(__name__)
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from functools import total_ordering
 from numbers import Real
 from re import fullmatch
-from typing import Literal, Protocol, Self, runtime_checkable
-
-
-@runtime_checkable
-class EconoModel(Protocol):
-    pass
+from typing import Literal, Self
 
 
 @dataclass(frozen=True, slots=True)
@@ -238,20 +233,24 @@ class EconoCurrency:
     
     def __new__(cls, *args, **kwargs):
         if cls is EconoCurrency:
-            raise TypeError("EconoCurrency is an abstract base class and cannot be instantiated directly.")
+            raise TypeError(
+                "EconoCurrency is an abstract base class; "
+                "it cannot be instantiated directly.")
         return super().__new__(cls)
     
     def __init__(self, amount: Real = 0) -> None:
         self._amount = float(amount)
     
     def __repr__(self) -> str:
-        return f"{self._model.name}.{type(self).__name__}(amount={self.amount})"
+        return (
+            f"{self._model.name}.{type(self).__name__}(amount={self.amount})"
+        )
     
     def __call__(self, *, with_units: bool = False):
-        if with_units:
-            return self.format_with_units(
-                self.amount, 
-            )
+        return (
+            self.format_with_units() if with_units else
+            self.format_with_symbol()
+        )
     
     
     ##############
