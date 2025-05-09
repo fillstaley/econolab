@@ -171,6 +171,7 @@ class EconoCurrency:
     # Special Methods #
     ###################
     
+    # TODO: add tests for proper equality relative to precision
     def __eq__(self, other) -> bool:
         if isinstance(other, type(self)):
             return (self - other).is_zero()
@@ -263,6 +264,7 @@ class EconoCurrency:
         return self.to_string(with_units=False)
     
     # TODO: introduce a custom format type for symbol/units
+    # TODO: add tests for formatting
     def __format__(self, format_spec: str) -> str:
         return self.format_with_symbol(format_spec)
     
@@ -285,6 +287,7 @@ class EconoCurrency:
     # Methods #
     ###########
     
+    # TODO: add tests for these comparison methods
     def is_zero(self) -> bool:
         """Return True if the currency amount is zero, relative to its precision."""
         return self.is_positive_or_zero() and self.is_negative_or_zero()
