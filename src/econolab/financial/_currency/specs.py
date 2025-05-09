@@ -11,10 +11,32 @@ from typing import Literal
 
 @dataclass(frozen=True, slots=True)
 class CurrencySpecification:
-    """...
-    
-    ...
-    
+    """Immutable metadata structure for defining a currency's formal attributes.
+
+    This class is used to specify the identifying features and formatting rules
+    for a currency. These specifications can then be used to construct or bind
+    model-specific currency classes derived from `EconoCurrency`.
+
+    Typical usage involves defining constants like `USD_SPECIFICATION` or 
+    `JPY_SPECIFICATION`, which are passed to currency class factories 
+    or bound to models.
+
+    Attributes
+    ----------
+    code : str
+        ISO-style currency code (e.g., "USD", "JPY").
+    symbol : str
+        Symbol used for display purposes (e.g., "$", "¥").
+    unit_name : str
+        Singular form of the currency unit (e.g., "dollar").
+    unit_plural : str, optional
+        Plural form of the unit (e.g., "dollars"). Defaults to unit_name + "s".
+    full_name : str, optional
+        Descriptive name (e.g., "US Dollar"). Defaults to title-cased unit_name.
+    precision : int, optional
+        Number of decimal places to round/display. Defaults to 2.
+    symbol_position : {"prefix", "suffix"}, optional
+        Whether the symbol appears before or after the number. Defaults to "prefix".
     """
     code: str
     symbol: str
@@ -26,6 +48,20 @@ class CurrencySpecification:
     
     
     def __post_init__(self) -> None:
+        """Validates and normalizes fields after initialization.
+
+        This method ensures that all provided attributes conform to expected 
+        formats (e.g., `code` is three uppercase letters, `symbol` is non-empty). 
+        It also sets default values for `unit_plural` and `full_name` if they 
+        are not explicitly provided.
+
+        Raises
+        ------
+        TypeError
+            If any field is of the wrong type.
+        ValueError
+            If any field is missing or improperly formatted.
+        """
         # validate code arg
         if not isinstance(self.code, str):
             raise TypeError(
@@ -111,6 +147,7 @@ class CurrencySpecification:
         return {slot: getattr(self, slot) for slot in self.__slots__}
 
 
+# Predefined specification for the US Dollar (USD)
 USD_SPECIFICATION = CurrencySpecification(
     code="USD",
     symbol="$",
@@ -118,6 +155,7 @@ USD_SPECIFICATION = CurrencySpecification(
     full_name="US Dollar"
 )
 
+# Predefined specification for the Japanese Yen (JPY)
 JPY_SPECIFICATION = CurrencySpecification(
     code="JPY",
     symbol="¥",
@@ -127,6 +165,7 @@ JPY_SPECIFICATION = CurrencySpecification(
     precision=0
 )
 
+# Predefined specification for the Swedish Krona (SEK)
 SEK_SPECIFICATION = CurrencySpecification(
     code="SEK",
     symbol="kr",
@@ -136,4 +175,5 @@ SEK_SPECIFICATION = CurrencySpecification(
     symbol_position="suffix"
 )
 
+# The default currency specification is for the US Dollar (USD)
 DEFAULT_CURRENCY_SPECIFICATION = USD_SPECIFICATION

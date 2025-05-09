@@ -16,17 +16,33 @@ from typing import Literal, Self
 
 @total_ordering
 class EconoCurrency:
-    """...
-    
-    ...
+    """Abstract base class for model-bound currency types in EconoLab models.
+
+    This class defines the arithmetic behavior, comparison logic, and 
+    formatting conventions for a model-specific currency. It acts like 
+    a numeric type (similar to `float`), but with domain-specific semantics 
+    and precision-aware operations tailored to currency usage.
+
+    Subclasses must define a currency specification via class attributes, 
+    such as `code`, `symbol`, `precision`, etc. These are typically derived 
+    from a `CurrencySpecification` instance using a class factory or binding 
+    method defined at the model level.
+
+    EconoCurrency is designed to be subclassed dynamically per model 
+    (e.g., USD in ModelA will be different from USD in ModelB) to enable 
+    distinct monetary systems to coexist.
+
+    Parameters
+    ----------
+    amount : Real, optional
+        The numeric value of the currency. Defaults to 0.
     
     Note
     ----
-    Equality is defined by tolerance (precision), but float rounding
-    used in hashing may not always align with that. As a result, two values
-    that compare equal may hash differently. This violates the hash/eq contract
+    Equality is defined by tolerance (precision), but float rounding used
+    in hashing may not always align with that. As a result, two values that
+    compare equal may hash differently. This violates the hash/eq contract
     in edge cases. This will be resolved in a future version using Decimal.
-    
     """
     
     __slots__ = ("_amount",)
@@ -153,6 +169,19 @@ class EconoCurrency:
         return super().__new__(cls)
     
     def __init__(self, amount: Real = 0, /) -> None:
+        """Initialize a currency instance with a numeric amount.
+
+        Parameters
+        ----------
+        amount : Real, optional
+            The numeric value of the currency. Defaults to 0.
+
+        Examples
+        --------
+        >>> usd = USD(10.5)
+        >>> print(usd)
+        $10.50
+        """
         self._amount = float(amount)
     
     def __repr__(self) -> str:
