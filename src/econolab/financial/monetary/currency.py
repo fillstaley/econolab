@@ -127,6 +127,8 @@ class EconoCurrency:
     
     """
     
+    __slots__ = ("_amount",)
+    
     code: str
     symbol: str
     unit_name: str
@@ -239,12 +241,12 @@ class EconoCurrency:
                 "it cannot be instantiated directly.")
         return super().__new__(cls)
     
-    def __init__(self, amount: Real = 0) -> None:
+    def __init__(self, amount: Real = 0, /) -> None:
         self._amount = float(amount)
     
     def __repr__(self) -> str:
         return (
-            f"{type(self).__name__}(amount={self.amount})"
+            f"{type(self).__name__}({self.amount})"
         )
     
     

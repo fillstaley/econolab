@@ -11,8 +11,7 @@ import pytest
 
 from econolab.financial.monetary import (
     CurrencySpecification,
-    EconoCurrency,
-    DEFAULT_CURRENCY_SPECIFICATION,
+    EconoCurrency
 )
 
 
