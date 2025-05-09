@@ -9,7 +9,6 @@ Covers:
 
 import pytest
 
-from econolab.core import BaseModel
 from econolab.financial.monetary import (
     CurrencySpecification,
     EconoCurrency,
@@ -17,11 +16,60 @@ from econolab.financial.monetary import (
 )
 
 
+@pytest.fixture
+def create_currency_class():
+    def _make(code="USD", symbol="$", unit_name="dollar", **kwargs):
+        specs = CurrencySpecification(code, symbol, unit_name, **kwargs)
+        return type(EconoCurrency.__name__, (EconoCurrency,), specs.to_dict())
+    return _make
+
+
+@pytest.fixture
+def create_currency_instance(create_currency_class):
+    Currency = create_currency_class()
+    def _make(amount=0):
+        return Currency(amount)
+    return _make
+
+
 class TestCreation:
     """Tests that a concrete EconoCurrency subclass can be created.
     
-    ...
+    The EconoCurrency class is in essence abstract. The CurrencySpecification
+    class provides an interface for creating concrete subclasses. Its default
+    behavior is tested, as is the way it is expected to be used. The expected
+    initialization patterns for subclasses is also tested.
     """
+    
+    def test_currency_from_specs(self):
+        try:
+            specs = CurrencySpecification(
+                code="USD",
+                symbol="$",
+                unit_name="dollar"
+            )
+            type(EconoCurrency.__name__, (EconoCurrency,), specs.to_dict())
+        except Exception as e:
+            pytest.fail(f"Currency creation failed with error: {e}")
+    
+    def test_null_instantiation(self, create_currency_class):
+        Currency = create_currency_class()
+        try:
+            Currency()
+        except Exception as e:
+            pytest.fail(
+                f"Currency null initialization failed with and error: {e}"
+            )
+    
+    @pytest.mark.parametrize("input", [1, 0.5, 0, -0.5, -1])
+    def test_initialization(self, create_currency_class, input):
+        Currency = create_currency_class()
+        try:
+            Currency(input)
+        except Exception as e:
+            pytest.fail(
+                f"Currency initialization failed with error: {e}"
+            )
     
     @pytest.fixture(params=[
         # full specification
@@ -125,17 +173,6 @@ class TestCreation:
     def currency_data_with_expected(self, request):
         return request.param
     
-    def test_currency_from_data(self, currency_data_with_expected):
-        currency_data, _ = currency_data_with_expected
-        try:
-            specs = CurrencySpecification(**currency_data)
-            Currency = type(EconoCurrency.__name__, (EconoCurrency,), specs.to_dict())
-            instance = Currency(amount=100)
-            
-            assert isinstance(instance, EconoCurrency)
-        except Exception as e:
-            pytest.fail(f"Currency creation failed with error: {e}")
-    
     def test_specs_default_unit_plural(self, currency_data_with_expected):
         currency_data, expected = currency_data_with_expected
         specs = CurrencySpecification(**currency_data)
@@ -161,24 +198,8 @@ class TestCreation:
         assert specs.symbol_position == expected["symbol_position"]
 
 
-@pytest.fixture
-def create_currency_class():
-    def _make(code="USD", symbol="$", unit_name="dollar", **kwargs):
-        specs = CurrencySpecification(code, symbol, unit_name, **kwargs)
-        return type(EconoCurrency.__name__, (EconoCurrency,), specs.to_dict())
-    return _make
-
-
-@pytest.fixture
-def create_currency_instance(create_currency_class):
-    Currency = create_currency_class()
-    def _make(amount=0):
-        return Currency(amount)
-    return _make
-
-
 class TestAccess:
-    """Tests that currency instances have the expected attributes and methods."""
+    """Tests that currency instances have expected attributes and methods."""
     @pytest.fixture
     def currency_1(self, create_currency_instance):
         return create_currency_instance(1)
@@ -205,10 +226,7 @@ class TestAccess:
 
 
 class TestComparisons:
-    """Tests that currency instances can be compared with one another.
-    
-    Also tests that nonzero instances are truthy.
-    """
+    """Tests that currency instances are comparable, and nonzero ones are truthy."""
     def test_boolean(self, create_currency_instance):
         nonzero_currency = create_currency_instance(1)
         assert nonzero_currency
