@@ -125,6 +125,13 @@ class EconoCurrency:
     
     ...
     
+    Note
+    ----
+    Equality is defined by tolerance (precision), but float rounding
+    used in hashing may not always align with that. As a result, two values
+    that compare equal may hash differently. This violates the hash/eq contract
+    in edge cases. This will be resolved in a future version using Decimal.
+    
     """
     
     __slots__ = ("_amount",)
@@ -167,19 +174,18 @@ class EconoCurrency:
     # Special Methods #
     ###################
     
-    # FIXME: this comparison is too precise
     def __eq__(self, other) -> bool:
         if isinstance(other, type(self)):
-            return self.amount == other.amount
+            return (self - other).is_zero()
         return NotImplemented
     
     def __lt__(self, other) -> bool:
         if isinstance(other, type(self)):
-            return self.amount < other.amount
+            return (self - other).is_negative()
         return NotImplemented
     
     def __hash__(self):
-        return hash((type(self), self.amount))
+        return hash((type(self), round(self.amount, self.precision)))
     
     def __bool__(self) -> bool:
         return bool(self.amount)
@@ -256,6 +262,7 @@ class EconoCurrency:
     
     @property
     def amount(self) -> float:
+        """The amount of currency."""
         return self._amount
     
     @amount.setter
@@ -267,13 +274,43 @@ class EconoCurrency:
     # Methods #
     ###########
     
+    def is_zero(self) -> bool:
+        """Return True if the currency amount is zero, relative to its precision."""
+        return self.is_positive_or_zero() and self.is_negative_or_zero()
+
+    def is_positive_or_zero(self) -> bool:
+        """Return True if the currency amount is greater than or equal to zero.
+        
+        Uses the currency's precision to compare against a small negative number.
+        """
+        return self.amount > -10 ** -self.precision
+
+    def is_negative_or_zero(self) -> bool:
+        """Return True if the currency amount is less than or equal to zero.
+        
+        Uses the currency's precision to compare against a small positive number.
+        """
+        return self.amount < 10 ** -self.precision
+    
+    def is_positive(self) -> bool:
+        """Return True if the currency amount is greater than zero.
+        
+        Uses the currency's precision to compare against a small positive number.
+        """
+        return self.amount >= 10 ** -self.precision
+    
+    def is_negative(self) -> bool:
+        """Return True if the currency amount is less than zero.
+        
+        Uses the currency's precision to compare against a small negative number.
+        """
+        return self.amount <= -10 ** -self.precision
+    
     def format_with_symbol(self, format_spec: str | None = None) -> str:
-        """Format a numeric amount with a currency symbol.
+        """Formats the currency amount as a string with the currency's symbol.
 
         Parameters
         ----------
-        amount : float
-            The amount to format.
         format_spec : str, optional
             A format specification string. (Currently ignored.)
         
@@ -295,19 +332,19 @@ class EconoCurrency:
         return f"{rounded:.{self.precision}f} {self.symbol}"
     
     def format_with_units(self, format_spec: str | None = None) -> str:
-        """Format a numeric amount with singular or plural currency units.
-
+        """Formats the currency amount as a string with the currency's units.
+        
+        The singular (ie. 'unit_name') or plural form is used appropriately.
+        
         Parameters
         ----------
-        amount : float
-            The amount to format.
         format_spec : str, optional
             A format specification string. (Currently ignored.)
         
         Returns
         -------
         str
-            Formatted string with appropriate unit name.
+            Formatted string with currency units.
         """
         # FIXME: format_spec is currently ignored.
         # In future versions, this should control formatting precision and style.
