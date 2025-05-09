@@ -1,3 +1,12 @@
+"""Tests for the EconoCurrency and CurrencySpecification classes.
+
+Covers:
+- Structural validation of dynamically created EconoCurrency subclasses
+- Instantiability via CurrencySpecification
+- Arithmetic correctness is tested separately in TestArithmetic
+
+"""
+
 import pytest
 
 from econolab.core import BaseModel
@@ -9,6 +18,11 @@ from econolab.financial.monetary import (
 
 
 class TestCreation:
+    """Tests that a concrete EconoCurrency subclass can be created.
+    
+    ...
+    """
+    
     @pytest.fixture(params=[
         # full specification
         (
@@ -147,28 +161,162 @@ class TestCreation:
         assert specs.symbol_position == expected["symbol_position"]
 
 
+@pytest.fixture
+def create_currency_class():
+    def _make(code="USD", symbol="$", unit_name="dollar", **kwargs):
+        specs = CurrencySpecification(code, symbol, unit_name, **kwargs)
+        return type(EconoCurrency.__name__, (EconoCurrency,), specs.to_dict())
+    return _make
+
+
+@pytest.fixture
+def create_currency_instance(create_currency_class):
+    Currency = create_currency_class()
+    def _make(amount=0):
+        return Currency(amount)
+    return _make
+
+
 class TestAccess:
+    """Tests that currency instances have the expected attributes and methods."""
     @pytest.fixture
-    def currency_instance(self):
-        return
+    def currency_1(self, create_currency_instance):
+        return create_currency_instance(1)
     
-    def test_amount(self, currency_instance):
-        pass
+    def test_amount(self, currency_1):
+        assert currency_1.amount == 1
+        
+        with pytest.raises(AttributeError, match="readonly attribute"):
+            currency_1.amount = 10
+    
+    def test_format_with_symbol(self, currency_1, create_currency_class):
+        assert currency_1.format_with_symbol() == "$1.00"
+        
+        SuffixCurrency = create_currency_class(symbol_position="suffix")
+        assert SuffixCurrency(1).format_with_symbol() == "1.00 $"
+        
+    
+    def test_format_with_units(self, currency_1, create_currency_instance):
+        assert currency_1.format_with_units() == "1.00 dollar"
+        
+        not_one = 10
+        plural_currency = create_currency_instance(not_one)
+        assert plural_currency.format_with_units() == f"{not_one:.2f} dollars"
+
 
 class TestComparisons:
-    pass
+    """Tests that currency instances can be compared with one another.
+    
+    Also tests that nonzero instances are truthy.
+    """
+    def test_boolean(self, create_currency_instance):
+        nonzero_currency = create_currency_instance(1)
+        assert nonzero_currency
+        
+        zero_currency = create_currency_instance()
+        assert not zero_currency
+    
+    def test_equality(self, create_currency_instance):
+        this = create_currency_instance(1)
+        that = create_currency_instance(1)
+        assert this is not that
+        assert this == that
 
-class TestArithmetic:
+        other = create_currency_instance(2)
+        assert other != this
     
     @pytest.fixture
-    def create_currency(self):
-        pass
+    def currency_small(self, create_currency_instance):
+        return create_currency_instance(1)
     
-    def test_addition(self):
-        pass
+    @pytest.fixture
+    def currency_large(self, create_currency_instance):
+        return create_currency_instance(10)
     
-    def test_subtraction(self):
-        pass
+    def test_less_than(self, currency_small, currency_large):
+        assert currency_small < currency_large
+        assert currency_small <= currency_small
     
-    def test_multiplication(self):
-        pass
+    def test_greater_than(self, currency_small, currency_large):
+        assert currency_large > currency_small
+        assert currency_large >= currency_large
+
+
+class TestArithmetic:
+    """Tests that arithmetic operations can be used with currency instances."""
+    def test_addition(self, create_currency_instance):
+        left = create_currency_instance(1)
+        right = create_currency_instance(2)
+        
+        _sum = left + right
+        assert _sum.amount == 3
+    
+    def test_subtraction(self, create_currency_instance):
+        left = create_currency_instance(1)
+        right = create_currency_instance(2)
+        
+        difference = left - right
+        assert difference.amount == -1
+    
+    @pytest.mark.parametrize("multiplier", [2, 0.5])
+    def test_multiplication(self, create_currency_instance, multiplier):
+        multiplicand = create_currency_instance(2)
+        
+        left_product = multiplier * multiplicand
+        left_result = multiplier * multiplicand.amount
+        assert left_product.amount == pytest.approx(left_result)
+        
+        right_product = multiplicand * multiplier
+        right_result = multiplicand.amount * multiplier
+        assert right_product.amount == pytest.approx(right_result)
+    
+    def test_division_by_currency(self, create_currency_instance):
+        dividend = create_currency_instance(1)
+        divisor = create_currency_instance(2)
+        quotient = dividend / divisor
+        assert isinstance(quotient, float)
+        assert quotient == pytest.approx(0.5)
+    
+    @pytest.mark.parametrize("divisor", [2, 0.5])
+    def test_division_by_real_number(self, create_currency_instance, divisor):
+        dividend = create_currency_instance(1)
+        quotient = dividend / divisor
+        result = dividend.amount / divisor
+        assert isinstance(quotient, type(dividend))
+        assert quotient.amount == pytest.approx(result)
+    
+    def test_floor_division_by_currency(self, create_currency_instance):
+        dividend = create_currency_instance(10)
+        divisor = create_currency_instance(3)
+        quotient = dividend // divisor
+        assert isinstance(quotient, float)
+        assert quotient == pytest.approx(3)
+
+    @pytest.mark.parametrize("divisor", [2, 3.5])
+    def test_floor_division_by_real_number(self, create_currency_instance, divisor):
+        dividend = create_currency_instance(10)
+        quotient = dividend // divisor
+        result = dividend.amount // divisor
+        assert isinstance(quotient, type(dividend))
+        assert quotient.amount == pytest.approx(result)
+    
+    def test_mod(self, create_currency_instance):
+        dividend = create_currency_instance(10)
+        divisor = create_currency_instance(3)
+        remainder = dividend % divisor
+        assert isinstance(remainder, type(dividend))
+        assert remainder.amount == pytest.approx(1)
+    
+    def test_divmod(self, create_currency_instance):
+        dividend = create_currency_instance(10)
+        divisor = create_currency_instance(3)
+        quotient, remainder = divmod(dividend, divisor)
+        assert quotient == pytest.approx(3)
+        assert remainder.amount == pytest.approx(1)
+    
+    @pytest.mark.parametrize("amount", [1, 0, -1])
+    def test_unitary_operations(self, create_currency_instance, amount):
+        currency = create_currency_instance(amount)
+        assert (+currency).amount == pytest.approx(amount)
+        assert (-currency).amount == pytest.approx(-amount)
+        assert abs(currency).amount == pytest.approx(abs(amount))

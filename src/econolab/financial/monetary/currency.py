@@ -165,6 +165,7 @@ class EconoCurrency:
     # Special Methods #
     ###################
     
+    # FIXME: this comparison is too precise
     def __eq__(self, other) -> bool:
         if isinstance(other, type(self)):
             return self.amount == other.amount
@@ -205,10 +206,10 @@ class EconoCurrency:
             return type(self)(self.amount / other)
         return NotImplemented
     
-    def __floordiv__(self, other: Self | int) -> int | Self:
+    def __floordiv__(self, other: Self | Real) -> float | Self:
         if isinstance(other, type(self)):
             return self.amount // other.amount
-        elif isinstance(other, int):
+        elif isinstance(other, Real):
             return type(self)(self.amount // other)
         return NotImplemented
     
@@ -217,7 +218,7 @@ class EconoCurrency:
             return type(self)(self.amount % other.amount)
         return NotImplemented
     
-    def __divmod__(self, other: Self) -> tuple[int, Self]:
+    def __divmod__(self, other: Self) -> tuple[float, Self]:
         if isinstance(other, type(self)):
             return self // other, self % other
         return NotImplemented
@@ -243,13 +244,7 @@ class EconoCurrency:
     
     def __repr__(self) -> str:
         return (
-            f"{self._model.name}.{type(self).__name__}(amount={self.amount})"
-        )
-    
-    def __call__(self, *, with_units: bool = False):
-        return (
-            self.format_with_units() if with_units else
-            self.format_with_symbol()
+            f"{type(self).__name__}(amount={self.amount})"
         )
     
     
@@ -321,7 +316,7 @@ class EconoCurrency:
         
         rounded = round(self.amount, self.precision)
         unit = (
-            self.unit_singular if abs(rounded - 1) < 10 ** -self.precision else
+            self.unit_name if abs(rounded - 1) < 10 ** -self.precision else
             self.unit_plural
         )
         return f"{rounded:.{self.precision}f} {unit}"
