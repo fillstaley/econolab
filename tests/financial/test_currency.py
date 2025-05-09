@@ -9,10 +9,7 @@ Covers:
 
 import pytest
 
-from econolab.financial.monetary import (
-    CurrencySpecification,
-    EconoCurrency
-)
+from econolab.financial import EconoCurrency, CurrencySpecification
 
 
 @pytest.fixture

@@ -8,7 +8,7 @@ from econolab.temporal import (
     EconoDate,
     EconoDuration,
 )
-from econolab.financial.monetary import EconoCurrency
+from econolab.financial import EconoCurrency
 
 
 @pytest.fixture

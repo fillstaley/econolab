@@ -16,7 +16,7 @@ from ..temporal import (
     EconoDate,
     EconoDuration
 )
-from ..financial.monetary import (
+from ..financial import (
     CurrencySpecification,
     DEFAULT_CURRENCY_SPECIFICATION,
     EconoCurrency
