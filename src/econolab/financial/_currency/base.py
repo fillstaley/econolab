@@ -80,6 +80,78 @@ class EconoCurrency:
                 f"missing attributes: {missing}"
             )
     
+    def register_format_type(*codes):
+        def decorator(func):
+            func._format_codes = set(codes)
+            return func
+        return decorator
+    
+    @classmethod
+    @register_format_type("s", "f", "")
+    def format_with_symbol(cls, amount: Real, format_spec: str = "") -> str:
+        """Formats the currency amount as a string with the currency's symbol.
+        
+        Parameters
+        ----------
+        format_spec : str, optional
+            A format specification string.
+        
+        Returns
+        -------
+        str
+            Formatted string with currency symbol.
+        """
+        cls._validate_typeless_format(format_spec)
+        
+        rounded = format(*cls._ensure_precision(amount, format_spec))
+        if cls.symbol_position == "prefix":
+            return f"{cls.symbol}{rounded}"
+        return f"{rounded} {cls.symbol}"
+    
+    @classmethod
+    @register_format_type("u")
+    def format_with_units(cls, amount: float, format_spec: str = "") -> str:
+        """Formats the currency amount as a string with the currency's units.
+        
+        The singular (ie. 'unit_name') or plural form is used appropriately.
+        
+        Parameters
+        ----------
+        format_spec : str, optional
+            A format specification string.
+        
+        Returns
+        -------
+        str
+            Formatted string with currency units.
+        """
+        cls._validate_typeless_format(format_spec)
+        
+        rounded = format(*cls._ensure_precision(amount, format_spec))
+        unit = (
+            cls.unit_name if abs(amount - 1) < 10 ** -cls.precision else
+            cls.unit_plural
+        )
+        return f"{rounded} {unit}"
+    
+    @classmethod
+    def _ensure_precision(
+        cls,
+        amount: Real,
+        format_spec: str = ""
+    ) -> tuple[float, str]:
+        # If precision is specified in the format string, use it.
+        # Otherwise, apply class precision and append it to the format spec.
+        if (match := search(r"\.(\d+)", format_spec)):
+            precision = int(match[1])
+            format_spec += "f"
+        else:
+            precision = cls.precision
+            format_spec += f".{precision}f"
+            
+        rounded = round(float(amount), precision)
+        return rounded, format_spec
+    
     
     ###################
     # Special Methods #
@@ -159,7 +231,9 @@ class EconoCurrency:
         return float(self.amount)
     
     def __round__(self, ndigits: int | None = None) -> float:
-        return round(self.amount, ndigits if ndigits is not None else self.precision)
+        format_spec = f".{ndigits}" if ndigits is not None else ""
+        rounded, _ = self._ensure_precision(self.amount, format_spec)
+        return rounded
     
     def __new__(cls, *args, **kwargs):
         if cls is EconoCurrency:
@@ -190,10 +264,22 @@ class EconoCurrency:
     def __str__(self) -> str:
         return self.to_string(with_units=False)
     
-    # TODO: introduce a custom format type for symbol/units
     # TODO: add tests for formatting
     def __format__(self, format_spec: str) -> str:
-        return self.format_with_symbol(format_spec)
+        # Extract type character (if any)
+        match = search(r"[a-zA-Z]$", format_spec)
+        type_code = match.group() if match else ""
+        base_spec = format_spec[:match.start()] if match else format_spec
+        
+        # Scan all classmethods for one with a matching type code
+        for attr in dir(type(self)):
+            method = getattr(type(self), attr)
+            if (
+                callable(method) and hasattr(method, "_format_codes") and
+                type_code in method._format_codes
+            ):
+                return method(self.amount, base_spec)
+        raise ValueError(f"Unsupported format type '{type_code}' for {type(self).__name__}")
     
     
     ##############
@@ -213,6 +299,9 @@ class EconoCurrency:
     ###########
     # Methods #
     ###########
+    
+    def to_string(self, *, with_units: bool = False) -> str:
+        return f"{self:{"u" if with_units else "s"}}"
     
     # TODO: add tests for these comparison methods
     def is_zero(self) -> bool:
@@ -247,67 +336,12 @@ class EconoCurrency:
         """
         return self.amount <= -10 ** -self.precision
     
-    def to_string(self, *, with_units: bool = False) -> str:
-        return (
-            self.format_with_units() if with_units else self.format_with_symbol()
-        )
-    
-    def format_with_symbol(self, format_spec: str | None = None) -> str:
-        """Formats the currency amount as a string with the currency's symbol.
-
-        Parameters
-        ----------
-        format_spec : str, optional
-            A format specification string.
-        
-        Returns
-        -------
-        str
-            Formatted string with currency symbol.
-        """
-        fs = self._apply_precision_default(format_spec or "", self.precision)
-        rounded = format(self.amount, fs)
-        if self.symbol_position == "prefix":
-            return f"{self.symbol}{rounded}"
-        return f"{rounded} {self.symbol}"
-    
-    def format_with_units(self, format_spec: str | None = None) -> str:
-        """Formats the currency amount as a string with the currency's units.
-        
-        The singular (ie. 'unit_name') or plural form is used appropriately.
-        
-        Parameters
-        ----------
-        format_spec : str, optional
-            A format specification string.
-        
-        Returns
-        -------
-        str
-            Formatted string with currency units.
-        """
-        fs = self._apply_precision_default(format_spec or "", self.precision)
-        rounded = format(self.amount, fs)
-        unit = (
-            self.unit_name if abs(self.amount - 1) < 10 ** -self.precision else
-            self.unit_plural
-        )
-        return f"{rounded} {unit}"
-    
     
     ##################
     # Static Methods #
     ##################
     
     @staticmethod
-    def _apply_precision_default(format_spec: str, default_precision: int) -> str:
-        """Inserts the currency's precision into a format spec string."""
-        if not search(r"\.\d", format_spec):
-            # Inject .{default_precision} just before type code if present
-            match = search(r"[a-zA-Z]$", format_spec)
-            if match:
-                i = match.start()
-                return f"{format_spec[:i]}.{default_precision}{format_spec[i:]}"
-            else:
-                return f"{format_spec}.{default_precision}f"
-        return format_spec
+    def _validate_typeless_format(format_spec: str) -> None:
+        if search(r"[a-zA-Z]$", format_spec):
+            raise ValueError(f"format_spec should not include a type character: '{format_spec}'")

@@ -206,19 +206,19 @@ class TestAccess:
         with pytest.raises(AttributeError, match="readonly attribute"):
             currency_1.amount = 10
     
-    def test_format_with_symbol(self, currency_1, create_currency_class):
-        assert currency_1.format_with_symbol() == "$1.00"
+    def test_to_string(self, currency_1, create_currency_class):
+        assert currency_1.to_string() == "$1.00"
         
         SuffixCurrency = create_currency_class(symbol_position="suffix")
-        assert SuffixCurrency(1).format_with_symbol() == "1.00 $"
+        assert SuffixCurrency(1).to_string() == "1.00 $"
         
     
-    def test_format_with_units(self, currency_1, create_currency_instance):
-        assert currency_1.format_with_units() == "1.00 dollar"
+    def test_to_string_with_units(self, currency_1, create_currency_instance):
+        assert currency_1.to_string(with_units=True) == "1.00 dollar"
         
         not_one = 10
         plural_currency = create_currency_instance(not_one)
-        assert plural_currency.format_with_units() == f"{not_one:.2f} dollars"
+        assert plural_currency.to_string(with_units=True) == f"{not_one:.2f} dollars"
 
 
 class TestComparisons:
