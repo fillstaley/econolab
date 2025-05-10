@@ -5,6 +5,7 @@
 
 import os
 import sys
+import importlib.metadata
 
 # ─────── point Sphinx at your src/ layout ───────
 sys.path.insert(0, os.path.abspath('../../src'))
@@ -13,9 +14,9 @@ sys.path.insert(0, os.path.abspath('../../src'))
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
 
 project = 'EconoLab'
-copyright = '2025, Fill Staley'
+release = importlib.metadata.version("econolab")
 author = 'Fill Staley'
-release = '0.1.0'
+copyright = '2025, Fill Staley'
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
@@ -28,7 +29,7 @@ extensions = [
 ]
 
 templates_path = ['_templates']
-exclude_patterns = []
+exclude_patterns = ['_generated/*']
 
 
 

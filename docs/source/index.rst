@@ -16,4 +16,4 @@ documentation for details.
    :caption: Contents:
 
    guides/getting_started
-
+   references/api/index
