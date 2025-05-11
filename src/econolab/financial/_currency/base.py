@@ -230,10 +230,11 @@ class EconoCurrency:
     def __float__(self) -> int:
         return float(self.amount)
     
-    def __round__(self, ndigits: int | None = None) -> float:
+    # TODO: add tests for rounding
+    def __round__(self, ndigits: int | None = None) -> Self:
         format_spec = f".{ndigits}" if ndigits is not None else ""
-        rounded, _ = self._ensure_precision(self.amount, format_spec)
-        return rounded
+        rounded_amount, _ = self._ensure_precision(self.amount, format_spec)
+        return type(self)(rounded_amount)
     
     def __new__(cls, *args, **kwargs):
         if cls is EconoCurrency:
@@ -242,6 +243,7 @@ class EconoCurrency:
                 "it cannot be instantiated directly.")
         return super().__new__(cls)
     
+    # TODO: improve the documentation here
     def __init__(self, amount: Real = 0, /) -> None:
         """Initialize a currency instance with a numeric amount.
 
@@ -301,7 +303,7 @@ class EconoCurrency:
     ###########
     
     def to_string(self, *, with_units: bool = False) -> str:
-        return f"{self:{"u" if with_units else "s"}}"
+        return format(self, "u" if with_units else "s")
     
     # TODO: add tests for these comparison methods
     def is_zero(self) -> bool:
