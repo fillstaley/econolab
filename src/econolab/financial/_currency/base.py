@@ -5,13 +5,17 @@
 """
 
 
-# from __future__ import annotations
-
 from functools import total_ordering
 from numbers import Real
 from re import search
 from typing import Literal, Self
 
+
+def register_format_type(*codes):
+    def decorator(func):
+        func._format_codes = set(codes)
+        return func
+    return decorator
 
 
 @total_ordering
@@ -80,12 +84,6 @@ class EconoCurrency:
                 f"missing attributes: {missing}"
             )
     
-    def register_format_type(*codes):
-        def decorator(func):
-            func._format_codes = set(codes)
-            return func
-        return decorator
-    
     @classmethod
     @register_format_type("s", "f", "")
     def format_with_symbol(cls, amount: Real, format_spec: str = "") -> str:
@@ -104,9 +102,10 @@ class EconoCurrency:
         cls._validate_typeless_format(format_spec)
         
         rounded = format(*cls._ensure_precision(amount, format_spec))
-        if cls.symbol_position == "prefix":
-            return f"{cls.symbol}{rounded}"
-        return f"{rounded} {cls.symbol}"
+        return (
+            f"{cls.symbol}{rounded}" if cls.symbol_position == "prefix" else
+            f"{rounded} {cls.symbol}"
+        )
     
     @classmethod
     @register_format_type("u")
@@ -144,10 +143,11 @@ class EconoCurrency:
         # Otherwise, apply class precision and append it to the format spec.
         if (match := search(r"\.(\d+)", format_spec)):
             precision = int(match[1])
-            format_spec += "f"
         else:
             precision = cls.precision
-            format_spec += f".{precision}f"
+            format_spec += f".{precision}"
+        # ensure trailing zeros are included
+        format_spec += "f"
             
         rounded = round(float(amount), precision)
         return rounded, format_spec
