@@ -82,7 +82,7 @@ class BaseModel:
         self.logger.debug("Bound temporal types for model '%s'", self.name)
 
         # Dynamically create and bind monetary subclasses
-        self._bind_monetary_types(currency_specification)
+        self._bind_currency_type(currency_specification)
         self.logger.debug("Bound monetary types for model '%s'", self.name)
 
         # instantiate calendar and counters
@@ -128,23 +128,61 @@ class BaseModel:
             setattr(self, BaseCls.__name__, Sub)
             self.logger.debug("Created temporal subclass %s", cls_name)
 
-    def _bind_monetary_types(self, currency_specification: CurrencySpecification | None) -> None:
+    def _bind_currency_type(self, specs: CurrencySpecification | None) -> None:
+        """Creates a model-bound subclass of the EconoCurrency class.
+        
+        Uses a `CurrencySpecification` to define a subclass of `EconoCurrency`,
+        dynamically named `{CODE}Currency`, where `CODE` is the ISO-style
+        currency code from the specification (e.g., 'USD').
+        
+        The resulting subclass is assigned to the model instance under the
+        attribute `EconoCurrency`.
+        
+        All fields from the specification become class-level attributes on
+        the subclass. The `code` field is replaced with a read-only property
+        to prevent reassignment and to ensure consistency with the class name.
+        
+        Parameters
+        ----------
+        specs : CurrencySpecification
+            Dataclass with the needed attributes for subclassing `EconoCurrency`.
+        
+        See Also
+        --------
+        econolab.financial.CurrencySpecification :
+            Required attributes to subclass `EconoCurrency`.
+        _bind_temporal_types : A similar method for binding temporal types.
+        
+        Notes
+        -----
+        - Only one currency is supported per model at present.
+        - This binding does not attach a back-reference to the model.
         """
-        For each base monetary class, create an instance-bound subclass
-        that carries both the model reference and currency-specific configuration.
-        """
-        if currency_specification is None:
-            currency_specification = DEFAULT_CURRENCY_SPECIFICATION
-        for BaseCls in (EconoCurrency,):
-            Sub: Type = type(
-                BaseCls.__name__,
-                (BaseCls,),
-                {
-                    **currency_specification.to_dict()
-                }
+        if specs is None:
+            specs = DEFAULT_CURRENCY_SPECIFICATION
+        elif not isinstance(specs, CurrencySpecification):
+            raise TypeError(
+                f"'specs' must be a CurrencySpecification instance; "
+                f"got {type(specs).__name__}"
             )
-            setattr(self, BaseCls.__name__, Sub)
-            self.logger.debug("Created monetary subclass %s", Sub.__name__)
+        specs_dict = specs.to_dict()
+        _code = specs_dict["code"]
+        
+        # replace code attribute (and possibly others) with a read-only property
+        READONLY_ATTRS = {"code"}
+        def make_readonly_property(value):
+            return property(lambda self: value)
+        for attr in READONLY_ATTRS:
+            specs_dict[attr] = make_readonly_property(specs_dict[attr])
+        
+        Sub: Type = type(f"{_code}Currency", (EconoCurrency,), specs_dict)
+        setattr(self, EconoCurrency.__name__, Sub)
+        self.logger.debug("Created monetary subclass %s", Sub.__name__)
+    
+    
+    ##################
+    # Static Methods #
+    ##################
     
     @staticmethod
     def _sanitize_name(name: str) -> str:

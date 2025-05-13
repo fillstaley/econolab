@@ -81,7 +81,7 @@ class TestInitialization:
         assert issubclass(simple_model.EconoDuration, EconoDuration)
         assert simple_model.EconoDuration._model is simple_model
     
-    def test__bind_monetary_types(self, simple_model):
+    def test__bind_currency_type(self, simple_model):
         assert hasattr(simple_model, "EconoCurrency")
         assert issubclass(simple_model.EconoCurrency, EconoCurrency)
     
