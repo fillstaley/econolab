@@ -6,6 +6,8 @@
 
 from typing import TYPE_CHECKING
 
+from ...core import EconoMeta
+
 
 if TYPE_CHECKING:
     from .agents.issuer import Issuer
@@ -13,7 +15,7 @@ if TYPE_CHECKING:
     from .agents.creditor import Creditor
 
 
-class InstrumentType(type):
+class InstrumentType(EconoMeta):
     pass
 
 
