@@ -8,10 +8,10 @@ A banking system
 from __future__ import annotations
 from collections import defaultdict, deque
 
-from .core import BaseAgent
+from .core import EconoAgent
 
 
-class Agent(BaseAgent):
+class Agent(EconoAgent):
     """An agent that uses money.
     
     These agents use money.

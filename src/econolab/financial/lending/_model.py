@@ -4,11 +4,11 @@
 
 """
 
-from ...core import BaseModel
+from ...core import EconoModel
 from ._interfaces.loan import LoanMarket
 
 
-class Model(BaseModel):
+class Model(EconoModel):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         

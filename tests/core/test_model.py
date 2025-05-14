@@ -1,6 +1,6 @@
 import pytest
 
-from econolab.core import BaseModel, CounterCollection
+from econolab.core import EconoModel, CounterCollection
 from econolab.temporal import (
     TemporalStructure,
     DEFAULT_TEMPORAL_STRUCTURE,
@@ -14,7 +14,7 @@ from econolab.financial import EconoCurrency
 @pytest.fixture
 def simple_model(create_mock_mesa_model):
     MesaModel = create_mock_mesa_model()
-    class SimpleModel(BaseModel, MesaModel):
+    class SimpleModel(EconoModel, MesaModel):
         pass
     return SimpleModel()
 
@@ -25,7 +25,7 @@ class TestInitialization:
     
     def test_name_set_by_attribute(self, create_mock_mesa_model):
         MesaModel = create_mock_mesa_model()
-        class SimpleModel(BaseModel, MesaModel):
+        class SimpleModel(EconoModel, MesaModel):
             name = "TestModel"
         model = SimpleModel()
         
@@ -33,7 +33,7 @@ class TestInitialization:
     
     def test_name_set_by_constructor(self, create_mock_mesa_model):
         MesaModel = create_mock_mesa_model()
-        class SimpleModel(BaseModel, MesaModel):
+        class SimpleModel(EconoModel, MesaModel):
             name = "TestModel"
         model = SimpleModel(name="Test")
         
@@ -45,7 +45,7 @@ class TestInitialization:
         ("\tTabbed\nName ", "TabbedName"),
     ])
     def test__sanitize_name(self, raw, expected):
-        assert BaseModel._sanitize_name(raw) == expected
+        assert EconoModel._sanitize_name(raw) == expected
 
     def test_model_uses_default_temporal_structure(self, simple_model):
         assert simple_model.temporal_structure == DEFAULT_TEMPORAL_STRUCTURE
@@ -59,7 +59,7 @@ class TestInitialization:
             months_per_year=4
         )
         MesaModel = create_mock_mesa_model()
-        class SimpleModel(BaseModel, MesaModel):
+        class SimpleModel(EconoModel, MesaModel):
             temporal_structure = ts
         model = SimpleModel()
         

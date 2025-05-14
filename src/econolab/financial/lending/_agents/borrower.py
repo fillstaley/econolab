@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 
 from typing import TYPE_CHECKING
 
-from ....core import BaseAgent
+from ....core import EconoAgent
 from ....temporal import EconoDate
 from ...credit import Credit
 from .._interfaces.loan import Loan, LoanDisbursement, LoanPayment, LoanOption, LoanApplication
@@ -22,7 +22,7 @@ from .._interfaces.loan import Loan, LoanDisbursement, LoanPayment, LoanOption, 
 class InsufficientCreditError(Exception):
     pass
 
-class Borrower(BaseAgent):
+class Borrower(EconoAgent):
     APPLICATION_LIMIT: int = 3
     
     def __init__(

@@ -15,7 +15,7 @@ class EconoModel(Protocol):
     EconoCalendar: EconoCalendar
 
 
-class BaseAgent:
+class EconoAgent:
     """Base class for agents in an EconoLab model.
     
     ...

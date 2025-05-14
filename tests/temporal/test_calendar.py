@@ -6,13 +6,13 @@ from econolab.temporal import (
     EconoDate,
     EconoDuration
 )
-from econolab.core import BaseModel
+from econolab.core import EconoModel
 
 
 @pytest.fixture
 def test_model(create_mock_mesa_model):
     MesaModel = create_mock_mesa_model()
-    class TestModel(BaseModel, MesaModel):
+    class TestModel(EconoModel, MesaModel):
         temporal_structure = TemporalStructure(
             minyear=2000,
             maxyear=2005,
@@ -33,7 +33,7 @@ class TestEconoCalendar:
                 days_per_month=30,
                 months_per_year=12
         )
-        class TestModel(BaseModel, MesaModel):
+        class TestModel(EconoModel, MesaModel):
             temporal_structure = ts
         test_model = TestModel()
         

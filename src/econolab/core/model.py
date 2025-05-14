@@ -23,7 +23,7 @@ from ..financial import (
 )
 
 
-class BaseModel:
+class EconoModel:
     """Base class for all EconoLab models.
     
     ...
