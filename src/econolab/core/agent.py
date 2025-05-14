@@ -1,4 +1,4 @@
-"""Base class for agents in an EconoLab model.
+"""A base class for all EconoLab agents.
 
 ...
 

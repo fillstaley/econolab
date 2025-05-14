@@ -1,4 +1,4 @@
-"""Base class for an EconoLab model.
+"""A base class for all EconoLab models.
 
 ...
 
