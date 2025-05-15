@@ -8,6 +8,7 @@ import logging
 import re
 from typing import Optional, Type
 
+from .meta import EconoMeta
 from .counters import CounterCollection
 from ..temporal import (
     TemporalStructure,
@@ -23,7 +24,7 @@ from ..financial import (
 )
 
 
-class EconoModel:
+class EconoModel(metaclass=EconoMeta):
     """Base class for all EconoLab models.
     
     ...
@@ -187,20 +188,3 @@ class EconoModel:
     @staticmethod
     def _sanitize_name(name: str) -> str:
         return re.sub(r"\s+", "", name.strip())
-
-# --- Usage contract ---
-# Model-builders must do:
-#
-# class MyModel(BaseModel):
-#     _temporal_structure = TemporalStructure(
-#         days_per_week=7,
-#         weeks_per_year=52,
-#         months_per_year=12,
-#         days_per_month=30,
-#     )
-#
-#     def __init__(self, **kwargs):
-#         super().__init__(**kwargs)
-#         # now self.Calendar, self.EconoDate, self.EconoDuration exist
-#         self.calendar = self.Calendar()
-#         ...
