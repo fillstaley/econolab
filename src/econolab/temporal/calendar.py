@@ -5,21 +5,29 @@
 """
 
 
+from __future__ import annotations
+
 from logging import Logger
 import math
-from typing import Sequence, Protocol, runtime_checkable
+from typing import Sequence, Protocol, runtime_checkable, TYPE_CHECKING
 
 from .temporal_structure import TemporalStructure
 from .base import EconoDate, EconoDuration
 
 
+# if TYPE_CHECKING:
+    # from ..core.model import EconoModel
+    # from ..core.agent import EconoAgent
+
 
 @runtime_checkable
 class EconoModel(Protocol):
     name: str
-    temporal_structure: TemporalStructure
     steps: int
     logger: Logger
+    EconoDuration: type[EconoDuration]
+    EconoDate: type[EconoDate]
+    temporal_structure: TemporalStructure
 
 
 @runtime_checkable
@@ -364,7 +372,7 @@ class EconoCalendar:
         return self._agent
 
     @property
-    def model(self) -> EconoModel | None:
+    def model(self) -> EconoModel:
         return type(self)._model
     
     @property

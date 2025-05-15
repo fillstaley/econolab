@@ -46,8 +46,8 @@ class EconoModel(ABC, metaclass=ModelType):
     temporal_structure: TemporalStructure | None = None
     
     EconoCalendar: type[EconoCalendar]
-    EconoDate: EconoDate
-    EconoDuration: EconoDuration
+    EconoDate: type[EconoDate]
+    EconoDuration: type[EconoDuration]
     
     ###################
     # Special Methods #

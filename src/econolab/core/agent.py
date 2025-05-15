@@ -5,17 +5,21 @@ states of other agents.
 
 """
 
+from __future__ import annotations
+
 from abc import ABC
-from typing import Protocol, runtime_checkable
+from typing import Protocol, runtime_checkable, TYPE_CHECKING
 
 from .meta import EconoMeta
 from ..temporal import EconoCalendar
 from .counters import CounterCollection
 
+if TYPE_CHECKING:
+    from .model import EconoModel
 
-@runtime_checkable
-class EconoModel(Protocol):
-    EconoCalendar: EconoCalendar
+# @runtime_checkable
+# class EconoModel(Protocol):
+#     EconoCalendar: type[EconoCalendar]
 
 
 class AgentType(EconoMeta):
@@ -30,6 +34,7 @@ class EconoAgent(ABC, metaclass=AgentType):
     """
 
     model: EconoModel
+    unique_id: int
 
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
