@@ -1,11 +1,14 @@
 """A base class for all EconoLab agents.
 
-...
+Agents act. They are able to do things that change their state, or the
+states of other agents.
 
 """
 
+from abc import ABC
 from typing import Protocol, runtime_checkable
 
+from .meta import EconoMeta
 from ..temporal import EconoCalendar
 from .counters import CounterCollection
 
@@ -15,7 +18,11 @@ class EconoModel(Protocol):
     EconoCalendar: EconoCalendar
 
 
-class EconoAgent:
+class AgentType(EconoMeta):
+    pass
+
+
+class EconoAgent(ABC, metaclass=AgentType):
     """Base class for agents in an EconoLab model.
     
     ...

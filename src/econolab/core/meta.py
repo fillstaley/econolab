@@ -43,12 +43,12 @@ class EconoMeta(ABCMeta):
         return super().__delattr__(name)
     
     def __new__(
-        meta,
+        meta, # type: ignore
         name: str,
         bases: tuple[type],
         namespace: dict,
         **kwargs
-    ) -> Self:
+    ) -> EconoMeta:
         # extract user-specified constant attributes; make them class_constants
         constant_attrs = set(namespace.pop("__constant_attrs__", set()))
         for attr in constant_attrs:

@@ -1,10 +1,12 @@
 """A base class for all EconoLab models.
 
-...
+Models are universes. That is, they contain everything that is needed
+for a simulation.
 
 """
 
 import logging
+from abc import ABC
 import re
 from typing import Optional, Type
 
@@ -24,7 +26,11 @@ from ..financial import (
 )
 
 
-class EconoModel(metaclass=EconoMeta):
+class ModelType(EconoMeta):
+    pass
+
+
+class EconoModel(ABC, metaclass=ModelType):
     """Base class for all EconoLab models.
     
     ...
@@ -35,9 +41,13 @@ class EconoModel(metaclass=EconoMeta):
     # Class Attributes #
     ####################
     
+    steps: int
     name: str | None = None
     temporal_structure: TemporalStructure | None = None
     
+    EconoCalendar: type[EconoCalendar]
+    EconoDate: EconoDate
+    EconoDuration: EconoDuration
     
     ###################
     # Special Methods #
@@ -85,7 +95,7 @@ class EconoModel(metaclass=EconoMeta):
         # Dynamically create and bind monetary subclasses
         self._bind_currency_type(currency_specification)
         self.logger.debug("Bound monetary types for model '%s'", self.name)
-
+        
         # instantiate calendar and counters
         self.calendar = self.EconoCalendar(self)
         self.counters = CounterCollection(self)

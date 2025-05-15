@@ -5,6 +5,7 @@
 """
 
 
+from logging import Logger
 import math
 from typing import Sequence, Protocol, runtime_checkable
 
@@ -18,6 +19,7 @@ class EconoModel(Protocol):
     name: str
     temporal_structure: TemporalStructure
     steps: int
+    logger: Logger
 
 
 @runtime_checkable
@@ -33,7 +35,7 @@ class EconoCalendar:
     
     """
     
-    _model: EconoModel | None = None
+    _model: EconoModel
     __slots__ = ("_agent",)
     
     ####################

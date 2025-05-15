@@ -247,7 +247,7 @@ class CounterCollection:
         return self._counters
     
     @property
-    def transient(self) -> set[str]:
+    def transient(self) -> dict[str, Counter]:
         """Returns a dictionary of transient counters."""
         return {
             name: counter
@@ -255,7 +255,7 @@ class CounterCollection:
         }
     
     @property
-    def persistent(self) -> set[str]:
+    def persistent(self) -> dict[str, Counter]:
         """Returns a dictionary of persistent counters."""
         return {
             name: counter
