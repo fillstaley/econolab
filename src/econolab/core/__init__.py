@@ -6,7 +6,7 @@
 
 
 # expose metaclass base
-from .meta import EconoMeta
+from .meta import EconoMeta, class_constant
 
 # expose model base
 from .model import EconoModel
