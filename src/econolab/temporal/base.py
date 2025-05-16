@@ -469,9 +469,9 @@ class EconoDate:
     def replace(
         self,
         *, 
-        year: int = None,
-        month: int = None, 
-        day: int = None
+        year: int | None= None,
+        month: int | None = None, 
+        day: int | None = None
     ) -> EconoDate:
         """
         Return a new EconoDate object with the specified components replaced.
