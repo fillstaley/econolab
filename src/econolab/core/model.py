@@ -42,7 +42,7 @@ class EconoModel(ABC, metaclass=ModelType):
     ####################
     
     steps: int
-    name: str | None = None
+    name: str
     temporal_structure: TemporalStructure | None = None
     
     EconoCalendar: type[EconoCalendar]
@@ -64,7 +64,7 @@ class EconoModel(ABC, metaclass=ModelType):
         super().__init__(*args, **kwargs)
 
         # resolve model name: explicit name arg > attribute > class name
-        resolved_name = name or self.name or type(self).__name__
+        resolved_name = name or getattr(self, "name", None) or type(self).__name__
         self.name = self._sanitize_name(resolved_name)
 
         # set up a logger for this model instance

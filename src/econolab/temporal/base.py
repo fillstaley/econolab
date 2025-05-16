@@ -77,10 +77,12 @@ class EconoDuration:
     # Special Methods #
     ###################
     
-    def __eq__(self, other: EconoDuration) -> bool:
-        if isinstance(other, type(self)):
-            return self.days == other.days
-        return NotImplemented
+    def __eq__(self, other: object) -> bool:
+        return (
+            self.days == other.days
+            if isinstance(other, type(self)) else
+            False
+        )
 
     def __lt__(self, other: EconoDuration) -> bool:
         if isinstance(other, type(self)):
@@ -128,7 +130,14 @@ class EconoDuration:
     
     def __divmod__(self, other: EconoDuration) -> tuple[int, EconoDuration]:
         if isinstance(other, type(self)):
-            return self // other, self % other
+            q = self // other
+            r = self % other
+            if not isinstance(q, int):
+                raise TypeError(
+                    f"Expected quotient to be of type 'int'; "
+                    f"got type '{type(q).__name__}'"
+                )
+            return q, r
         return NotImplemented
     
     def __neg__(self) -> EconoDuration:
@@ -321,11 +330,13 @@ class EconoDate:
     # Special Methods #
     ###################
 
-    def __eq__(self, other: EconoDate) -> bool:
-        if isinstance(other, type(self)):
-            return (self.year, self.month, self.day) == (other.year, other.month, other.day)
-        return NotImplemented
-
+    def __eq__(self, other: object) -> bool:
+        return (
+            (self.year, self.month, self.day) == (other.year, other.month, other.day)
+            if isinstance(other, type(self)) else 
+            False
+        )
+    
     def __lt__(self, other: EconoDate) -> bool:
         if isinstance(other, type(self)):
             return (self.year, self.month, self.day) < (other.year, other.month, other.day)
