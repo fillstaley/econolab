@@ -8,47 +8,87 @@ from dataclasses import dataclass, field
 from math import gcd
 from typing import Sequence
 
+from .calendar_new import EconoCalendar
 
-@dataclass(frozen=True, slots=True)
+
+@dataclass(frozen=True)
 class CalendarSpecification:
     """Defines the temporal structure of an EconoCalendar.
     
+    ...
+    
     Parameters
     ----------
-    minyear : int
-        Smallest possible year (must be > 0).
-    maxyear : int
-        Largest possible year (must be > ``minyear``).
-    days_per_week : int
-        Number of days in a week (must be > 0).
-    days_per_month : int or sequence of int
-        If int, number of days in each month (must be > 0).
-        If sequence, elements specify days in each month and the length
-        specifies ``months_per_year``.
+    days_per_week : int, optional
+        Number of days in a week (must be > 0), by default 7.
+    days_per_month : int or sequence of int, optional
+        If int, number of days in each month (must be > 0). If sequence,
+        elements specify days in each month and the length specifies
+        ``months_per_year``. The default is 28.
     months_per_year : int, optional
-        Number of months in a year (must be > 0). Should be omitted if
-        ``days_per_month`` is a sequence (it will be inferred from its length).
+        Number of months in a year (must be > 0), by default 12. If
+        ``days_per_month`` is a sequence, any provided value will be
+        silently ignored.
+    start_year : int, optional
+        The starting year of the calendar (must be > 0), by default 1.
+    start_month : int, optional
+        The starting month of the calendar (must be > 0), by default 1.
+    start_day : int, optional
+        The starting day of the calendar (must be > 0), by default 1.
+    max_year : int, optional
+        Maximum year (must be greater ``start_year``), by default 9,999.
+    steps_to_days: tuple of int, optional
+        The ratio of steps to days (must be a pair, and both integers
+        must by > 0), by default (1, 1).
     
     Attributes
     ----------
-    minyear : int
-    maxyear : int
-    days_per_week : int
-    days_per_month : int or sequence of int
-    months_per_year : int
-    days_per_year : int
-        Total days in a year, summing per-month lengths or uniform months.
+    _days_per_month_seq
+    _steps_to_days_ratio
     """
-    minyear: int = field(default=1)
-    maxyear: int = field(default=9_999)
     days_per_week: int = field(default=7)
     days_per_month: int | Sequence[int] = field(default=28)
     months_per_year: int = field(default=12)
-    steps_to_days_ratio: tuple[int, int] = field(default=(1, 1))
+    start_year: int = field(default=1)
+    start_month: int = field(default = 1)
+    start_day: int = field(default=1)
+    max_year: int = field(default=9_999)
+    steps_to_days: tuple[int, int] = field(default=(1, 1))
+    
+    _days_per_month_seq: Sequence[int] = field(init=False)
+    _steps_to_days_ratio: EconoCalendar.StepsDaysRatio = field(init=False)
     
     
     def __post_init__(self):
-        for name in ("minyear", "maxyear", "days_per_week"):
+        self._validate_int_fields(
+            "days_per_week", "start_year", "start_month", "start_day", "max_year"
+        )
+        self._validate_days_per_month_seq()
+        self._set_days_per_month_seq()
+        
+        self._validate_start_date()
+        
+        self._validate_steps_to_days_ratio()
+        self._set_steps_to_days_ratio()
+    
+    
+    ##################
+    # Helper Methods #
+    ##################
+    
+    def to_dict(self) -> dict:
+        return {
+            "days_per_week": self.days_per_week,
+            "days_per_month_seq": self._days_per_month_seq,
+            "start_year": self.start_year,
+            "start_month": self.start_month,
+            "start_day": self.start_day,
+            "max_year": self.max_year,
+            "steps_to_days_ratio": self._steps_to_days_ratio
+        }
+    
+    def _validate_int_fields(self, *names: str) -> None:
+        for name in names:
             if not isinstance(value := getattr(self, name), int):
                 raise TypeError(
                     f"'{name}' must be an int; got type '{type(value).__name__}'"
@@ -57,13 +97,10 @@ class CalendarSpecification:
                 raise ValueError(
                     f"'{name}' must be positive; got {value!r}"
                 )
-        if self.maxyear < self.minyear:
-            raise ValueError(
-                f"'maxyear' ({self.maxyear}) must be at least equal to "
-                f"'minyear' ({self.minyear})"
-            )
-        
-        if isinstance(dpm := self.days_per_month, int):
+    
+    def _validate_days_per_month_seq(self) -> None:
+        dpm = self.days_per_month
+        if isinstance(dpm, int):
             # verify that months_per_year is an int and both are positive
             if not isinstance(self.months_per_year, int):
                 raise TypeError(
@@ -88,23 +125,48 @@ class CalendarSpecification:
                     raise ValueError(
                         f"days_per_month[{month}] must be positive; got {days!r}"
                     )
-            object.__setattr__(self, 'months_per_year', len(dpm))
         else:
             raise TypeError(
                 f"'days_per_month' must be either an int or a Sequence of int; "
                 f"got type '{type(dpm).__name__}'"
             )
-        
-        if not isinstance(self.steps_to_days_ratio, tuple):
+    
+    def _set_days_per_month_seq(self) -> None:
+        dpm = self.days_per_month
+        if isinstance(dpm, int):
+            object.__setattr__(self, "days_per_month", [dpm] * self.months_per_year)
+        else: # is Sequence of int
+            object.__setattr__(self, 'months_per_year', len(dpm))
+        object.__setattr__(self, "_days_per_month_seq", self.days_per_month)
+    
+    def _validate_start_date(self) -> None:
+        if self.start_year > self.max_year:
+            raise ValueError(
+                f"'start_year' ({self.start_year}) exceeds "
+                f"'max_year' ({self.max_year})"
+            )
+        if self.start_month > self.months_per_year:
+            raise ValueError(
+                f"'start_month' ({self.start_month}) exceeds "
+                f"the number of months ({self.months_per_year})"
+            )
+        if self.start_day > self._days_per_month_seq[self.start_month-1]:
+            raise ValueError(
+                f"'start_day' ({self.start_day}) exceeds "
+                f"the number of days in 'start_month' ({self.start_month})"
+            )
+    
+    def _validate_steps_to_days_ratio(self) -> None:
+        if not isinstance(self.steps_to_days, tuple):
             raise TypeError(
                 f"'steps_to_days_ratio' must be a tuple of int; "
-                f"got type '{type(self.steps_to_days_ratio).__name__}"
+                f"got type '{type(self.steps_to_days).__name__}"
             )
-        elif length := len(self.steps_to_days_ratio) != 2:
+        elif length := len(self.steps_to_days) != 2:
             raise ValueError(
                 f"'steps_to_days_ratio' must have length 2; got length {length}"
             )
-        for idx, value in enumerate(self.steps_to_days_ratio):
+        for idx, value in enumerate(self.steps_to_days):
             if not isinstance(value, int):
                 raise TypeError(
                     f"'steps_to_days_ratio[{idx}] must be an int; "
@@ -114,18 +176,11 @@ class CalendarSpecification:
                 raise ValueError(
                     f"'steps_to_days_ratio[{idx}] must be positive; got {value!r}"
                 )
-        
-        # reduce the steps_to_days_ratio if necessary
-        steps, days = self.steps_to_days_ratio
+    
+    def _set_steps_to_days_ratio(self) -> None:
+        steps, days = self.steps_to_days
         if (divisor := gcd(steps, days)) != 1:
             steps, days = steps // divisor, days // divisor
-            object.__setattr__(self, "steps_to_days_ratio", (steps, days))
-    
-    @property
-    def days_per_year(self) -> int:
-        """Total days in a year, summing per-month lengths or uniform months."""
-        dpm = self.days_per_month
-        return sum(dpm) if isinstance(dpm, Sequence) else self.months_per_year * dpm
-    
-    def to_dict(self) -> dict:
-        return {slot: getattr(self, slot) for slot in self.__slots__}
+            object.__setattr__(self, "steps_to_days", (steps, days))
+        ratio = EconoCalendar.StepsDaysRatio(*self.steps_to_days)
+        object.__setattr__(self, "_steps_to_days_ratio", ratio)

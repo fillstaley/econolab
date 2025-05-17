@@ -6,18 +6,15 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
 from functools import total_ordering
-from typing import Sequence, Protocol, runtime_checkable
+from typing import Sequence, Protocol, runtime_checkable, TYPE_CHECKING
 
 from numpy import floor
 
-from .temporal_structure import TemporalStructure
-
 
 @runtime_checkable
-class EconoModel(Protocol):
-    temporal_structure: TemporalStructure
+class EconoCalendar(Protocol):
+    days_per_week: int
 
 
 @total_ordering
@@ -69,9 +66,20 @@ class EconoDuration:
     EconoDuration(7)
     """
     
-    _model: EconoModel | None = None
     __slots__ = ("_days",)
     
+    EconoCalendar: type[EconoCalendar]
+    
+    
+    def __init_subclass__(cls, **kwargs) -> None:
+        super().__init_subclass__(**kwargs)
+        
+        if not (Calendar := getattr(cls, "EconoCalendar", None)):
+            raise AttributeError(f"'{cls.__name__}' has no 'EconoCalendar' attribute")
+        elif not isinstance(Calendar, EconoCalendar):
+            raise TypeError(
+                f"'{cls.__name__}.EconoCalendar' is not a valid 'EconoCalendar' object"
+            )
     
     ###################
     # Special Methods #
@@ -152,16 +160,21 @@ class EconoDuration:
     def __hash__(self) -> int:
         return hash(self._days)
     
-    def __init__(self, days: int | float = 0, weeks: int | float = 0) -> None:
-        # Ensures model is present before use
-        if self.model is None:
-            raise RuntimeError(f"{type(self).__name__} is not bound to a model.")
+    def __new__(cls, *args, **kwargs) -> EconoDuration:
+        if cls is EconoDuration:
+            raise TypeError(
+                "EconoDuration is an abstract base class; "
+                "it cannot be instantiated directly."
+            )
+        return super().__new__(cls)
+    
+    def __init__(self, days: int | float = 0, *, weeks: int | float = 0) -> None:
         self._days = int(
-            floor(days + weeks * self.model.temporal_structure.days_per_week)
+            floor(days + weeks * self.EconoCalendar.days_per_week)
         )
 
     def __repr__(self) -> str:
-        return f"{self.model.name}.{type(self).__name__}(days={self.days})"
+        return f"{type(self).__name__}(days={self.days})"
     
     def __str__(self) -> str:
         return "1 day" if self.days == 1 else f"{self.days} days"
@@ -170,10 +183,6 @@ class EconoDuration:
     ##############
     # Properties #
     ##############
-    
-    @property
-    def model(self) -> EconoModel:
-        return type(self)._model
     
     @property
     def days(self) -> int:
@@ -253,8 +262,10 @@ class EconoDate:
     
     """
     
-    _model: EconoModel | None = None
     __slots__ = ("_year", "_month", "_day")
+    
+    EconoCalendar: type[EconoCalendar]
+    
     
     #################
     # Class Methods #
@@ -382,8 +393,7 @@ class EconoDate:
     
     def __repr__(self) -> str:
         return (
-            f"{self.model.name}.{type(self).__name__}"
-            f"(year={self.year}, month={self.month}, day={self.day})"
+            f"{type(self).__name__}(year={self.year}, month={self.month}, day={self.day})"
         )
     
     def __str__(self) -> str:
@@ -393,10 +403,6 @@ class EconoDate:
     ##############
     # Properties #
     ##############
-    
-    @property
-    def model(self) -> EconoModel:
-        return type(self)._model
     
     @property
     def year(self) -> int:
