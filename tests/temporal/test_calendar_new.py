@@ -5,8 +5,17 @@
 """
 
 import pytest
+from unittest.mock import MagicMock
 
 from econolab.temporal.calendar_new import EconoCalendar, CalendarSpecification
+
+
+@pytest.fixture
+def model():
+    model = MagicMock()
+    model.steps = 0
+    model.logger = MagicMock()
+    return model
 
 
 @pytest.fixture
@@ -86,3 +95,14 @@ class TestSpecification:
         spec_dict = standard_spec.to_dict()
         dpm = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
         assert spec_dict["days_per_month_seq"] == dpm
+
+
+class TestCreation:
+    def test_from_specs(self, model, specification):
+        try:
+            type("EconoCalendar", (EconoCalendar,), {
+                "model": model,
+                **specification.to_dict()
+            })
+        except Exception as e:
+            pytest.fail(f"Calendar creation failed with error: {e}")

@@ -21,6 +21,9 @@ class EconoCalendar(Protocol):
     start_month: int
     start_day: int
     max_year: int
+
+
+class EconoCalendarWithDuration(EconoCalendar):
     EconoDuration: type[EconoDuration]
 
 
@@ -280,7 +283,7 @@ class EconoDate:
     
     __slots__ = ("_year", "_month", "_day")
     
-    EconoCalendar: type[EconoCalendar]
+    EconoCalendar: type[EconoCalendarWithDuration]
     
     
     #################
