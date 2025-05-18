@@ -14,6 +14,8 @@
 		}
 	],
 	"settings": {
+		"workbench.editor.restoreViewState": false,
+		"workbench.startupEditor": "none",
 		"cSpell.dictionaryDefinitions": [
 			{
 				"name": "econolab-terms",
@@ -27,6 +29,6 @@
 		"cSpell.words": [
 			"multibank",
 			"undisbursed"
-		]
+		],
 	}
 }
