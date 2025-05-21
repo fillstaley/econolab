@@ -10,6 +10,8 @@ from numbers import Real
 from re import search
 from typing import Literal, Self
 
+from ...core.meta import EconoMeta
+
 
 def register_format_type(*codes):
     def decorator(func):
@@ -19,7 +21,7 @@ def register_format_type(*codes):
 
 
 @total_ordering
-class EconoCurrency:
+class EconoCurrency(metaclass=EconoMeta):
     """Abstract base class for model-bound currency types in EconoLab models.
 
     This class defines the arithmetic behavior, comparison logic, and 
@@ -49,6 +51,7 @@ class EconoCurrency:
     in edge cases. This will be resolved in a future version using Decimal.
     """
     
+    __constant_attrs__ = {"code"}
     __slots__ = ("_amount",)
     
     code: str
