@@ -5,6 +5,5 @@
 """
 
 
-from .temporal_structure import TemporalStructure, DEFAULT_TEMPORAL_STRUCTURE
-from .calendar import EconoCalendar
-from .base import EconoDate, EconoDuration
+from ._calendar import EconoCalendar, CalendarSpecification
+from ._base import EconoDate, EconoDuration

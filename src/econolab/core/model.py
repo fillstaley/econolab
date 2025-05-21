@@ -5,7 +5,7 @@ for a simulation.
 
 """
 
-import logging
+from logging import getLogger, Logger
 from abc import ABC
 import re
 from typing import Optional, Type
@@ -13,11 +13,8 @@ from typing import Optional, Type
 from .meta import EconoMeta
 from .counters import CounterCollection
 from ..temporal import (
-    TemporalStructure,
-    DEFAULT_TEMPORAL_STRUCTURE,
     EconoCalendar,
-    EconoDate,
-    EconoDuration
+    CalendarSpecification,
 )
 from ..financial import (
     CurrencySpecification,
@@ -43,11 +40,9 @@ class EconoModel(ABC, metaclass=ModelType):
     
     steps: int
     name: str
-    temporal_structure: TemporalStructure | None = None
+    logger: Logger
     
     EconoCalendar: type[EconoCalendar]
-    EconoDate: type[EconoDate]
-    EconoDuration: type[EconoDuration]
     
     ###################
     # Special Methods #
@@ -57,6 +52,7 @@ class EconoModel(ABC, metaclass=ModelType):
         self,
         *args,
         name: Optional[str] = None,
+        calendar_specification: CalendarSpecification | None = None,
         currency_specification: CurrencySpecification | None = None,
         **kwargs
     ) -> None:
@@ -68,31 +64,14 @@ class EconoModel(ABC, metaclass=ModelType):
         self.name = self._sanitize_name(resolved_name)
 
         # set up a logger for this model instance
-        self.logger = logging.getLogger(f"EconoLab.Model.{self.name}")
+        self.logger = getLogger(f"EconoLab.Model.{self.name}")
         self.logger.debug("Initializing model '%s'", self.name)
 
-        # Validate temporal_structure or use a default if none is provided
-        if isinstance(self.temporal_structure, TemporalStructure):
-            self.logger.debug(
-                "Using TemporalStructure %s for model %s.", self.temporal_structure, self.name
-            )
-        elif self.temporal_structure is None:
-            self.temporal_structure = DEFAULT_TEMPORAL_STRUCTURE
-            self.logger.info(
-                "No TemporalStructure provided for model '%s'; using %s as a default.",
-                self.name, self.temporal_structure
-            )
-        else:
-            raise ValueError(
-                f"The temporal_structure attribute should be a TemporalStructure; "
-                f"got {type(self.temporal_structure).__name__}"
-            )
+        # bind a custom subclass of EconoCalendar to the model
+        self._init_temporal_system(calendar_specification)
 
-        # Dynamically create and bind temporal subclasses
-        self._bind_temporal_types()
-        self.logger.debug("Bound temporal types for model '%s'", self.name)
-
-        # Dynamically create and bind monetary subclasses
+        # bind a custom subclass of EconoCurrency to the model
+        # for now, all models are assumed to be single-currency models
         self._bind_currency_type(currency_specification)
         self.logger.debug("Bound monetary types for model '%s'", self.name)
         
@@ -120,24 +99,33 @@ class EconoModel(ABC, metaclass=ModelType):
     # Helper Methods #
     ##################
     
-    def _bind_temporal_types(self):
-        """
-        For each base temporal class, create an instance-bound subclass
-        that carries both the model reference and its temporal constants.
-        """
-        for BaseCls in (EconoCalendar, EconoDate, EconoDuration):
-            # choose a name for the subclasses
-            cls_name = BaseCls.__name__
-            Sub: Type = type(
-                cls_name,
-                (BaseCls,),
-                {
-                    "_model": self,
-                }
+    def _init_temporal_system(self, spec: CalendarSpecification | None):
+        if spec is None:
+            spec = CalendarSpecification()
+            self.logger.info(
+                "No CalendarSpecification provided for model '%s'; using %s as a default.",
+                self.name, spec
             )
-            # bind to the model with BaseCls.__name__, regardless of cls_name
-            setattr(self, BaseCls.__name__, Sub)
-            self.logger.debug("Created temporal subclass %s", cls_name)
+        elif isinstance(spec, CalendarSpecification):
+            self.logger.debug(
+                "Using CalendarSpecification %s for model %s.", spec, self.name
+            )
+        else:
+            raise TypeError(
+                f"'spec' must of of type 'CalendarSpecification'; "
+                f"got type '{type(spec).__name__}'")
+        
+        cls_name = "EconoCalendar"
+        Sub = type(
+            cls_name, (EconoCalendar,), {"model": self, **spec.to_dict()}
+        )
+        
+        attr_name = "EconoCalendar"
+        setattr(self, attr_name, Sub)
+        self.logger.debug(
+            "Created Calendar subclass %s; it is bound to %s.%s",
+            cls_name, self.name, attr_name
+        )
 
     def _bind_currency_type(self, specs: CurrencySpecification | None) -> None:
         """Creates a model-bound subclass of the EconoCurrency class.

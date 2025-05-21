@@ -6,22 +6,31 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
 from functools import total_ordering
-from typing import Sequence, Protocol, runtime_checkable
+from typing import Sequence, Protocol, runtime_checkable, TYPE_CHECKING
+from typing_extensions import Self
 
 from numpy import floor
 
-from .temporal_structure import TemporalStructure
+from ..core.meta import EconoMeta
 
 
 @runtime_checkable
-class EconoModel(Protocol):
-    temporal_structure: TemporalStructure
+class EconoCalendar(Protocol):
+    days_per_week: int
+    days_per_month_seq: Sequence[int]
+    start_year: int
+    start_month: int
+    start_day: int
+    max_year: int
+
+
+class EconoCalendarWithDuration(EconoCalendar):
+    EconoDuration: type[EconoDuration]
 
 
 @total_ordering
-class EconoDuration:
+class EconoDuration(metaclass=EconoMeta):
     """A duration of EconoLab time, measured in days.
     
     Parameters
@@ -69,8 +78,28 @@ class EconoDuration:
     EconoDuration(7)
     """
     
-    _model: EconoModel | None = None
     __slots__ = ("_days",)
+    
+    EconoCalendar: type[EconoCalendar]
+    
+    
+    #################
+    # Class Methods #
+    #################
+    
+    def __init_subclass__(cls, **kwargs) -> None:
+        super().__init_subclass__(**kwargs)
+        
+        cls._verify_econocalendar_class()
+    
+    @classmethod
+    def _verify_econocalendar_class(cls):
+        if not (Calendar := getattr(cls, "EconoCalendar", None)):
+            raise AttributeError(f"'{cls.__name__}' has no 'EconoCalendar' attribute")
+        elif not isinstance(Calendar, EconoCalendar):
+            raise TypeError(
+                f"'{cls.__name__}.EconoCalendar' is not a valid 'EconoCalendar' object"
+            )
     
     
     ###################
@@ -152,16 +181,21 @@ class EconoDuration:
     def __hash__(self) -> int:
         return hash(self._days)
     
-    def __init__(self, days: int | float = 0, weeks: int | float = 0) -> None:
-        # Ensures model is present before use
-        if self.model is None:
-            raise RuntimeError(f"{type(self).__name__} is not bound to a model.")
+    def __new__(cls, *args, **kwargs) -> EconoDuration:
+        if cls is EconoDuration:
+            raise TypeError(
+                "EconoDuration is an abstract base class; "
+                "it cannot be instantiated directly."
+            )
+        return super().__new__(cls)
+    
+    def __init__(self, days: int | float = 0, *, weeks: int | float = 0) -> None:
         self._days = int(
-            floor(days + weeks * self.model.temporal_structure.days_per_week)
+            floor(days + weeks * self.EconoCalendar.days_per_week)
         )
 
     def __repr__(self) -> str:
-        return f"{self.model.name}.{type(self).__name__}(days={self.days})"
+        return f"{type(self).__name__}(days={self.days})"
     
     def __str__(self) -> str:
         return "1 day" if self.days == 1 else f"{self.days} days"
@@ -170,10 +204,6 @@ class EconoDuration:
     ##############
     # Properties #
     ##############
-    
-    @property
-    def model(self) -> EconoModel:
-        return type(self)._model
     
     @property
     def days(self) -> int:
@@ -186,7 +216,7 @@ class EconoDuration:
 
 
 @total_ordering
-class EconoDate:
+class EconoDate(metaclass=EconoMeta):
     """
     A point in EconoLab time represented as a discrete calendar date.
 
@@ -253,12 +283,19 @@ class EconoDate:
     
     """
     
-    _model: EconoModel | None = None
     __slots__ = ("_year", "_month", "_day")
+    
+    EconoCalendar: type[EconoCalendarWithDuration]
+    
     
     #################
     # Class Methods #
     #################
+    
+    def __init_subclass__(cls, **kwargs) -> None:
+        super().__init_subclass__(**kwargs)
+        
+        cls._verify_econocalendar_class()
     
     @classmethod
     def from_days(cls, days: int) -> EconoDate:
@@ -286,44 +323,63 @@ class EconoDate:
             If the calculated year exceeds MAXYEAR.
         
         """
-        if cls._model is None:
-            raise RuntimeError(f"{cls} is not bound to a model.")
+        cls._verify_econocalendar_class()
+        Calendar = cls.EconoCalendar
         
-        if not isinstance(days, int) or days < 1:
-            raise ValueError("'days' must be an integer and at least 1")
-        
-        ts = cls._model.temporal_structure
+        if not isinstance(days, int):
+            raise TypeError(
+                f"'days' must be an int; gor type '{type(days).__name__}'"
+            )
+        elif days < 1:
+            raise ValueError(
+                f"'days' must be at least equal to 1, got {days!r}"
+            )
         
         def _divmod(n: int, d: int | Sequence[int]) -> tuple[int, int]:
             if isinstance(d, int):
                 return divmod(n, d)
-            for i, days_in_month in enumerate(d):
-                if n < days_in_month:
+            for i, dpm in enumerate(d):
+                if n < dpm:
                     return i, n
-                n -= days_in_month
+                n -= dpm
             raise ValueError("Value exceeds total days in a year")
-
-        year_offset, day_of_year = _divmod(days - 1, ts.days_per_year)
-        month_offset, day_offset = _divmod(day_of_year, ts.days_per_month)
         
-        if (year := ts.minyear + year_offset) > ts.maxyear:
-            raise ValueError(f"Too many days: {days} exceeds maximum number of years ({ts.maxyear})")
+        days += Calendar.start_day - 1
+        days += sum(Calendar.days_per_month_seq[:Calendar.start_month - 1])
+        days += (Calendar.start_year - 1) * sum(Calendar.days_per_month_seq)
+        
+        year_offset, day_of_year = _divmod(days - 1, sum(Calendar.days_per_month_seq))
+        month_offset, day_offset = _divmod(day_of_year, Calendar.days_per_month_seq)
+        
+        if (year := 1 + year_offset) > Calendar.max_year:
+            raise ValueError(
+                f"Too many days: {days} days exceeds "
+                f"the maximum number of years ({Calendar.max_year})"
+            )
         month = 1 + month_offset
         day = 1 + day_offset
         return cls(year, month, day)
     
     @classmethod
     def min(cls) -> EconoDate:
-        return cls(year=cls._model.temporal_structure.minyear, month=1, day=1)
+        Calendar = cls.EconoCalendar
+        return cls(Calendar.start_year, Calendar.start_month, Calendar.start_day)
     
     @classmethod
     def max(cls) -> EconoDate:
-        ts = cls._model.temporal_structure
-        last_day = (
-            ts.days_per_month[-1] if isinstance(ts.days_per_month, Sequence) else
-            ts.days_per_month
-        )
-        return cls(ts.maxyear, ts.months_per_year, last_day)
+        Calendar = cls.EconoCalendar
+        last_month = len(Calendar.days_per_month_seq)
+        last_day = Calendar.days_per_month_seq[-1]
+        return cls(year=Calendar.max_year, month=last_month, day=last_day)
+    
+    @classmethod
+    def _verify_econocalendar_class(cls):
+        if not (Calendar := getattr(cls, "EconoCalendar", None)):
+            raise AttributeError(f"'{cls.__name__}' has no 'EconoCalendar' attribute")
+        elif not isinstance(Calendar, EconoCalendar):
+            raise TypeError(
+                f"'{cls.__name__}.EconoCalendar' is not a valid 'EconoCalendar' object"
+            )
     
     
     ###################
@@ -343,38 +399,43 @@ class EconoDate:
         return NotImplemented
     
     def __add__(self, other: EconoDuration) -> EconoDate:
-        if isinstance(other, EconoDuration) and self.model is other.model:
+        if (
+            isinstance(other, EconoDuration) and
+            self.EconoCalendar is other.EconoCalendar
+        ):
             return type(self).from_days(self.to_days() + other.days)
         return NotImplemented
     
     __radd__ = __add__
     
     def __sub__(self, other: EconoDuration | EconoDate) -> EconoDate | EconoDuration:
-        if isinstance(other, EconoDuration) and self.model is other.model:
+        if (
+            isinstance(other, EconoDuration) and
+            self.EconoCalendar is other.EconoCalendar
+        ):
             return type(self).from_days(self.to_days() - other.days)
         elif isinstance(other, type(self)):
-            return self.model.EconoDuration(self.to_days() - other.to_days())
+            return self.EconoCalendar.EconoDuration(self.to_days() - other.to_days())
         return NotImplemented
     
     def __hash__(self) -> int:
         return hash((self.year, self.month, self.day))
-
+    
+    def __new__(cls, *args, **kwargs) -> Self:
+        cls._verify_econocalendar_class()
+        return super().__new__(cls)
+    
     def __init__(self, year: int, month: int, day: int) -> None:
-        if self.model is None:
-            raise RuntimeError(f"{type(self).__name__} is not bound to a model.")
-
-        ts = self.model.temporal_structure
-
-        if not ts.minyear <= year <= ts.maxyear:
-            raise ValueError(f"year must be between {ts.minyear} and {ts.maxyear}")
-        if not 1 <= month <= ts.months_per_year:
-            raise ValueError(f"month must be between 1 and {ts.months_per_year}")
-        max_day = (
-            ts.days_per_month[month - 1] if isinstance(ts.days_per_month, Sequence) else
-            ts.days_per_month
-        )
+        Calendar = self.EconoCalendar
+        max_month = sum(Calendar.days_per_month_seq)
+        max_day = Calendar.days_per_month_seq[month - 1]
+        
+        if not Calendar.start_year <= year <= Calendar.max_year:
+            raise ValueError(f"'year' must be between {Calendar.start_year} and {Calendar.max_year}")
+        if not 1 <= month <= max_month:
+            raise ValueError(f"'month' must be between 1 and {max_month}")
         if not 1 <= day <= max_day:
-            raise ValueError(f"day must be between 1 and {max_day}")
+            raise ValueError(f"'day' must be between 1 and {max_day}")
 
         self._year = year
         self._month = month
@@ -382,8 +443,7 @@ class EconoDate:
     
     def __repr__(self) -> str:
         return (
-            f"{self.model.name}.{type(self).__name__}"
-            f"(year={self.year}, month={self.month}, day={self.day})"
+            f"{type(self).__name__}(year={self.year}, month={self.month}, day={self.day})"
         )
     
     def __str__(self) -> str:
@@ -393,10 +453,6 @@ class EconoDate:
     ##############
     # Properties #
     ##############
-    
-    @property
-    def model(self) -> EconoModel:
-        return type(self)._model
     
     @property
     def year(self) -> int:
@@ -456,15 +512,12 @@ class EconoDate:
         360 * (2021 - MINYEAR)
         
         """
-        ts = self.model.temporal_structure
-        days  = self.day
-        days += (
-            sum(ts.days_per_month[:self.month - 1])
-            if isinstance(ts.days_per_month, Sequence)
-            else (self.month - 1) * ts.days_per_month
+        Calendar = self.EconoCalendar
+        return (
+            self.day
+            + sum(Calendar.days_per_month_seq[:self.month - 1])
+            + (self.year - Calendar.start_year) * sum(Calendar.days_per_month_seq)
         )
-        days += (self.year - ts.minyear) * ts.days_per_year
-        return days
     
     def replace(
         self,

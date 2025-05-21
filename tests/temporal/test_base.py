@@ -1,99 +1,92 @@
-import pytest
+"""A suite of tests for the EconoDuration and EconoDate base classes.
 
-from econolab.core import EconoModel
-from econolab.temporal import TemporalStructure, EconoDuration, EconoDate
+...
+
+"""
+
+import pytest
+from unittest.mock import MagicMock
+
+from econolab.temporal import (
+    EconoCalendar,
+    CalendarSpecification,
+    EconoDuration,
+    EconoDate
+)
+
+
+@pytest.fixture()
+def model():
+    model = MagicMock()
+    model.steps = 0
+    model.logger = MagicMock()
+    return model
 
 
 @pytest.fixture
-def test_model(create_mock_mesa_model):
-    MesaModel = create_mock_mesa_model()
-    class TestModel(EconoModel, MesaModel):
-        temporal_structure = TemporalStructure(
-            minyear=2000,
-            maxyear=2005,
-            days_per_week=7,
-            days_per_month=30,
-            months_per_year=12,
-        )
-    return TestModel()
+def basic_calendar_cls(model):
+    spec = CalendarSpecification()
+    return type(
+        "Calendar", (EconoCalendar,), {"model": model, **spec.to_dict()}
+    )
 
 
 class TestEconoDuration:
-    def test_model_binding(self, create_mock_mesa_model):
-        MesaModel = create_mock_mesa_model()
-        ts = TemporalStructure(
-                minyear=2000,
-                maxyear=2005,
-                days_per_week=7,
-                days_per_month=30,
-                months_per_year=12
+    def test_calendar_binding(self, model):
+        spec = CalendarSpecification()
+        Calendar = type(
+            "Calendar", (EconoCalendar,), {"model": model, **spec.to_dict()}
         )
-        class TestModel(EconoModel, MesaModel):
-            temporal_structure = ts
-        test_model = TestModel()
         
-        # Ensure that EconoDuration is bound correctly to the model class
-        assert hasattr(test_model, "EconoDuration")
-        assert isinstance(test_model.EconoDuration, type)
-        assert issubclass(test_model.EconoDuration, EconoDuration)
-        assert test_model.EconoDuration._model is test_model
-        assert test_model.EconoDuration._model.temporal_structure is ts
+        # Ensure that EconoDuration is bound correctly to an EconoCalendar subclass
+        assert hasattr(Calendar, "EconoDuration")
+        assert issubclass(Calendar.EconoDuration, EconoDuration)
+        assert Calendar.EconoDuration.EconoCalendar is Calendar
     
-    def test_duration_construction(self, test_model):
-        EconoDuration = test_model.EconoDuration
-        duration1 = EconoDuration(1)
-        duration2 = EconoDuration(2, 3)
-        duration3 = EconoDuration(days=4)
-        duration4 = EconoDuration(days=5, weeks=6)
+    @pytest.mark.parametrize("days, weeks", [
+        (1, 1),
+        (2, 3),
+    ])
+    def test_duration_construction(self, basic_calendar_cls, days, weeks):
+        EconoDuration = basic_calendar_cls.EconoDuration
         
+        duration1 = EconoDuration(days)
         assert isinstance(duration1, EconoDuration)
+        
+        duration2 = EconoDuration(days, weeks=weeks)
         assert isinstance(duration2, EconoDuration)
+        
+        duration3 = EconoDuration(days=days, weeks=weeks)
         assert isinstance(duration3, EconoDuration)
-        assert isinstance(duration4, EconoDuration)
-        assert duration1 is not duration2
     
-    def test_duration_exposes_days(self, test_model):
-        EconoDuration = test_model.EconoDuration
-        duration = EconoDuration(2)
-
-        assert hasattr(duration, "days")
-        assert isinstance(duration.days, int)
-        assert duration.days == 2
-
-    @pytest.mark.parametrize("days_per_week, days, weeks, expected_days", [
+    @pytest.mark.parametrize("days_per_week, days, weeks, days_expected", [
         (7, 1, 2, 15),
         (5, 2, 3, 17),
         (6, 4, 1, 10),
         (10, 3, 0.5, 8),
     ])
-    def test_duration_signature(self, create_mock_mesa_model, days_per_week, days, weeks, expected_days):
-        MesaModel = create_mock_mesa_model()
-        class TestModel(EconoModel, MesaModel):
-            temporal_structure = TemporalStructure(
-                minyear=1,
-                maxyear=9999,
-                days_per_week=days_per_week,
-                days_per_month=30,
-                months_per_year=12,
-            )
-        model = TestModel()
-        EconoDuration = model.EconoDuration
+    def test_duration_exposes_days(self, model, days_per_week, days, weeks, days_expected):
+        spec = CalendarSpecification(days_per_week=days_per_week)
+        Calendar = type("Calendar", (EconoCalendar,), {"model": model, **spec.to_dict()})
+        
+        EconoDuration = Calendar.EconoDuration
         duration = EconoDuration(days=days, weeks=weeks)
-        assert duration.days == expected_days
 
-    def test_duration_string_representation(self, test_model):
-        EconoDuration = test_model.EconoDuration
+        assert hasattr(duration, "days")
+        assert isinstance(duration.days, int)
+        assert duration.days == days_expected
+
+    def test_duration_string(self, basic_calendar_cls):
+        EconoDuration = basic_calendar_cls.EconoDuration
         dur_singular = EconoDuration(1)
         dur_plural = EconoDuration(7)
 
         assert str(dur_singular) == "1 day"
-        assert repr(dur_singular) == "TestModel.EconoDuration(days=1)"
 
         assert str(dur_plural) == "7 days"
-        assert repr(dur_plural) == "TestModel.EconoDuration(days=7)"
     
-    def test_duration_comparison(self, test_model):
-        EconoDuration = test_model.EconoDuration
+    def test_duration_comparison(self, basic_calendar_cls):
+        EconoDuration = basic_calendar_cls.EconoDuration
         d1 = EconoDuration(4)
         d2 = EconoDuration(6)
 
@@ -110,8 +103,8 @@ class TestEconoDuration:
         assert d1 == d1
         assert d1 == EconoDuration(4)
 
-    def test_duration_truthiness(self, test_model):
-        EconoDuration = test_model.EconoDuration
+    def test_duration_truthiness(self, basic_calendar_cls):
+        EconoDuration = basic_calendar_cls.EconoDuration
         
         assert bool(EconoDuration(5))
         assert not bool(EconoDuration(0))
@@ -120,8 +113,8 @@ class TestEconoDuration:
         assert not EconoDuration(0)
     
     @pytest.mark.parametrize("value", [5, -5])
-    def test_duration_unary_arithmetic(self, test_model, value):
-        EconoDuration = test_model.EconoDuration
+    def test_duration_unary_arithmetic(self, basic_calendar_cls, value):
+        EconoDuration = basic_calendar_cls.EconoDuration
         dur = EconoDuration(value)
 
         # Unary operations: +, -, abs()
@@ -129,8 +122,8 @@ class TestEconoDuration:
         assert (-dur).days == -value
         assert abs(dur).days == abs(value)
 
-    def test_duration_binary_arithmetic(self, test_model):
-        EconoDuration = test_model.EconoDuration
+    def test_duration_binary_arithmetic(self, basic_calendar_cls):
+        EconoDuration = basic_calendar_cls.EconoDuration
         dur1 = EconoDuration(5)
         dur2 = EconoDuration(3)
 
@@ -196,28 +189,19 @@ class TestEconoDuration:
 
 
 class TestEconoDate:
-    def test_model_binding(self, create_mock_mesa_model):
-        MesaModel = create_mock_mesa_model()
-        ts = TemporalStructure(
-                minyear=2000,
-                maxyear=2005,
-                days_per_week=7,
-                days_per_month=30,
-                months_per_year=12
+    def test_calendar_binding(self, model):
+        spec = CalendarSpecification()
+        Calendar = type(
+            "Calendar", (EconoCalendar,), {"model": model, **spec.to_dict()}
         )
-        class TestModel(EconoModel, MesaModel):
-            temporal_structure = ts
-        test_model = TestModel()
         
-        # Ensure that EconoDuration is bound correctly to the model class
-        assert hasattr(test_model, "EconoDate")
-        assert isinstance(test_model.EconoDate, type)
-        assert issubclass(test_model.EconoDate, EconoDate)
-        assert test_model.EconoDate._model is test_model
-        assert test_model.EconoDate._model.temporal_structure is ts
+        # Ensure that EconoDuration is bound correctly to an EconoCalendar subclass
+        assert hasattr(Calendar, "EconoDate")
+        assert issubclass(Calendar.EconoDate, EconoDate)
+        assert Calendar.EconoDate.EconoCalendar is Calendar
     
-    def test_date_construction(self, test_model):
-        EconoDate = test_model.EconoDate
+    def test_date_construction(self, basic_calendar_cls):
+        EconoDate = basic_calendar_cls.EconoDate
         
         date1 = EconoDate(2001, 2, 3)
         date2 = EconoDate(year=2004, month=5, day=6)
@@ -226,8 +210,8 @@ class TestEconoDate:
         assert isinstance(date2, EconoDate)
         assert date1 is not date2
     
-    def test_date_exposes_year_month_day(self, test_model):
-        EconoDate = test_model.EconoDate
+    def test_date_exposes_year_month_day(self, basic_calendar_cls):
+        EconoDate = basic_calendar_cls.EconoDate
         date = EconoDate(year=2001, month=2, day=3)
 
         assert hasattr(date, "year")
@@ -242,15 +226,14 @@ class TestEconoDate:
         assert isinstance(date.day, int)
         assert date.day == 3
 
-    def test_date_string_representation(self, test_model):
-        EconoDate = test_model.EconoDate
+    def test_date_string_representation(self, basic_calendar_cls):
+        EconoDate = basic_calendar_cls.EconoDate
 
         date = EconoDate(2001, 2, 3)
         assert str(date) == "2001-2-3"
-        assert repr(date) == "TestModel.EconoDate(year=2001, month=2, day=3)"
     
-    def test_date_comparisons(self, test_model):
-        EconoDate = test_model.EconoDate
+    def test_date_comparisons(self, basic_calendar_cls):
+        EconoDate = basic_calendar_cls.EconoDate
         date1 = EconoDate(2001, 2, 3)
         date2 = EconoDate(2001, 4, 5)
 
@@ -267,15 +250,15 @@ class TestEconoDate:
         assert date1 == date1
         assert date1 == EconoDate(2001, 2, 3)
     
-    def test_date_truthiness(self, test_model):
-        EconoDate = test_model.EconoDate
+    def test_date_truthiness(self, basic_calendar_cls):
+        EconoDate = basic_calendar_cls.EconoDate
         
         assert bool(EconoDate(2001, 2, 3))
         assert EconoDate(2001, 2, 3)
     
-    def test_date_arithmetic(self, test_model):
-        EconoDate = test_model.EconoDate
-        EconoDuration = test_model.EconoDuration
+    def test_date_arithmetic(self, basic_calendar_cls):
+        EconoDate = basic_calendar_cls.EconoDate
+        EconoDuration = basic_calendar_cls.EconoDuration
         
         date1 = EconoDate(2001, 2, 3)
         date2 = EconoDate(2001, 2, 5)
@@ -293,59 +276,59 @@ class TestEconoDate:
         subtraction_duration = date2 - duration
         assert subtraction_duration == date1
     
-    def test_date_min(self, test_model):
-        EconoDate = test_model.EconoDate
+    def test_date_min(self, basic_calendar_cls):
+        EconoDate = basic_calendar_cls.EconoDate
         
         mindate = EconoDate.min()
-        assert mindate.year == 2000
+        assert mindate.year == 1
         assert mindate.month == 1
         assert mindate.day == 1
     
-    def test_date_max(self, test_model):
-        EconoDate = test_model.EconoDate
+    def test_date_max(self, basic_calendar_cls):
+        EconoDate = basic_calendar_cls.EconoDate
         
         maxdate = EconoDate.max()
-        assert maxdate.year == 2005
+        assert maxdate.year == 9_999
         assert maxdate.month == 12
-        assert maxdate.day == 30
+        assert maxdate.day == 28
     
     @pytest.mark.parametrize("days, expected_date", [
-        (1, (2000, 1, 1)),
-        (30, (2000, 1, 30)),
-        (31, (2000, 2, 1)),
-        (360, (2000, 12, 30)),
-        (361, (2001, 1, 1)),
+        (1, (1, 1, 1)),
+        (28, (1, 1, 28)),
+        (29, (1, 2, 1)),
+        (336, (1, 12, 28)),
+        (337, (2, 1, 1)),
     ])
-    def test_date_from_days(self, test_model, days, expected_date):
-        EconoDate = test_model.EconoDate
+    def test_date_from_days(self, basic_calendar_cls, days, expected_date):
+        EconoDate = basic_calendar_cls.EconoDate
         
         result = EconoDate.from_days(days)
         assert isinstance(result, EconoDate)
         assert (result.year, result.month, result.day) == expected_date
     
     @pytest.mark.parametrize("date, expected_days", [
-        ((2000, 1, 1), 1),
-        ((2000, 1, 30), 30),
-        ((2000, 2, 1), 31),
-        ((2000, 12, 30), 360),
-        ((2001, 1, 1), 361),
+        ((1, 1, 1), 1),
+        ((1, 1, 28), 28),
+        ((1, 2, 1), 29),
+        ((1, 12, 28), 336),
+        ((2, 1, 1), 337),
     ])
-    def test_date_to_days(self, test_model, date, expected_days):
-        EconoDate = test_model.EconoDate
+    def test_date_to_days(self, basic_calendar_cls, date, expected_days):
+        EconoDate = basic_calendar_cls.EconoDate
         
         result = EconoDate(*date).to_days()
         assert isinstance(result, int)
         assert result == expected_days
     
     @pytest.mark.parametrize("days, date", [
-        (1, (2000, 1, 1)),
-        (30, (2000, 1, 30)),
-        (31, (2000, 2, 1)),
-        (360, (2000, 12, 30)),
-        (361, (2001, 1, 1)),
+        (1, (1, 1, 1)),
+        (28, (1, 1, 28)),
+        (29, (1, 2, 1)),
+        (336, (1, 12, 28)),
+        (337, (2, 1, 1)),
     ])
-    def test_date_from_to_days_cycle(self, test_model, days, date):
-        EconoDate = test_model.EconoDate
+    def test_date_from_to_days_cycle(self, basic_calendar_cls, days, date):
+        EconoDate = basic_calendar_cls.EconoDate
         
         date_from_days = EconoDate.from_days(days)
         assert date_from_days.to_days() == days
@@ -356,8 +339,8 @@ class TestEconoDate:
         days_from_date = date_from_date.to_days()
         assert EconoDate.from_days(days_from_date) == date_from_date
     
-    def test_date_replace(self, test_model):
-        EconoDate = test_model.EconoDate
+    def test_date_replace(self, basic_calendar_cls):
+        EconoDate = basic_calendar_cls.EconoDate
         
         date = EconoDate(2001, 2, 3)
         assert date.replace() == EconoDate(2001, 2, 3)

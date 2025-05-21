@@ -8,11 +8,8 @@ import pytest
 
 from econolab.core import EconoModel, CounterCollection
 from econolab.temporal import (
-    TemporalStructure,
-    DEFAULT_TEMPORAL_STRUCTURE,
     EconoCalendar,
-    EconoDate,
-    EconoDuration,
+    CalendarSpecification
 )
 from econolab.financial import EconoCurrency
 
@@ -52,30 +49,16 @@ class TestInitialization:
     ])
     def test__sanitize_name(self, raw, expected):
         assert EconoModel._sanitize_name(raw) == expected
-
-    def test_model_uses_default_temporal_structure(self, simple_model):
-        assert simple_model.temporal_structure == DEFAULT_TEMPORAL_STRUCTURE
-
-    def test_model_uses_given_temporal_structure(self, create_mock_mesa_model):
-        ts = TemporalStructure(
-            minyear=1,
-            maxyear=9999,
-            days_per_week=7,
-            days_per_month=28,
-            months_per_year=4
-        )
+    
+    def test__init_temporal_system(self, create_mock_mesa_model):
+        spec = CalendarSpecification()
         MesaModel = create_mock_mesa_model()
         class SimpleModel(EconoModel, MesaModel):
-            temporal_structure = ts
-        model = SimpleModel()
+            pass
         
-        assert model.temporal_structure == ts
-
-    def test__bind_temporal_types(self, simple_model):
-        # Ensure that a named subclass of Calendar is bound to the model
+        simple_model = SimpleModel(calendar_specification=spec)
         assert hasattr(simple_model, "EconoCalendar")
         assert issubclass(simple_model.EconoCalendar, EconoCalendar)
-        assert simple_model.EconoCalendar._model is simple_model
     
     def test__bind_currency_type(self, simple_model):
         assert hasattr(simple_model, "EconoCurrency")
@@ -84,7 +67,7 @@ class TestInitialization:
     def test_model_calendar_instance(self, simple_model):
         assert hasattr(simple_model, "calendar")
         assert isinstance(simple_model.calendar, simple_model.EconoCalendar)
-        assert simple_model.calendar._model is simple_model
+        assert simple_model.calendar.model is simple_model
     
     def test_model_counters(self, simple_model):
         assert hasattr(simple_model, "counters")

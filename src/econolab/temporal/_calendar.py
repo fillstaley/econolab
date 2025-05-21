@@ -11,8 +11,8 @@ from logging import Logger
 from math import gcd
 from typing import NamedTuple, Protocol, runtime_checkable, Sequence, Type
 
-from ..core import EconoMeta
-from .base_new import EconoDate, EconoDuration
+from ..core.meta import EconoMeta
+from ._base import EconoDate, EconoDuration
 
 
 @runtime_checkable
@@ -50,9 +50,31 @@ class EconoCalendar(metaclass=EconoMeta):
         days: int
         
         def to_days(self, steps: int, /) -> int:
+            """Convert a number of steps into a number of days.
+            
+            Parameters
+            ----------
+            steps : int
+            
+            Returns
+            -------
+            int
+                A number of days
+            """
             return steps * self.days // self.steps
         
         def to_steps(self, days: int, /) -> int:
+            """Convert a number of days into a number of steps.
+            
+            Parameters
+            ----------
+            days : int
+            
+            Returns
+            -------
+            int
+                A number of steps
+            """
             return days * self.steps // self.days
     
     
@@ -82,10 +104,11 @@ class EconoCalendar(metaclass=EconoMeta):
         
         cls._validate_model_binding()
         cls._validate_calendar_specifications()
+        
         cls._bind_temporal_types()
     
     @classmethod
-    def new_duration(cls, days: int = 0, *, steps: int = 0) -> EconoDuration:
+    def new_duration(cls, days: int = 0, *, weeks: int = 0) -> EconoDuration:
         """Create a new EconoDuration object.
         
         This method can be used to create a new EconoDuration object by
@@ -109,7 +132,12 @@ class EconoCalendar(metaclass=EconoMeta):
             raise TypeError(
                 f"'{cls.__name__}.EconoDuration' is not a subclass of 'EconoDuration'"
             )
-        return Duration(days)
+        return Duration(days, weeks=weeks)
+    
+    @classmethod
+    def new_duration_from_steps(cls, steps: int, /) -> EconoDuration:
+        cls._validate_calendar_specifications()
+        return cls.new_duration(cls.steps_to_days_ratio.to_days(steps))
     
     @classmethod
     def new_date(cls, year: int, month: int, day: int) -> EconoDate:
@@ -141,26 +169,6 @@ class EconoCalendar(metaclass=EconoMeta):
                 f"'{cls.__name__}.EconoDate' is not a subclass of 'EconoDate'"
             )
         return Date(year, month, day)
-    
-    @classmethod
-    def convert_steps_to_days(cls, steps: int, /) -> int:
-        """Convert a number of steps into a number of days.
-        
-        Parameters
-        ----------
-        steps : int
-        
-        Returns
-        -------
-        int
-            A number of days
-        """
-        cls._validate_calendar_specifications()
-        return cls.steps_to_days_ratio.to_days(steps)
-    
-    @classmethod
-    def new_duration_from_steps(cls, steps: int, /) -> EconoDuration:
-        return cls.new_duration(cls.convert_steps_to_days(steps))
     
     @classmethod
     def new_date_from_steps(cls, steps: int, /) -> EconoDate:

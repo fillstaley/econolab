@@ -1,6 +1,8 @@
 agenttype
 datacollector
 econocalendar
+econodate
+econoduration
 econolab
 maxdate
 mindate

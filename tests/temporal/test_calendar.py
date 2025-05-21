@@ -1,117 +1,271 @@
+"""A suite of tests for the EconoCalendar base class.
+
+...
+
+"""
+
 import pytest
+from unittest.mock import MagicMock
 
 from econolab.temporal import (
-    TemporalStructure,
     EconoCalendar,
-    EconoDate,
-    EconoDuration
+    CalendarSpecification,
+    EconoDuration,
+    EconoDate
 )
-from econolab.core import EconoModel
+
+
+@pytest.fixture()
+def model():
+    model = MagicMock()
+    model.steps = 0
+    model.logger = MagicMock()
+    return model
 
 
 @pytest.fixture
-def test_model(create_mock_mesa_model):
-    MesaModel = create_mock_mesa_model()
-    class TestModel(EconoModel, MesaModel):
-        temporal_structure = TemporalStructure(
-            minyear=2000,
-            maxyear=2005,
-            days_per_week=7,
-            days_per_month=30,
-            months_per_year=12,
-        )
-    return TestModel()
+def calendar_cls(model):
+    spec = CalendarSpecification()
+    return type(
+        "EconoCalendar",
+        (EconoCalendar,),
+        {"model": model, **spec.to_dict()}
+    )
 
 
-class TestEconoCalendar:
-    def test_model_binding(self, create_mock_mesa_model):
-        MesaModel = create_mock_mesa_model()
-        ts = TemporalStructure(
-                minyear=2000,
-                maxyear=2005,
-                days_per_week=7,
-                days_per_month=30,
-                months_per_year=12
-        )
-        class TestModel(EconoModel, MesaModel):
-            temporal_structure = ts
-        test_model = TestModel()
+@pytest.fixture
+def custom_spec():
+    return CalendarSpecification(
+        days_per_week=5,
+        days_per_month=25,
+        months_per_year=4,
+        start_year=1_000,
+        start_month=2,
+        start_day=3,
+        max_year=1_234,
+        steps_to_days=(2,3)
+    )
+
+
+@pytest.fixture
+def standard_spec():
+    return CalendarSpecification(
+        days_per_month=[31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31],
+        start_year=2_001,
+        start_month=2,
+        start_day=3
+    )
+
+
+class TestSpecification:
+    def test_initialization(self):
+        try:
+            CalendarSpecification()
+        except Exception as e:
+            pytest.fail(f"Null initialization failed with error: {e}")
         
-        # Ensure that EconoDuration is bound correctly to the model class
-        assert hasattr(test_model, "EconoCalendar")
-        assert isinstance(test_model.EconoCalendar, type)
-        assert issubclass(test_model.EconoCalendar, EconoCalendar)
-        assert test_model.EconoCalendar._model is test_model
-        assert test_model.EconoCalendar._model.temporal_structure is ts
+        try:
+            CalendarSpecification(
+                days_per_week=5,
+                days_per_month=25,
+                months_per_year=4,
+                start_year=1_000,
+                start_month=2,
+                start_day=3,
+                max_year=1_234,
+                steps_to_days=(2, 3)
+            )
+        except Exception as e:
+            pytest.fail(f"Initialization failed with error: {e}")
+        
+        try:
+            CalendarSpecification(
+                days_per_month=[31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31],
+                start_year=2_001,
+                start_month=2,
+                start_day=3
+            )
+        except Exception as e:
+            pytest.fail(f"Initialization with sequence failed with error: {e}")
     
-    # TODO: fill in this test
-    def test_calendar_construction(self, test_model):
-        pass
+    @pytest.mark.parametrize("key, value", (
+        ("days_per_week", 5),
+        ("days_per_month_seq", [25] * 4),
+        ("start_year", 1_000),
+        ("start_month", 2),
+        ("start_day", 3),
+        ("max_year", 1_234),
+        ("steps_to_days_ratio", EconoCalendar.StepsDaysRatio(2, 3))
+    ))
+    def test_to_dict(self, custom_spec, key, value):
+        try:
+            spec_dict = custom_spec.to_dict()
+        except Exception as e:
+            pytest.fail(f"'to_dict()' method failed with error: {e}")
+        
+        assert key in spec_dict
+        assert spec_dict[key] == value
     
-    # TODO: fill in this test
-    def test_calendar_exposes_attributes(self, test_model):
-        pass
+    def test_days_per_month_sequence(self, standard_spec):
+        spec_dict = standard_spec.to_dict()
+        dpm = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
+        assert spec_dict["days_per_month_seq"] == dpm
 
-    @pytest.mark.parametrize("steps, days, input_steps, expected_days", [
-        (1, 1, 12, 12),
-        (2, 1, 12, 6),
-        (1, 2, 12, 24),
-        (3, 2, 12, 8),
+
+class TestStepsDaysRatio:
+    @pytest.mark.parametrize("ratio, steps, days", [
+        ((1, 1), 12, 12),
+        ((2, 1), 12, 6),
+        ((1, 2), 12, 24),
+        ((3, 2), 12, 8),
     ])
-    def test_steps_to_days_conversion(self, test_model, steps, days, input_steps, expected_days):
-        EconoCalendar = test_model.EconoCalendar
-        EconoCalendar.set_steps_days_ratio(steps, days)
-        assert EconoCalendar.convert_steps_to_days(input_steps) == expected_days
-
-    def test_calendar_get_start_date(self, test_model):
-        EconoCalendar = test_model.EconoCalendar
-        start_date = EconoCalendar.get_start_date()
-        assert start_date.year == 2000
-        assert start_date.month == 1
-        assert start_date.day == 1
-
-    @pytest.mark.parametrize("start_year, start_month, start_day", [
-        (2000, 1, 1),
-        (2001, 2, 3),
-        (2005, 12, 30)
+    def test_to_days(self, ratio, steps, days):
+        ratio = EconoCalendar.StepsDaysRatio(*ratio)
+        assert ratio.to_days(steps) == days
+    
+    @pytest.mark.parametrize("ratio, days, steps", [
+        ((1, 1), 12, 12),
+        ((2, 1), 12, 24),
+        ((1, 2), 12,  6),
+        ((3, 2), 12, 18),
     ])
-    def test_calendar_set_start_date(self, test_model, start_year, start_month, start_day):
-        EconoCalendar = test_model.EconoCalendar
-        EconoCalendar.set_start_date(start_year, start_month, start_day)
-        start_date = EconoCalendar.get_start_date()
-        assert start_date.year == start_year
-        assert start_date.month == start_month
-        assert start_date.day == start_day
+    def test_to_steps(self, ratio, days, steps):
+        ratio = EconoCalendar.StepsDaysRatio(*ratio)
+        assert ratio.to_steps(days) == steps
 
-    def test_calendar_new_duration(self, test_model):
-        EconoCalendar = test_model.EconoCalendar
-        duration_from_days = EconoCalendar.new_duration(days=2)
-        duration_from_steps = EconoCalendar.new_duration(steps=3)
-        
-        assert isinstance(duration_from_days, EconoDuration)
-        assert duration_from_days.days == 2
-        
-        assert isinstance(duration_from_steps, EconoDuration)
-        assert duration_from_steps.days == 3
 
-    def test_calendar_new_date(self, test_model):
-        test_calendar = test_model.calendar
+class TestSubclassCreation:
+    def test_from_specs(self, model, custom_spec):
+        try:
+            type(
+                "EconoCalendar",
+                (EconoCalendar,),
+                {"model": model, **custom_spec.to_dict()}
+            )
+        except Exception as e:
+            pytest.fail(f"Calendar creation failed with error: {e}")
+    
+    def test_econoduration_binding(self, calendar_cls):
+        assert hasattr(calendar_cls, "EconoDuration")
+        assert issubclass(calendar_cls.EconoDuration, EconoDuration)
+        assert calendar_cls.EconoDuration.EconoCalendar == calendar_cls
+    
+    def test_econodate_binding(self, calendar_cls):
+        assert hasattr(calendar_cls, "EconoDate")
+        assert issubclass(calendar_cls.EconoDate, EconoDate)
+        assert calendar_cls.EconoDate.EconoCalendar == calendar_cls
+
+
+class TestSubclassFunctionality:
+    @pytest.mark.parametrize("days, weeks, days_expected", [
+        (1, 0, 1),
+        (2, 3, 2 + 7 * 3),
+    ])
+    def test_new_duration(self, calendar_cls, days, weeks, days_expected):
+        assert hasattr(calendar_cls, "new_duration")
+        assert callable(calendar_cls.new_duration)
         
-        date = test_calendar.new_date(year=2000, month=1, day=6)
+        null_duration = calendar_cls.new_duration()
+        assert isinstance(null_duration, EconoDuration)
+        assert null_duration.days == 0
+        
+        short_duration = calendar_cls.new_duration(days)
+        assert isinstance(short_duration, EconoDuration)
+        assert short_duration.days == days
+        
+        long_duration = calendar_cls.new_duration(days, weeks=weeks)
+        assert isinstance(long_duration, EconoDuration)
+        assert long_duration.days == days_expected
+    
+    @pytest.mark.parametrize("steps", [0, 1, 10, 100])
+    def test_new_duration_from_steps(self, calendar_cls, steps):
+        duration = calendar_cls.new_duration_from_steps(steps)
+        assert isinstance(duration, EconoDuration)
+        assert duration.days == steps
+    
+    @pytest.mark.parametrize("year, month, day", [
+        (1, 1, 1),
+        (2001, 2, 3)
+    ])
+    def test_new_date(self, calendar_cls, year, month, day):
+        assert hasattr(calendar_cls, "new_date")
+        assert callable(calendar_cls.new_date)
+        
+        date = calendar_cls.new_date(year, month, day)
         assert isinstance(date, EconoDate)
-        assert date.year == 2000
-        assert date.month == 1
-        assert date.day == 6
+        assert (date.year, date.month, date.day) == (year, month, day)
+    
+    @pytest.mark.parametrize("steps, date_expected", [
+        (0, (1, 1, 1)),
+        (1, (1, 1, 2)),
+        (28, (1, 2, 1)),
+        (28 * 12, (2, 1, 1)),
+    ])
+    def test_new_date_from_steps(self, calendar_cls, steps, date_expected):
+        assert hasattr(calendar_cls, "new_date_from_steps")
+        assert callable(calendar_cls.new_date_from_steps)
         
-        date_from_steps = test_calendar.new_date(steps=5)
-        assert isinstance(date_from_steps, EconoDate)
-        assert date_from_steps.year == date.year
-        assert date_from_steps.month == date.month
-        assert date_from_steps.day == date.day
+        date = calendar_cls.new_date_from_steps(steps)
+        assert isinstance(date, EconoDate)
+        assert (date.year, date.month, date.day) == date_expected
+    
+    @pytest.mark.parametrize("year, month, day", [
+        (1, 1, 1),
+        (2001, 2, 3),
+    ])
+    def test_start_date(self, model, year, month, day):
+        spec = CalendarSpecification(
+            start_year=year,
+            start_month=month,
+            start_day=day
+        )
+        Calendar = type(
+            "Calendar",
+            (EconoCalendar,),
+            {"model": model, **spec.to_dict()}
+        )
+        start_date = Calendar.start_date()
+        assert (start_date.year, start_date.month, start_date.day) == (year, month, day)
+    
+    @pytest.mark.parametrize("steps, date_expected", [
+        (0, (1, 1, 1)),
+        (1, (1, 1, 2)),
+        (28, (1, 2, 1)),
+        (28 * 12, (2, 1, 1)),
+    ])
+    def test_today(self, model, steps, date_expected):
+        model.steps = steps
+        spec = CalendarSpecification()
+        Calendar = type(
+            "Calendar",
+            (EconoCalendar,),
+            {"model": model, **spec.to_dict()}
+        )
+        
+        assert hasattr(Calendar, "today")
+        assert callable(Calendar.today)
+        
+        today = Calendar.today()
+        assert isinstance(today, EconoDate)
+        assert (today.year, today.month, today.day) == date_expected
 
-    def test_calendar_today(self, test_model):
-        EconoCalendar = test_model.EconoCalendar
-        today = EconoCalendar.today()
-        assert today.year == 2000
-        assert today.month == 1
-        assert today.day == 1
+
+class TestInstantiation:
+    def test_model_initialization(self, calendar_cls, model):
+        try:
+            calendar_cls(model)
+        except Exception as e:
+            pytest.fail(f"Calendar initialization with a model failed with error: {e}")
+    
+    @pytest.fixture
+    def agent(self):
+        class Agent:
+            unique_id = 1
+        return Agent()
+    
+    def test_agent_initialization(self, calendar_cls, agent):
+        try:
+            calendar_cls(agent)
+        except Exception as e:
+            pytest.fail(f"Calendar initialization with an agent failed with error: {e}")
+        
