@@ -7,8 +7,7 @@ for a simulation.
 
 from logging import getLogger, Logger
 from abc import ABC
-import re
-from typing import Optional, Type
+from re import sub
 
 from .meta import EconoMeta
 from .counters import CounterCollection
@@ -18,7 +17,6 @@ from ..temporal import (
 )
 from ..financial import (
     CurrencySpecification,
-    DEFAULT_CURRENCY_SPECIFICATION,
     EconoCurrency
 )
 
@@ -40,9 +38,11 @@ class EconoModel(ABC, metaclass=ModelType):
     
     steps: int
     name: str
-    logger: Logger
     
+    logger: Logger
     EconoCalendar: type[EconoCalendar]
+    EconoCurrency: type[EconoCurrency]
+    
     
     ###################
     # Special Methods #
@@ -51,34 +51,27 @@ class EconoModel(ABC, metaclass=ModelType):
     def __init__(
         self,
         *args,
-        name: Optional[str] = None,
+        name: str | None = None,
         calendar_specification: CalendarSpecification | None = None,
         currency_specification: CurrencySpecification | None = None,
         **kwargs
     ) -> None:
-        # allow cooperative multiple inheritance
         super().__init__(*args, **kwargs)
-
-        # resolve model name: explicit name arg > attribute > class name
+        
         resolved_name = name or getattr(self, "name", None) or type(self).__name__
         self.name = self._sanitize_name(resolved_name)
-
-        # set up a logger for this model instance
+        
         self.logger = getLogger(f"EconoLab.Model.{self.name}")
-        self.logger.debug("Initializing model '%s'", self.name)
+        self.logger.info("Initializing model '%s'", self.name)
 
-        # bind a custom subclass of EconoCalendar to the model
+        self.logger.info("Initializing the temporal system....")
         self._init_temporal_system(calendar_specification)
 
-        # bind a custom subclass of EconoCurrency to the model
-        # for now, all models are assumed to be single-currency models
-        self._bind_currency_type(currency_specification)
-        self.logger.debug("Bound monetary types for model '%s'", self.name)
+        self.logger.info("Initializing the financial system....")
+        self._init_financial_system(currency_specification)
         
-        # instantiate calendar and counters
-        self.calendar = self.EconoCalendar(self)
-        self.counters = CounterCollection(self)
-        self.logger.debug("Calendar instance and counters initialized for '%s'", self.name)
+        self.logger.info("Initializing the counter system....")
+        self._init_counter_system()
     
     
     ###########
@@ -99,84 +92,108 @@ class EconoModel(ABC, metaclass=ModelType):
     # Helper Methods #
     ##################
     
-    def _init_temporal_system(self, spec: CalendarSpecification | None):
-        if spec is None:
-            spec = CalendarSpecification()
-            self.logger.info(
-                "No CalendarSpecification provided for model '%s'; using %s as a default.",
-                self.name, spec
-            )
-        elif isinstance(spec, CalendarSpecification):
+    def _init_temporal_system(self, specs: CalendarSpecification | None) -> None:
+        """Initializes the temporal structure of an EconoModel.
+        
+        A subclass of `EconoCalendar` is created using the data of a
+        `CalendarSpecification` instance (the null-constructor specification
+        is used if none is provided), and is bound to a model under the
+        attribute `EconoCalendar`.
+        
+        Parameters
+        ----------
+        specs : CalendarSpecification
+            Dataclass with the needed attributes for subclassing `EconoCalendar`.
+        """
+        if specs is None:
+            specs = CalendarSpecification()
             self.logger.debug(
-                "Using CalendarSpecification %s for model %s.", spec, self.name
+                "No CalendarSpecification provided; using the default specification."
             )
-        else:
+        elif not isinstance(specs, CalendarSpecification):
             raise TypeError(
-                f"'spec' must of of type 'CalendarSpecification'; "
-                f"got type '{type(spec).__name__}'")
-        
-        cls_name = "EconoCalendar"
-        Sub = type(
-            cls_name, (EconoCalendar,), {"model": self, **spec.to_dict()}
-        )
-        
-        attr_name = "EconoCalendar"
-        setattr(self, attr_name, Sub)
+                f"'spec' must be an instance of 'CalendarSpecification' if provided; "
+                f"got type '{type(specs).__name__}'")
         self.logger.debug(
-            "Created Calendar subclass %s; it is bound to %s.%s",
-            cls_name, self.name, attr_name
+            "Using CalendarSpecification %s for model %s.",
+            specs, self.name
         )
-
-    def _bind_currency_type(self, specs: CurrencySpecification | None) -> None:
-        """Creates a model-bound subclass of the EconoCurrency class.
         
-        Uses a `CurrencySpecification` to define a subclass of `EconoCurrency`,
-        dynamically named `{CODE}Currency`, where `CODE` is the ISO-style
-        currency code from the specification (e.g., 'USD').
+        attr = "EconoCalendar"
+        Calendar = type(
+            f"{self.name}Calendar",
+            (EconoCalendar,), 
+            {
+                "__qualname__": f"{self.name}.{attr}",
+                "model": self,
+                **specs.to_dict()
+            }
+        )
+        setattr(self, attr, Calendar)
+        self.logger.debug(
+            "EconoCalendar subclass %s created for model %s.",
+            Calendar.__qualname__, self.name
+        )
         
-        The resulting subclass is assigned to the model instance under the
+        self.calendar = Calendar(self)
+        self.logger.debug(
+            "%s instance created for model %s.",
+            Calendar.__qualname__, self.name
+        )
+    
+    def _init_financial_system(self, specs: CurrencySpecification | None) -> None:
+        """Initializes the financial structure of an EconoModel.
+        
+        A subclass of `EconoCurrency` is created using the data of a
+        `CurrencySpecification` instance (the null-constructor specification
+        is used if none is provided), and is bound to a model under the
         attribute `EconoCurrency`.
-        
-        All fields from the specification become class-level attributes on
-        the subclass. The `code` field is replaced with a read-only property
-        to prevent reassignment and to ensure consistency with the class name.
         
         Parameters
         ----------
         specs : CurrencySpecification
             Dataclass with the needed attributes for subclassing `EconoCurrency`.
         
-        See Also
-        --------
-        econolab.financial.CurrencySpecification :
-            Required attributes to subclass `EconoCurrency`.
-        _bind_temporal_types : A similar method for binding temporal types.
-        
         Notes
         -----
-        - Only one currency is supported per model at present.
-        - This binding does not attach a back-reference to the model.
+        EconoModel's only support a single currency per instance.
         """
         if specs is None:
-            specs = DEFAULT_CURRENCY_SPECIFICATION
+            specs = CurrencySpecification()
+            self.logger.debug(
+                "No CurrencySpecification provided; using the default specification."
+            )
         elif not isinstance(specs, CurrencySpecification):
             raise TypeError(
-                f"'specs' must be a CurrencySpecification instance; "
-                f"got {type(specs).__name__}"
-            )
-        specs_dict = specs.to_dict()
-        _code = specs_dict["code"]
+                f"'spec' must be an instance of 'CurrencySpecification' if provided; "
+                f"got type '{type(specs).__name__}'")
+        self.logger.debug(
+            "Using CurrencySpecification %s for model %s.", specs, self.name
+        )
         
-        # replace code attribute (and possibly others) with a read-only property
-        READONLY_ATTRS = {"code"}
-        def make_readonly_property(value):
-            return property(lambda self: value)
-        for attr in READONLY_ATTRS:
-            specs_dict[attr] = make_readonly_property(specs_dict[attr])
-        
-        Sub: Type = type(f"{_code}Currency", (EconoCurrency,), specs_dict)
-        setattr(self, EconoCurrency.__name__, Sub)
-        self.logger.debug("Created monetary subclass %s", Sub.__name__)
+        attr = "EconoCurrency"
+        Currency = type(
+            f"{specs.code}Currency",
+            (EconoCurrency,), 
+            {
+                "__qualname__": f"{self.name}.{attr}",
+                "model": self,
+                **specs.to_dict()
+            }
+        )
+        setattr(self, attr, Currency)
+        self.logger.debug(
+            "EconoCurrency subclass %s created for model %s",
+            Currency.__qualname__, self.name
+        )
+    
+    def _init_counter_system(self) -> None:
+        """Initializes the counter system for an EconoModel."""
+        self.counters = CounterCollection(self)
+        self.logger.debug(
+            "CounterCollection instance created for model %s",
+            self.name
+        )
     
     
     ##################
@@ -185,4 +202,4 @@ class EconoModel(ABC, metaclass=ModelType):
     
     @staticmethod
     def _sanitize_name(name: str) -> str:
-        return re.sub(r"\s+", "", name.strip())
+        return sub(r"\s+", "", name.strip())

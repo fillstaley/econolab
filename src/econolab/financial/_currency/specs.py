@@ -38,9 +38,9 @@ class CurrencySpecification:
     symbol_position : {"prefix", "suffix"}, optional
         Whether the symbol appears before or after the number. Defaults to "prefix".
     """
-    code: str
-    symbol: str
-    unit_name: str
+    code: str = "ELD"
+    symbol: str = "$"
+    unit_name: str = "dollar"
     unit_plural: str | None = None
     full_name: str | None = None
     precision: int = 2
@@ -174,6 +174,3 @@ SEK_SPECIFICATION = CurrencySpecification(
     full_name="Swedish Krona",
     symbol_position="suffix"
 )
-
-# The default currency specification is for the US Dollar (USD)
-DEFAULT_CURRENCY_SPECIFICATION = USD_SPECIFICATION
