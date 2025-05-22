@@ -121,7 +121,7 @@ class EconoModel(ABC, metaclass=ModelType):
         )
         
         attr = "EconoCalendar"
-        Calendar = type(
+        Calendar: type = EconoMeta(
             f"{self.name}Calendar",
             (EconoCalendar,), 
             {
