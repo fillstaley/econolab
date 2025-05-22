@@ -7,9 +7,8 @@
 
 from decimal import Decimal, InvalidOperation, ROUND_HALF_EVEN
 from functools import total_ordering
-from numbers import Real
 from re import search
-from typing import Callable, cast, Literal, Self, SupportsFloat, TypeAlias, Union
+from typing import Callable, cast, Literal, Self, TypeAlias, Union
 
 from ...core.meta import EconoMeta
 
@@ -26,8 +25,11 @@ def register_format_type(*codes):
     return decorator
 
 
+class CurrencyType(EconoMeta):
+    pass
+
 @total_ordering
-class EconoCurrency(metaclass=EconoMeta):
+class EconoCurrency(metaclass=CurrencyType):
     """Abstract base class for model-bound currency types in EconoLab models.
 
     This class defines the arithmetic behavior, comparison logic, and 
@@ -167,7 +169,7 @@ class EconoCurrency(metaclass=EconoMeta):
         amount: Numeric | Self, 
         precision: int | None = None
     ) -> Decimal:
-        if isinstance(amount, EconoCurrency):
+        if isinstance(amount, cls):
             decimal = amount._amount
         elif isinstance(amount, Decimal):
             decimal = amount
@@ -179,16 +181,20 @@ class EconoCurrency(metaclass=EconoMeta):
                     f"Cannot convert {amount!r} to Decimal; "
                     f"not a valid numeric string or number."
                 ) from e
+        elif isinstance(amount, EconoCurrency):
+            raise TypeError(
+                f"Cannot convert instance of {type(amount).__name__} to {cls.__name__}; "
+                f"currency types must match for conversion."
+            )
         else:
             raise TypeError(
-                f"'amount' must be one of these types: {NUMERIC_TYPES}; "
+                f"'amount' must be one of these types: {NUMERIC_TYPES} or '{cls.__name__}'; "
                 f"got {type(amount).__name__}"
             )
         
         if precision is not None:
             quant = Decimal("1").scaleb(-precision)
             decimal = decimal.quantize(quant, rounding=ROUND_HALF_EVEN)
-        
         return decimal
     
     ###################
@@ -312,24 +318,16 @@ class EconoCurrency(metaclass=EconoMeta):
         >>> print(usd)
         $10.50
         """
-        if isinstance(amount, type(self)):
-            self._amount = amount._amount
-        elif isinstance(amount, EconoCurrency):
+        try:
+            self._amount = self.convert_to_decimal(amount)
+        except (InvalidOperation, TypeError) as e:
             raise TypeError(
-                f"Cannot create an instance of type '{type(self).__name__}' "
-                f"from an instance of type '{type(amount).__name__}'"
-            )
-        else:
-            try:
-                self._amount = self.convert_to_decimal(amount)
-            except (InvalidOperation, TypeError) as e:
-                raise TypeError(
-                    f"Invalid amount for {type(self).__name__} initialization: "
-                    f"{amount!r} cannot be converted to Decimal."
-                ) from e
+                f"Invalid amount for {type(self).__name__} initialization: "
+                f"{amount!r} cannot be converted to Decimal."
+            ) from e
     
     def __repr__(self) -> str:
-        return f"{type(self).__name__}({self.to_decimal(rounded=False)})"
+        return f"{type(self).__name__}({self.to_decimal(rounded=False)!r})"
     
     def __str__(self) -> str:
         return format(self, "")

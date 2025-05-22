@@ -16,8 +16,9 @@ from ..temporal import (
     CalendarSpecification,
 )
 from ..financial import (
+    EconoCurrency,
+    CurrencyType,
     CurrencySpecification,
-    EconoCurrency
 )
 
 
@@ -172,7 +173,7 @@ class EconoModel(ABC, metaclass=ModelType):
         )
         
         attr = "EconoCurrency"
-        Currency = type(
+        Currency = CurrencyType(
             f"{specs.code}Currency",
             (EconoCurrency,), 
             {

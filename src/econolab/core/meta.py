@@ -9,7 +9,7 @@ instance properties.
 from __future__ import annotations
 
 from abc import ABCMeta
-from typing import Any, Callable, Self, Sequence
+from typing import Any, Callable, Sequence
 
 
 class EconoMeta(ABCMeta):
