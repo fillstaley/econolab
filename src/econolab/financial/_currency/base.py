@@ -5,13 +5,19 @@
 """
 
 
+from decimal import Decimal, InvalidOperation, ROUND_HALF_EVEN
 from functools import total_ordering
 from numbers import Real
 from re import search
-from typing import Literal, Self
+from typing import Callable, cast, Literal, Self, SupportsFloat, TypeAlias, Union
 
 from ...core.meta import EconoMeta
 
+
+Numeric: TypeAlias = Union[int, float, str, Decimal]
+NUMERIC_TYPES = (int, float, str, Decimal)
+
+Formatter = Callable[[Decimal, str], str]
 
 def register_format_type(*codes):
     def decorator(func):
@@ -89,7 +95,7 @@ class EconoCurrency(metaclass=EconoMeta):
     
     @classmethod
     @register_format_type("s", "f", "")
-    def format_with_symbol(cls, amount: Real, format_spec: str = "") -> str:
+    def format_with_symbol(cls, amount: Decimal, format_spec: str = "") -> str:
         """Formats the currency amount as a string with the currency's symbol.
         
         Parameters
@@ -112,7 +118,7 @@ class EconoCurrency(metaclass=EconoMeta):
     
     @classmethod
     @register_format_type("u")
-    def format_with_units(cls, amount: float, format_spec: str = "") -> str:
+    def format_with_units(cls, amount: Decimal, format_spec: str = "") -> str:
         """Formats the currency amount as a string with the currency's units.
         
         The singular (ie. 'unit_name') or plural form is used appropriately.
@@ -139,9 +145,10 @@ class EconoCurrency(metaclass=EconoMeta):
     @classmethod
     def _ensure_precision(
         cls,
-        amount: Real,
+        amount: Numeric,
         format_spec: str = ""
-    ) -> tuple[float, str]:
+    ) -> tuple[Decimal, str]:
+        """Round amount to the class's precision, respecting format_spec."""
         # If precision is specified in the format string, use it.
         # Otherwise, apply class precision and append it to the format spec.
         if (match := search(r"\.(\d+)", format_spec)):
@@ -151,9 +158,10 @@ class EconoCurrency(metaclass=EconoMeta):
             format_spec += f".{precision}"
         # ensure trailing zeros are included
         format_spec += "f"
-            
-        rounded = round(float(amount), precision)
-        return rounded, format_spec
+        
+        amount = cls._to_decimal(amount)
+        quant = Decimal(f"1.{'0' * precision}")
+        return amount.quantize(quant, rounding=ROUND_HALF_EVEN), format_spec
     
     
     ###################
@@ -187,25 +195,25 @@ class EconoCurrency(metaclass=EconoMeta):
             return type(self)(self.amount - other.amount)
         return NotImplemented
     
-    def __mul__(self, other: Real) -> Self:
-        if isinstance(other, Real):
-            return type(self)(self.amount * other)
+    def __mul__(self, other: Numeric) -> Self:
+        if isinstance(other, NUMERIC_TYPES):
+            return type(self)(self.amount * self._to_decimal(other))
         return NotImplemented
     
     __rmul__ = __mul__
     
-    def __truediv__(self, other: Self | Real) -> float | Self:
+    def __truediv__(self, other: Self | Numeric) -> Decimal | Self:
         if isinstance(other, type(self)):
             return self.amount / other.amount
-        elif isinstance(other, Real):
-            return type(self)(self.amount / other)
+        elif isinstance(other, NUMERIC_TYPES):
+            return type(self)(self.amount / self._to_decimal(other))
         return NotImplemented
     
-    def __floordiv__(self, other: Self | Real) -> float | Self:
+    def __floordiv__(self, other: Self | Numeric) -> Decimal | Self:
         if isinstance(other, type(self)):
             return self.amount // other.amount
-        elif isinstance(other, Real):
-            return type(self)(self.amount // other)
+        elif isinstance(other, NUMERIC_TYPES):
+            return type(self)(self.amount // self._to_decimal(other))
         return NotImplemented
     
     def __mod__(self, other: Self) -> Self:
@@ -213,9 +221,15 @@ class EconoCurrency(metaclass=EconoMeta):
             return type(self)(self.amount % other.amount)
         return NotImplemented
     
-    def __divmod__(self, other: Self) -> tuple[float, Self]:
+    def __divmod__(self, other: Self) -> tuple[Decimal, Self]:
         if isinstance(other, type(self)):
-            return self // other, self % other
+            q, r = self // other, self % other
+            if not isinstance(q, Decimal):
+                raise TypeError(
+                    f"Expected quotient to be of type decimal.Decimal; "
+                    f"got type '{type(q).__name__}'"
+                )
+            return q, r
         return NotImplemented
     
     def __neg__(self) -> Self:
@@ -230,7 +244,7 @@ class EconoCurrency(metaclass=EconoMeta):
     def __int__(self) -> int:
         return int(self.amount)
     
-    def __float__(self) -> int:
+    def __float__(self) -> float:
         return float(self.amount)
     
     # TODO: add tests for rounding
@@ -247,21 +261,40 @@ class EconoCurrency(metaclass=EconoMeta):
         return super().__new__(cls)
     
     # TODO: improve the documentation here
-    def __init__(self, amount: Real = 0, /) -> None:
+    def __init__(self, amount: Numeric | Self = 0, /) -> None:
         """Initialize a currency instance with a numeric amount.
 
         Parameters
         ----------
-        amount : Real, optional
+        amount : Numeric or Self, optional
             The numeric value of the currency. Defaults to 0.
-
+        
+        Raises
+        ------
+        InvalidOperation
+            If the value cannot be converted to a Decimal.
+        
         Examples
         --------
         >>> usd = USD(10.5)
         >>> print(usd)
         $10.50
         """
-        self._amount = float(amount)
+        if isinstance(amount, type(self)):
+            self._amount = amount.amount
+        elif isinstance(amount, EconoCurrency):
+            raise TypeError(
+                f"Cannot create an instance of type '{type(self).__name__}' "
+                f"from an instance of type '{type(amount).__name__}'"
+            )
+        else:
+            try:
+                self._amount = self._to_decimal(amount)
+            except (InvalidOperation, TypeError) as e:
+                raise TypeError(
+                    f"Invalid amount for {type(self).__name__} initialization: "
+                    f"{amount!r} cannot be converted to Decimal."
+                ) from e
     
     def __repr__(self) -> str:
         return f"{type(self).__name__}({self.amount})"
@@ -280,10 +313,10 @@ class EconoCurrency(metaclass=EconoMeta):
         for attr in dir(type(self)):
             method = getattr(type(self), attr)
             if (
-                callable(method) and hasattr(method, "_format_codes") and
-                type_code in method._format_codes
+                callable(method) and type_code in getattr(method, "_format_codes", [])
             ):
-                return method(self.amount, base_spec)
+                typed_method = cast(Formatter, method)
+                return typed_method(self.amount, base_spec)
         raise ValueError(f"Unsupported format type '{type_code}' for {type(self).__name__}")
     
     
@@ -292,7 +325,7 @@ class EconoCurrency(metaclass=EconoMeta):
     ##############
     
     @property
-    def amount(self) -> float:
+    def amount(self) -> Decimal:
         """The amount of currency."""
         return self._amount
     
@@ -347,6 +380,26 @@ class EconoCurrency(metaclass=EconoMeta):
     ##################
     
     @staticmethod
+    def _to_decimal(amount: Numeric, /) -> Decimal:
+        if isinstance(amount, Decimal):
+            return amount
+        elif isinstance(amount, NUMERIC_TYPES):
+            try:
+                return Decimal(str(amount))
+            except InvalidOperation as e:
+                raise InvalidOperation(
+                    f"Cannot convert {amount!r} to Decimal; "
+                    f"not a valid numeric string or number."
+                ) from e
+        else:
+            raise TypeError(
+                f"'amount' must be one of these types: {NUMERIC_TYPES}; "
+                f"got {type(amount).__name__}"
+            )
+    
+    @staticmethod
     def _validate_typeless_format(format_spec: str) -> None:
         if search(r"[a-zA-Z]$", format_spec):
-            raise ValueError(f"format_spec should not include a type character: '{format_spec}'")
+            raise ValueError(
+                f"format_spec should not include a type character: '{format_spec}'"
+            )

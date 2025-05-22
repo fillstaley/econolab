@@ -9,6 +9,8 @@ Covers:
 
 import pytest
 
+from decimal import Decimal
+
 from econolab.financial import EconoCurrency, CurrencySpecification
 
 
@@ -275,6 +277,7 @@ class TestArithmetic:
     @pytest.mark.parametrize("multiplier", [2, 0.5])
     def test_multiplication(self, create_currency_instance, multiplier):
         multiplicand = create_currency_instance(2)
+        multiplier = Decimal(f"{multiplier}")
         
         left_product = multiplier * multiplicand
         left_result = multiplier * multiplicand.amount
@@ -288,14 +291,14 @@ class TestArithmetic:
         dividend = create_currency_instance(1)
         divisor = create_currency_instance(2)
         quotient = dividend / divisor
-        assert isinstance(quotient, float)
+        assert isinstance(quotient, Decimal)
         assert quotient == pytest.approx(0.5)
     
     @pytest.mark.parametrize("divisor", [2, 0.5])
     def test_division_by_real_number(self, create_currency_instance, divisor):
         dividend = create_currency_instance(1)
         quotient = dividend / divisor
-        result = dividend.amount / divisor
+        result = dividend.amount / Decimal(f"{divisor}")
         assert isinstance(quotient, type(dividend))
         assert quotient.amount == pytest.approx(result)
     
@@ -303,14 +306,14 @@ class TestArithmetic:
         dividend = create_currency_instance(10)
         divisor = create_currency_instance(3)
         quotient = dividend // divisor
-        assert isinstance(quotient, float)
+        assert isinstance(quotient, Decimal)
         assert quotient == pytest.approx(3)
 
     @pytest.mark.parametrize("divisor", [2, 3.5])
     def test_floor_division_by_real_number(self, create_currency_instance, divisor):
         dividend = create_currency_instance(10)
         quotient = dividend // divisor
-        result = dividend.amount // divisor
+        result = dividend.amount // Decimal(f"{divisor}")
         assert isinstance(quotient, type(dividend))
         assert quotient.amount == pytest.approx(result)
     
