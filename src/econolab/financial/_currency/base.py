@@ -110,7 +110,7 @@ class EconoCurrency(metaclass=EconoMeta):
         """
         cls._validate_typeless_format(format_spec)
         
-        rounded = format(*cls._ensure_precision(amount, format_spec))
+        rounded = format(*cls.ensure_precision(amount, format_spec))
         return (
             f"{cls.symbol}{rounded}" if cls.symbol_position == "prefix" else
             f"{rounded} {cls.symbol}"
@@ -135,7 +135,7 @@ class EconoCurrency(metaclass=EconoMeta):
         """
         cls._validate_typeless_format(format_spec)
         
-        rounded = format(*cls._ensure_precision(amount, format_spec))
+        rounded = format(*cls.ensure_precision(amount, format_spec))
         unit = (
             cls.unit_name if abs(amount - 1) < 10 ** -cls.precision else
             cls.unit_plural
@@ -143,9 +143,9 @@ class EconoCurrency(metaclass=EconoMeta):
         return f"{rounded} {unit}"
     
     @classmethod
-    def _ensure_precision(
+    def ensure_precision(
         cls,
-        amount: Numeric,
+        amount: Numeric | Self,
         format_spec: str = ""
     ) -> tuple[Decimal, str]:
         """Round amount to the class's precision, respecting format_spec."""
@@ -159,10 +159,37 @@ class EconoCurrency(metaclass=EconoMeta):
         # ensure trailing zeros are included
         format_spec += "f"
         
-        amount = cls._to_decimal(amount)
-        quant = Decimal(f"1.{'0' * precision}")
-        return amount.quantize(quant, rounding=ROUND_HALF_EVEN), format_spec
+        return cls.convert_to_decimal(amount, precision), format_spec
     
+    @classmethod
+    def convert_to_decimal(
+        cls, 
+        amount: Numeric | Self, 
+        precision: int | None = None
+    ) -> Decimal:
+        if isinstance(amount, EconoCurrency):
+            decimal = amount._amount
+        elif isinstance(amount, Decimal):
+            decimal = amount
+        elif isinstance(amount, NUMERIC_TYPES):
+            try:
+                decimal = Decimal(str(amount))
+            except InvalidOperation as e:
+                raise InvalidOperation(
+                    f"Cannot convert {amount!r} to Decimal; "
+                    f"not a valid numeric string or number."
+                ) from e
+        else:
+            raise TypeError(
+                f"'amount' must be one of these types: {NUMERIC_TYPES}; "
+                f"got {type(amount).__name__}"
+            )
+        
+        if precision is not None:
+            quant = Decimal("1").scaleb(-precision)
+            decimal = decimal.quantize(quant, rounding=ROUND_HALF_EVEN)
+        
+        return decimal
     
     ###################
     # Special Methods #
@@ -170,9 +197,7 @@ class EconoCurrency(metaclass=EconoMeta):
     
     # TODO: add tests for proper equality relative to precision
     def __eq__(self, other) -> bool:
-        if isinstance(other, type(self)):
-            return (self - other).is_zero()
-        return NotImplemented
+        return isinstance(other, type(self)) and (self - other).is_zero()
     
     def __lt__(self, other) -> bool:
         if isinstance(other, type(self)):
@@ -180,45 +205,52 @@ class EconoCurrency(metaclass=EconoMeta):
         return NotImplemented
     
     def __hash__(self):
-        return hash((type(self), round(self.amount, self.precision)))
+        rounded_amount = self.ensure_precision(self.amount)[0]
+        return hash((type(self), rounded_amount))
     
     def __bool__(self) -> bool:
         return bool(self.amount)
     
     def __add__(self, other: Self) -> Self:
         if isinstance(other, type(self)):
-            return type(self)(self.amount + other.amount)
+            result = self.to_decimal(rounded=False) + other.to_decimal(rounded=False)
+            return type(self)(result)
         return NotImplemented
     
     def __sub__(self, other: Self) -> Self:
         if isinstance(other, type(self)):
-            return type(self)(self.amount - other.amount)
+            result = self.to_decimal(rounded=False) - other.to_decimal(rounded=False)
+            return type(self)(result)
         return NotImplemented
     
     def __mul__(self, other: Numeric) -> Self:
         if isinstance(other, NUMERIC_TYPES):
-            return type(self)(self.amount * self._to_decimal(other))
+            result = self.to_decimal(rounded=False) * self.convert_to_decimal(other)
+            return type(self)(result)
         return NotImplemented
     
     __rmul__ = __mul__
     
     def __truediv__(self, other: Self | Numeric) -> Decimal | Self:
         if isinstance(other, type(self)):
-            return self.amount / other.amount
+            return self.to_decimal(rounded=False) / other.to_decimal(rounded=False)
         elif isinstance(other, NUMERIC_TYPES):
-            return type(self)(self.amount / self._to_decimal(other))
+            result = self.to_decimal(rounded=False) / self.convert_to_decimal(other)
+            return type(self)(result)
         return NotImplemented
     
     def __floordiv__(self, other: Self | Numeric) -> Decimal | Self:
         if isinstance(other, type(self)):
-            return self.amount // other.amount
+            return self.to_decimal(rounded=False) // other.to_decimal(rounded=False)
         elif isinstance(other, NUMERIC_TYPES):
-            return type(self)(self.amount // self._to_decimal(other))
+            result = self.to_decimal(rounded=False) // self.convert_to_decimal(other)
+            return type(self)(result)
         return NotImplemented
     
     def __mod__(self, other: Self) -> Self:
         if isinstance(other, type(self)):
-            return type(self)(self.amount % other.amount)
+            result = self.to_decimal(rounded=False) % other.to_decimal(rounded=False)
+            return type(self)(result)
         return NotImplemented
     
     def __divmod__(self, other: Self) -> tuple[Decimal, Self]:
@@ -233,25 +265,25 @@ class EconoCurrency(metaclass=EconoMeta):
         return NotImplemented
     
     def __neg__(self) -> Self:
-        return type(self)(-self.amount)
+        return type(self)(-self.to_decimal(rounded=False))
     
     def __pos__(self) -> Self:
-        return type(self)(self.amount)
+        return type(self)(self.to_decimal(rounded=False))
     
     def __abs__(self) -> Self:
-        return type(self)(abs(self.amount))
+        return type(self)(abs(self.to_decimal(rounded=False)))
     
     def __int__(self) -> int:
-        return int(self.amount)
+        return int(self.to_decimal(rounded=False))
     
     def __float__(self) -> float:
-        return float(self.amount)
+        return float(self.to_decimal(rounded=False))
     
     # TODO: add tests for rounding
     def __round__(self, ndigits: int | None = None) -> Self:
         format_spec = f".{ndigits}" if ndigits is not None else ""
-        rounded_amount, _ = self._ensure_precision(self.amount, format_spec)
-        return type(self)(rounded_amount)
+        rounded = self.ensure_precision(self, format_spec)[0]
+        return type(self)(rounded)
     
     def __new__(cls, *args, **kwargs):
         if cls is EconoCurrency:
@@ -281,7 +313,7 @@ class EconoCurrency(metaclass=EconoMeta):
         $10.50
         """
         if isinstance(amount, type(self)):
-            self._amount = amount.amount
+            self._amount = amount._amount
         elif isinstance(amount, EconoCurrency):
             raise TypeError(
                 f"Cannot create an instance of type '{type(self).__name__}' "
@@ -289,7 +321,7 @@ class EconoCurrency(metaclass=EconoMeta):
             )
         else:
             try:
-                self._amount = self._to_decimal(amount)
+                self._amount = self.convert_to_decimal(amount)
             except (InvalidOperation, TypeError) as e:
                 raise TypeError(
                     f"Invalid amount for {type(self).__name__} initialization: "
@@ -297,10 +329,10 @@ class EconoCurrency(metaclass=EconoMeta):
                 ) from e
     
     def __repr__(self) -> str:
-        return f"{type(self).__name__}({self.amount})"
+        return f"{type(self).__name__}({self.to_decimal(rounded=False)})"
     
     def __str__(self) -> str:
-        return self.to_string(with_units=False)
+        return format(self, "")
     
     # TODO: add tests for formatting
     def __format__(self, format_spec: str) -> str:
@@ -338,6 +370,9 @@ class EconoCurrency(metaclass=EconoMeta):
     # Methods #
     ###########
     
+    def to_decimal(self, *, rounded: bool = True) -> Decimal:
+        return self.convert_to_decimal(self, self.precision if rounded else None)
+    
     def to_string(self, *, with_units: bool = False) -> str:
         return format(self, "u" if with_units else "s")
     
@@ -345,57 +380,39 @@ class EconoCurrency(metaclass=EconoMeta):
     def is_zero(self) -> bool:
         """Return True if the currency amount is zero, relative to its precision."""
         return self.is_positive_or_zero() and self.is_negative_or_zero()
-
-    def is_positive_or_zero(self) -> bool:
-        """Return True if the currency amount is greater than or equal to zero.
-        
-        Uses the currency's precision to compare against a small negative number.
-        """
-        return self.amount > -10 ** -self.precision
-
-    def is_negative_or_zero(self) -> bool:
-        """Return True if the currency amount is less than or equal to zero.
-        
-        Uses the currency's precision to compare against a small positive number.
-        """
-        return self.amount < 10 ** -self.precision
     
     def is_positive(self) -> bool:
         """Return True if the currency amount is greater than zero.
         
         Uses the currency's precision to compare against a small positive number.
         """
-        return self.amount >= 10 ** -self.precision
+        return not self.is_negative_or_zero()
     
     def is_negative(self) -> bool:
         """Return True if the currency amount is less than zero.
         
         Uses the currency's precision to compare against a small negative number.
         """
-        return self.amount <= -10 ** -self.precision
+        return not self.is_positive_or_zero()
+
+    def is_positive_or_zero(self) -> bool:
+        """Return True if the currency amount is greater than or equal to zero.
+        
+        Uses the currency's precision to compare against a small negative number.
+        """
+        return self.to_decimal() > -Decimal("1").scaleb(-self.precision)
+
+    def is_negative_or_zero(self) -> bool:
+        """Return True if the currency amount is less than or equal to zero.
+        
+        Uses the currency's precision to compare against a small positive number.
+        """
+        return self.to_decimal() < Decimal("1").scaleb(-self.precision)
     
     
     ##################
     # Static Methods #
     ##################
-    
-    @staticmethod
-    def _to_decimal(amount: Numeric, /) -> Decimal:
-        if isinstance(amount, Decimal):
-            return amount
-        elif isinstance(amount, NUMERIC_TYPES):
-            try:
-                return Decimal(str(amount))
-            except InvalidOperation as e:
-                raise InvalidOperation(
-                    f"Cannot convert {amount!r} to Decimal; "
-                    f"not a valid numeric string or number."
-                ) from e
-        else:
-            raise TypeError(
-                f"'amount' must be one of these types: {NUMERIC_TYPES}; "
-                f"got {type(amount).__name__}"
-            )
     
     @staticmethod
     def _validate_typeless_format(format_spec: str) -> None:
