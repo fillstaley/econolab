@@ -4,4 +4,5 @@
 
 """
 
-from .base import EconoCurrency
+from .base import EconoCurrency, CurrencyType
+from .specs import CurrencySpecification
