@@ -18,6 +18,7 @@ NUMERIC_TYPES = (int, float, str, Decimal)
 
 Formatter = Callable[[Decimal, str], str]
 
+
 def register_format_type(*codes):
     def decorator(func):
         func._format_codes = set(codes)
