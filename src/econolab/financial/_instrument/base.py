@@ -4,6 +4,7 @@
 
 """
 
+from abc import abstractmethod
 from typing import TYPE_CHECKING
 
 from ...core import EconoMeta
@@ -20,6 +21,18 @@ class InstrumentType(EconoMeta):
 
 
 class Instrument(metaclass=InstrumentType):
-    issuer: Issuer
-    Debtor: Debtor
-    Creditor: Creditor
+    
+    @property
+    @abstractmethod
+    def issuer(self) -> Issuer:
+        pass
+    
+    @property
+    @abstractmethod
+    def debtor(self) -> Debtor:
+        pass
+    
+    @property
+    @abstractmethod
+    def creditor(self) -> Creditor:
+        pass

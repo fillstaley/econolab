@@ -4,14 +4,12 @@
 
 """
 
-from abc import ABC
-
 from ....core import EconoAgent
-from ..base import Instrument
 
-class Creditor(EconoAgent, ABC):
+class Creditor(EconoAgent):
     """...
     
     ...
     """
+    
     pass

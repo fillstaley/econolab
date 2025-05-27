@@ -4,10 +4,14 @@
 
 """
 
+from typing import TYPE_CHECKING
+
 from .._currency import EconoCurrency
 from .._instrument import Instrument
-from .agents.deposit_holder import DepositHolder
-from .agents.depositor import Depositor
+
+if TYPE_CHECKING:
+    from .agents.deposit_holder import DepositHolder
+    from .agents.depositor import Depositor
 
 
 class DepositAccount(Instrument):
@@ -15,13 +19,12 @@ class DepositAccount(Instrument):
     
     ...
     """
+    
     __slots__ = ("_creditor", "_balance",)
     
-    issuer: DepositHolder
     Currency: type[EconoCurrency]
     
-    debtor: DepositHolder
-    creditor: Depositor
+    _issuer: DepositHolder
     
     
     def __init__(self, depositor: Depositor, init_balance: EconoCurrency | None = None) -> None:
@@ -37,9 +40,17 @@ class DepositAccount(Instrument):
             )
     
     
+    ##############
+    # Properties #
+    ##############
+    
     @property
-    def balance(self) -> EconoCurrency:
-        return self._balance
+    def issuer(self) -> DepositHolder:
+        return self._issuer
+    
+    @property
+    def debtor(self) -> DepositHolder:
+        return self.issuer
     
     @property
     def creditor(self) -> Depositor:
@@ -49,6 +60,14 @@ class DepositAccount(Instrument):
     def depositor(self) -> Depositor:
         return self.creditor
     
+    @property
+    def balance(self) -> EconoCurrency:
+        return self._balance
+    
+    
+    ###########
+    # Methods #
+    ###########
     
     def credit(self, amount) -> None:
         self._balance += amount

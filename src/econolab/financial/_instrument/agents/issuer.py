@@ -4,17 +4,12 @@
 
 """
 
-from abc import ABC, abstractmethod
-
 from ....core import EconoAgent
-from ..base import Instrument
 
-class Issuer(EconoAgent, ABC):
+class Issuer(EconoAgent):
     """...
     
     ...
     """
     
-    @abstractmethod
-    def offer_instrument(self, base: Instrument) -> None:
-        pass
+    pass

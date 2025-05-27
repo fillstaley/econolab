@@ -14,5 +14,4 @@ class DepositHolder(Issuer, Debtor):
     ...
     """
     
-    def offer_instrument(self, base: DepositAccount) -> None:
-        pass
+    pass
