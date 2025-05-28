@@ -40,6 +40,7 @@ class EconoAgent(ABC, metaclass=AgentType):
         super().__init__(*args, **kwargs)
         
         self.calendar = self.model.EconoCalendar(self)
+        self.Currency = self.model.EconoCurrency
         self.counters = CounterCollection(self)
     
     

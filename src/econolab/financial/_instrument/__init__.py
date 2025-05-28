@@ -10,4 +10,5 @@ from .agents.debtor import Debtor
 from .agents.creditor import Creditor
 
 # expose sub-module interfaces
-from .base import Instrument
+from .base import Instrument, InstrumentType
+from .specs import InstrumentSpecification

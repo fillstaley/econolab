@@ -5,7 +5,7 @@
 """
 
 # expose sub-module agents
-from .agents.deposit_holder import DepositHolder
+from .agents.issuer import Issuer
 from .agents.depositor import Depositor
 
 # expose sub-module interfaces

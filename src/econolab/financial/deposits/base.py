@@ -6,11 +6,12 @@
 
 from typing import TYPE_CHECKING
 
+from ...temporal import EconoDuration, EconoDate
 from .._currency import EconoCurrency
 from .._instrument import Instrument
 
 if TYPE_CHECKING:
-    from .agents.deposit_holder import DepositHolder
+    from .agents.issuer import Issuer
     from .agents.depositor import Depositor
 
 
@@ -20,11 +21,18 @@ class DepositAccount(Instrument):
     ...
     """
     
+    __class_constants__ = ("_issuer", "Currency")
     __slots__ = ("_creditor", "_balance",)
     
+    _issuer: Issuer
     Currency: type[EconoCurrency]
     
-    _issuer: DepositHolder
+    maturity_period: EconoDuration | None
+    withdrawal_limit_count: int | None
+    withdrawal_limit_value: EconoCurrency | None
+    withdrawal_limit_period: EconoDuration | None
+    minimum_balance: EconoCurrency | None
+    overdraft_limit: EconoCurrency | None
     
     
     def __init__(self, depositor: Depositor, init_balance: EconoCurrency | None = None) -> None:
@@ -45,11 +53,11 @@ class DepositAccount(Instrument):
     ##############
     
     @property
-    def issuer(self) -> DepositHolder:
+    def issuer(self) -> Issuer:
         return self._issuer
     
     @property
-    def debtor(self) -> DepositHolder:
+    def debtor(self) -> Issuer:
         return self.issuer
     
     @property
