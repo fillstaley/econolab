@@ -25,22 +25,54 @@ class Issuer(instrument.Issuer, instrument.Debtor):
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         
-        self._deposit_account_types: list[type[DepositAccount]]
+        self._deposit_account_classes: list[type[DepositAccount]]
     
     
     ###########
-    # Methods #
+    # Actions #
     ###########
     
-    def create_deposit_account_class(self, spec: DepositSpecification) -> None:
-        Account = instrument.InstrumentType(
-            spec.name,
-            (DepositAccount,),
-            {
-                "_issuer": self,
-                "Currency": self.Currency,
-                **spec.to_dict()
-            }
-        )
-        Account = cast(type[DepositAccount], Account)
-        self._deposit_account_types.append(Account)
+    def create_deposit_class(self, *specs: DepositSpecification) -> None:
+        for spec in specs:
+            Account = instrument.InstrumentType(
+                spec.name,
+                (DepositAccount,),
+                {
+                    "_issuer": self,
+                    "Currency": self.Currency,
+                    **spec.to_dict()
+                }
+            )
+            Account = cast(type[DepositAccount], Account)
+            self._deposit_account_classes.append(Account)
+    
+    def modify_deposit_class(self, Account: DepositAccount, /) -> None:
+        ...
+    
+    def delete_deposit_class(self, Account: DepositAccount, /) -> None:
+        ...
+    
+    def review_deposit_applications(self, *applications) -> int:
+        successes = 0
+        for app in applications:
+            if self.can_approve_deposit(app) and self.should_approve_deposit(app):
+                successes += 1
+                app._approve(self.calendar.today())
+            # TODO: introduce deferred applications later
+            else:
+                app._deny(self.calendar.today())
+        return successes
+    
+    
+    #########
+    # Hooks #
+    #########
+    
+    def prioritize_deposit_applications(self):
+        ...
+    
+    def can_approve_deposit(self, application):
+        ...
+    
+    def should_approve_deposit(self, application):
+        ...
