@@ -21,7 +21,7 @@ class DepositSpecification(InstrumentSpecification):
     overdraft_limit: EconoCurrency | None = None
     
     def __post_init__(self) -> None:
-        pass
+        super().__post_init__()
     
     def to_dict(self) -> dict:
-        return {}
+        return super().to_dict()
