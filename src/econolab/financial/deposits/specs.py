@@ -9,8 +9,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from ...temporal import EconoDuration
-from .._instrument import InstrumentSpecification
 from .._currency import EconoCurrency
+from .._instrument import InstrumentSpecification
 
 
 @dataclass(frozen=True, slots=True)
@@ -23,7 +23,7 @@ class DepositSpecification(InstrumentSpecification):
     overdraft_limit: EconoCurrency | None = None
     
     def __post_init__(self) -> None:
-        super().__post_init__()
+        super(DepositSpecification, self).__post_init__()
     
     def to_dict(self) -> dict:
-        return super().to_dict()
+        return super(DepositSpecification, self).to_dict()
