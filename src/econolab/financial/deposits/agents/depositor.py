@@ -4,6 +4,8 @@
 
 """
 
+from __future__ import annotations
+
 from ..._instrument import Creditor
 from ..base import DepositAccount
 

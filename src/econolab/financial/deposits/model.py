@@ -4,6 +4,8 @@
 
 """
 
+from __future__ import annotations
+
 from ...core import EconoModel
 from .market import DepositMarket
 

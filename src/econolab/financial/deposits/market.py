@@ -3,8 +3,12 @@
 ...
 
 """
+
+from __future__ import annotations
+
 from collections.abc import Mapping
 from typing import Iterator, TYPE_CHECKING
+
 
 if TYPE_CHECKING:
     from .base import DepositAccount
@@ -44,24 +48,15 @@ class DepositMarket(Mapping):
     # Modification Methods #
     ########################
 
-    def register(self, *Accounts: type[DepositAccount]) -> None:
-        """Registers an account class as an available product."""
-        for Account in Accounts:
-            if (issuer := Account.issuer) not in self._products:
-                self._products[issuer] = []
-            if Account not in self._products[issuer]:
-                self._products[issuer].append(Account)
+    def register(self, issuer: DepositIssuer) -> None:
+        """Registers an issuer's list of available products."""
+        if issuer not in self._products:
+            self._products[issuer] = issuer._available_deposit_accounts
 
-    def deregister(self, Account: type[DepositAccount]) -> None:
-        """Removes an account class from its issuer's product list."""
-        if (issuer := Account.issuer) in self and Account in self[issuer]:
-            self._products[issuer].remove(Account)
-            if not self._products[issuer]:
-                del self._products[issuer]
-
-    def clear_issuer(self, issuer: DepositIssuer) -> None:
-        """Removes all account offerings from a given issuer."""
-        self._products.pop(issuer, None)
+    def deregister(self, issuer: DepositIssuer) -> None:
+        """Removes an issuer and their product list."""
+        if issuer in self:
+            self._products.pop(issuer, None)
 
     #######################
     # Convenience Methods #

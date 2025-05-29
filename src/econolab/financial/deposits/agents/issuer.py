@@ -4,15 +4,16 @@
 
 """
 
-from typing import cast, TYPE_CHECKING
+from __future__ import annotations
+
+from collections import defaultdict, deque
+from typing import cast
 
 from ..._instrument import Issuer, Debtor, InstrumentType
 from ..base import DepositAccount
 from ..specs import DepositSpecification
+from ..model import DepositModel
 from .depositor import Depositor
-
-if TYPE_CHECKING:
-    from ..model import DepositModel
 
 
 class DepositIssuer(Issuer, Debtor, Depositor):
@@ -21,15 +22,41 @@ class DepositIssuer(Issuer, Debtor, Depositor):
     ...
     """
     
+    __slots__ = (
+        "_deposit_book",
+        "_available_deposit_accounts",
+        "_received_deposit_applications",
+    )
+    _deposit_book: dict[type[DepositAccount], list[DepositAccount]]
+    _available_deposit_accounts: list[type[DepositAccount]]
+    _received_deposit_applications: deque
+    
     
     ###################
     # Special Methods #
     ###################
     
-    def __init__(self, *args, **kwargs) -> None:
+    def __init__(
+        self,
+        *args,
+        deposit_specs: list[DepositSpecification] | None = None,
+        **kwargs
+    ) -> None:
         super().__init__(*args, **kwargs)
         
-        self._deposit_account_classes: list[type[DepositAccount]]
+        if not isinstance(self.model, DepositModel):
+            raise TypeError(
+                f"The 'model' attribute of {type(self).__name__} must inherit from DepositModel"
+            )
+        
+        self._deposit_book = defaultdict(list)
+        self._available_deposit_accounts = []
+        self._received_deposit_applications = deque()
+        
+        if deposit_specs:
+            self.create_deposit_class(*deposit_specs)
+        
+        self.model.deposit_market.register(self)
     
     
     ###########
@@ -38,6 +65,11 @@ class DepositIssuer(Issuer, Debtor, Depositor):
     
     def create_deposit_class(self, *specs: DepositSpecification) -> None:
         for spec in specs:
+            if not isinstance(spec, DepositSpecification):
+                raise TypeError(
+                    f"Expected DepositSpecification, got {type(spec).__name__} in create_deposit_class()"
+                )
+            
             Account = InstrumentType(
                 spec.name,
                 (DepositAccount,),
@@ -48,23 +80,20 @@ class DepositIssuer(Issuer, Debtor, Depositor):
                 }
             )
             Account = cast(type[DepositAccount], Account)
-            self._deposit_account_classes.append(Account)
-            
-            if not isinstance(self.model, DepositModel):
-                raise RuntimeError
-            self.model.deposit_market
+            self._deposit_book[Account] = []
+            self.register_deposit_class(Account)
     
-    def modify_deposit_class(self, Account: DepositAccount, /) -> None:
+    def modify_deposit_class(self, Account: type[DepositAccount], /) -> None:
         ...
     
-    def delete_deposit_class(self, Account: DepositAccount, /) -> None:
+    def delete_deposit_class(self, Account: type[DepositAccount], /) -> None:
         ...
     
-    def register_deposit_class(self, Account: DepositAccount, /) -> None:
-        ...
+    def register_deposit_class(self, Account: type[DepositAccount], /) -> None:
+        self._available_deposit_accounts.append(Account)
     
-    def deregister_deposit_class(self, Account: DepositAccount, /) -> None:
-        ...
+    def deregister_deposit_class(self, Account: type[DepositAccount], /) -> None:
+        self._available_deposit_accounts.remove(Account)
     
     def review_deposit_applications(self, *applications) -> int:
         successes = 0

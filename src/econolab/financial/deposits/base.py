@@ -4,9 +4,11 @@
 
 """
 
+from __future__ import annotations
+
 from typing import TYPE_CHECKING
 
-from ...temporal import EconoDuration, EconoDate
+from ...temporal import EconoDuration
 from .._currency import EconoCurrency
 from .._instrument import Instrument
 

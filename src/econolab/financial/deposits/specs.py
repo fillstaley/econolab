@@ -4,9 +4,11 @@
 
 """
 
+from __future__ import annotations
+
 from dataclasses import dataclass
 
-from ...temporal import EconoDuration, EconoDate
+from ...temporal import EconoDuration
 from .._instrument import InstrumentSpecification
 from .._currency import EconoCurrency
 
