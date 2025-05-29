@@ -21,18 +21,4 @@ class InstrumentType(EconoMeta):
 
 
 class Instrument(metaclass=InstrumentType):
-    
-    @property
-    @abstractmethod
-    def issuer(self) -> Issuer:
-        pass
-    
-    @property
-    @abstractmethod
-    def debtor(self) -> Debtor:
-        pass
-    
-    @property
-    @abstractmethod
-    def creditor(self) -> Creditor:
-        pass
+    pass

@@ -4,14 +4,18 @@
 
 """
 
-from typing import cast
+from typing import cast, TYPE_CHECKING
 
-from ... import _instrument as instrument
+from ..._instrument import Issuer, Debtor, InstrumentType
 from ..base import DepositAccount
 from ..specs import DepositSpecification
+from .depositor import Depositor
+
+if TYPE_CHECKING:
+    from ..model import DepositModel
 
 
-class Issuer(instrument.Issuer, instrument.Debtor):
+class DepositIssuer(Issuer, Debtor, Depositor):
     """...
     
     ...
@@ -34,7 +38,7 @@ class Issuer(instrument.Issuer, instrument.Debtor):
     
     def create_deposit_class(self, *specs: DepositSpecification) -> None:
         for spec in specs:
-            Account = instrument.InstrumentType(
+            Account = InstrumentType(
                 spec.name,
                 (DepositAccount,),
                 {
@@ -45,11 +49,21 @@ class Issuer(instrument.Issuer, instrument.Debtor):
             )
             Account = cast(type[DepositAccount], Account)
             self._deposit_account_classes.append(Account)
+            
+            if not isinstance(self.model, DepositModel):
+                raise RuntimeError
+            self.model.deposit_market
     
     def modify_deposit_class(self, Account: DepositAccount, /) -> None:
         ...
     
     def delete_deposit_class(self, Account: DepositAccount, /) -> None:
+        ...
+    
+    def register_deposit_class(self, Account: DepositAccount, /) -> None:
+        ...
+    
+    def deregister_deposit_class(self, Account: DepositAccount, /) -> None:
         ...
     
     def review_deposit_applications(self, *applications) -> int:

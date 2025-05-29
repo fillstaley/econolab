@@ -11,8 +11,8 @@ from .._currency import EconoCurrency
 from .._instrument import Instrument
 
 if TYPE_CHECKING:
-    from .agents.issuer import Issuer
     from .agents.depositor import Depositor
+    from .agents.issuer import DepositIssuer
 
 
 class DepositAccount(Instrument):
@@ -21,10 +21,10 @@ class DepositAccount(Instrument):
     ...
     """
     
-    __class_constants__ = ("_issuer", "Currency")
-    __slots__ = ("_creditor", "_balance",)
+    __slots__ = ("_debtor", "_creditor", "_balance",)
     
-    _issuer: Issuer
+    __class_constants__ = ("issuer", "Currency")
+    issuer: DepositIssuer
     Currency: type[EconoCurrency]
     
     maturity_period: EconoDuration | None
@@ -36,6 +36,7 @@ class DepositAccount(Instrument):
     
     
     def __init__(self, depositor: Depositor, init_balance: EconoCurrency | None = None) -> None:
+        self._debtor = self.issuer
         self._creditor = depositor
         if init_balance is None:
             self._balance = self.Currency()
@@ -53,12 +54,8 @@ class DepositAccount(Instrument):
     ##############
     
     @property
-    def issuer(self) -> Issuer:
-        return self._issuer
-    
-    @property
-    def debtor(self) -> Issuer:
-        return self.issuer
+    def debtor(self) -> DepositIssuer:
+        return self._debtor
     
     @property
     def creditor(self) -> Depositor:
