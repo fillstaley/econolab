@@ -18,28 +18,46 @@ class Depositor(Creditor):
     
     __slots__ = (
         "_open_deposit_applications",
+        "_closed_deposit_applications",
     )
     _open_deposit_applications: list
+    _closed_deposit_applications: list
     
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         
         self._open_deposit_applications = []
+        self._closed_deposit_applications = []
+    
+    
+    ##############
+    # Properties #
+    ##############
+    
+    @property
+    def deposit_applications(self):
+        return self._open_deposit_applications
+    
+    @property
+    def deposit_offers(self):
+        return [app for app in self.deposit_applications if app.reviewed]
     
     
     ###########
     # Actions #
     ###########
     
-    def open_deposit_account(self):
-        if offers := [
-            app for app in self._open_deposit_applications if app.reviewed
-        ]:
+    def open_deposit_account(self) -> DepositAccount | None:
+        offers = self.deposit_offers
+        
+        # TODO: limit the total number of (open) deposit applications
+        if not offers:
+            new_apps = self._apply_for_deposit_accounts()
+            offers = [app for app in new_apps if app.reviewed]
+        
+        if offers:
             self.prioritize_deposit_offers(offers)
-            if accepted := self._respond_to_deposit_offers(*offers):
-                return accepted
-        # Otherwise, search for and apply to new options
-        return self._apply_for_deposit_accounts()
+            return self._respond_to_deposit_offers(*offers)
     
     def close_deposit_account(self):
         pass
@@ -49,7 +67,7 @@ class Depositor(Creditor):
     # Hooks #
     #########
     
-    def prioritize_deposit_offers(self, offers):
+    def prioritize_deposit_offers(self, offers) -> None:
         pass
     
     
@@ -57,8 +75,8 @@ class Depositor(Creditor):
     # Primitives #
     ##############
     
-    def _apply_for_deposit_accounts(self):
-        pass
+    def _apply_for_deposit_accounts(self) -> list:
+        ...
     
-    def _respond_to_deposit_offers(self, *args):
-        pass
+    def _respond_to_deposit_offers(self, *args) -> DepositAccount | None:
+        ...
