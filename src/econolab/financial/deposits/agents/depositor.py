@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from ..._instrument import Creditor
 from ..base import DepositAccount
+from ..model import DepositModel
 
 
 class Depositor(Creditor):
@@ -59,7 +60,13 @@ class Depositor(Creditor):
             self.prioritize_deposit_offers(offers)
             return self._respond_to_deposit_offers(*offers)
     
-    def close_deposit_account(self):
+    def close_deposit_account(self, account: DepositAccount) -> None:
+        pass
+    
+    def deposit(self, account: DepositAccount, *assets):
+        pass
+    
+    def withdraw(self, account: DepositAccount, amount):
         pass
     
     
