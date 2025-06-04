@@ -17,6 +17,9 @@ if TYPE_CHECKING:
     from .agents.issuer import DepositIssuer
 
 
+__all__ = ["DepositAccount",]
+
+
 class DepositAccount(Instrument):
     """...
     

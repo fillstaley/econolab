@@ -17,9 +17,8 @@ from .counters import CounterCollection
 if TYPE_CHECKING:
     from .model import EconoModel
 
-# @runtime_checkable
-# class EconoModel(Protocol):
-#     EconoCalendar: type[EconoCalendar]
+
+__all__ = ["EconoAgent", "AgentType"]
 
 
 class AgentType(EconoMeta):

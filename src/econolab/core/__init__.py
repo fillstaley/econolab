@@ -14,3 +14,6 @@ from .model import EconoModel
 # expose agent base
 from .agent import EconoAgent
 from .counters import CounterCollection
+
+# expose product base
+from .product import *

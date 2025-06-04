@@ -7,7 +7,10 @@
 from abc import abstractmethod
 from typing import TYPE_CHECKING
 
-from ...core import EconoMeta
+from ...core import EconoProduct, ProductType
+
+
+__all__ = ["Instrument", "InstrumentType",]
 
 
 if TYPE_CHECKING:
@@ -16,9 +19,9 @@ if TYPE_CHECKING:
     from .agents.creditor import Creditor
 
 
-class InstrumentType(EconoMeta):
+class InstrumentType(ProductType):
     pass
 
 
-class Instrument(metaclass=InstrumentType):
+class Instrument(EconoProduct, metaclass=InstrumentType):
     pass

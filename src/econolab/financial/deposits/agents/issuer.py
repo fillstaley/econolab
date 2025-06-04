@@ -7,13 +7,23 @@
 from __future__ import annotations
 
 from collections import defaultdict, deque
-from typing import cast
+from typing import cast, Protocol, runtime_checkable, TYPE_CHECKING
 
 from ..._instrument import Issuer, Debtor, InstrumentType
 from ..base import DepositAccount
 from ..specs import DepositSpecification
-from ..model import DepositModel
 from .depositor import Depositor
+
+if TYPE_CHECKING:
+    from ..market import DepositMarket
+
+
+__all__ = ["DepositIssuer",]
+
+
+@runtime_checkable
+class DepositModel(Protocol):
+    deposit_market: DepositMarket
 
 
 class DepositIssuer(Issuer, Debtor, Depositor):

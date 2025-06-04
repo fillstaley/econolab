@@ -4,15 +4,20 @@
 
 """
 
+from __future__ import annotations
+
 from dataclasses import dataclass
+
+from ...core import ProductSpecification
+
+
+__all__ = ["InstrumentSpecification",]
 
 
 @dataclass(frozen=True, slots=True)
-class InstrumentSpecification:
-    name: str
-    
+class InstrumentSpecification(ProductSpecification):
     def __post_init__(self) -> None:
-        pass
+        super(InstrumentSpecification, self).__post_init__()
     
     def to_dict(self) -> dict:
-        return {}
+        return super(InstrumentSpecification, self).to_dict()

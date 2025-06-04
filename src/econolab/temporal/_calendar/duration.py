@@ -17,7 +17,7 @@ from ...core.meta import EconoMeta
 @runtime_checkable
 class EconoCalendar(Protocol):
     days_per_week: int
-    days_per_month_seq: Sequence[int]
+    days_per_month_tuple: tuple[int]
     start_year: int
     start_month: int
     start_day: int

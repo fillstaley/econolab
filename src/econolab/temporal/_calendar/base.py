@@ -27,22 +27,9 @@ class EconoAgent(Protocol):
 
 class EconoCalendar(metaclass=EconoMeta):
     """A class that specifies the temporal structure of an EconoLab model.
-
+    
     ...
-    
     """
-    
-    __constant_attrs__ = {
-        "model",
-        "days_per_week",
-        "days_per_month_seq",
-        "start_year",
-        "start_month",
-        "start_day",
-        "max_year",
-        "steps_to_days_ratio"
-    }
-    __slots__ = ("_agent",)
     
     class StepsDaysRatio(NamedTuple):
         steps: int
@@ -77,21 +64,36 @@ class EconoCalendar(metaclass=EconoMeta):
             return days * self.steps // self.days
     
     
-    ####################
-    # Class Attributes #
-    ####################
+    ##############
+    # Attributes #
+    ##############
     
+    # instance attributes
+    __slots__ = ("_agent",)
+    
+    # class attributes
+    EconoDuration: type[EconoDuration]
+    EconoDate: type[EconoDate]
+    
+    # class constants
+    __constant_attrs__ = (
+        "model",
+        "days_per_week",
+        "days_per_month_tuple",
+        "start_year",
+        "start_month",
+        "start_day",
+        "max_year",
+        "steps_to_days_ratio"
+    )
     model: EconoModel
     days_per_week: int
-    days_per_month_seq: Sequence[int]
+    days_per_month_tuple: tuple[int, ...]
     start_year: int
     start_month: int
     start_day: int
     max_year: int
     steps_to_days_ratio: StepsDaysRatio
-    
-    EconoDuration: type[EconoDuration]
-    EconoDate: type[EconoDate]
     
     
     #################
@@ -184,6 +186,14 @@ class EconoCalendar(metaclass=EconoMeta):
         """Returns the current date of the simulation."""
         cls._validate_model_binding()
         return cls.new_date_from_steps(cls.model.steps)
+    
+    @classmethod
+    def days_per_month(cls, month: int | None = None) -> int | tuple[int, ...]:
+        return cls.days_per_month_tuple[month] if month is not None else cls.days_per_month_tuple
+    
+    @classmethod
+    def days_per_year(cls) -> int:
+        return sum(cls.days_per_month_tuple)
     
     
     ##################

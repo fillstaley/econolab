@@ -147,11 +147,11 @@ class EconoDate(metaclass=EconoMeta):
             raise ValueError("Value exceeds total days in a year")
         
         days += Calendar.start_day - 1
-        days += sum(Calendar.days_per_month_seq[:Calendar.start_month - 1])
-        days += (Calendar.start_year - 1) * sum(Calendar.days_per_month_seq)
+        days += sum(Calendar.days_per_month_tuple[:Calendar.start_month - 1])
+        days += (Calendar.start_year - 1) * sum(Calendar.days_per_month_tuple)
         
-        year_offset, day_of_year = _divmod(days - 1, sum(Calendar.days_per_month_seq))
-        month_offset, day_offset = _divmod(day_of_year, Calendar.days_per_month_seq)
+        year_offset, day_of_year = _divmod(days - 1, sum(Calendar.days_per_month_tuple))
+        month_offset, day_offset = _divmod(day_of_year, Calendar.days_per_month_tuple)
         
         if (year := 1 + year_offset) > Calendar.max_year:
             raise ValueError(
@@ -170,8 +170,8 @@ class EconoDate(metaclass=EconoMeta):
     @classmethod
     def max(cls) -> EconoDate:
         Calendar = cls.EconoCalendar
-        last_month = len(Calendar.days_per_month_seq)
-        last_day = Calendar.days_per_month_seq[-1]
+        last_month = len(Calendar.days_per_month_tuple)
+        last_day = Calendar.days_per_month_tuple[-1]
         return cls(year=Calendar.max_year, month=last_month, day=last_day)
     
     @classmethod
@@ -229,8 +229,8 @@ class EconoDate(metaclass=EconoMeta):
     
     def __init__(self, year: int, month: int, day: int) -> None:
         Calendar = self.EconoCalendar
-        max_month = sum(Calendar.days_per_month_seq)
-        max_day = Calendar.days_per_month_seq[month - 1]
+        max_month = sum(Calendar.days_per_month_tuple)
+        max_day = Calendar.days_per_month_tuple[month - 1]
         
         if not Calendar.start_year <= year <= Calendar.max_year:
             raise ValueError(f"'year' must be between {Calendar.start_year} and {Calendar.max_year}")
@@ -317,8 +317,8 @@ class EconoDate(metaclass=EconoMeta):
         Calendar = self.EconoCalendar
         return (
             self.day
-            + sum(Calendar.days_per_month_seq[:self.month - 1])
-            + (self.year - Calendar.start_year) * sum(Calendar.days_per_month_seq)
+            + sum(Calendar.days_per_month_tuple[:self.month - 1])
+            + (self.year - Calendar.start_year) * sum(Calendar.days_per_month_tuple)
         )
     
     def replace(

@@ -6,11 +6,11 @@
 
 from __future__ import annotations
 
-from ...core import EconoModel
+from .._instrument.model import InstrumentModel
 from .market import DepositMarket
 
 
-class DepositModel(EconoModel):
+class DepositModel(InstrumentModel):
     """...
     
     ...

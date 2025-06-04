@@ -7,9 +7,10 @@
 # expose sub-module products
 from .base import DepositAccount
 from .specs import DepositSpecification
-
-from .model import DepositModel
+from .market import DepositMarket
 
 # expose sub-module agents
-from .agents.depositor import Depositor
-from .agents.issuer import DepositIssuer
+from .agents import Depositor, DepositIssuer
+
+# expose sub-module model
+from .model import DepositModel

@@ -1,0 +1,28 @@
+"""...
+
+...
+
+"""
+
+from __future__ import annotations
+
+from typing import cast, Generic, TypeVar, TYPE_CHECKING
+
+from ...core.product.market import ProductMarket
+from .base import Instrument
+from .agents import Issuer
+
+if TYPE_CHECKING:
+    from .model import InstrumentModel
+
+
+__all__ = ["InstrumentMarket",]
+
+
+S = TypeVar("S", bound=Issuer)
+P = TypeVar("P", bound=Instrument)
+
+class InstrumentMarket(ProductMarket[S, P], Generic[S, P]):
+    @property
+    def model(self) -> InstrumentModel:
+        return cast(InstrumentModel, self._model)

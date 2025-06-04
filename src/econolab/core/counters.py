@@ -16,11 +16,11 @@ Usage examples and further details are documented within the classes.
 
 """
 
-
 from __future__ import annotations
+
 from collections.abc import Iterator
 from numbers import Number
-from typing import Protocol, runtime_checkable, Self
+from typing import Any, Callable, Protocol, runtime_checkable, Self, overload
 
 
 @runtime_checkable
@@ -35,7 +35,7 @@ class ABFAgent(Protocol):
 
 @runtime_checkable
 class Additive(Protocol):
-    def __add__(self, other: Self) -> Self: ...
+    def __add__(self, other: Self, /) -> Self: ...
 
 
 class Counter:
@@ -82,12 +82,12 @@ class Counter:
     ##################
     
     @staticmethod
-    def validate(value: Additive, type_: type[Additive]) -> None:
+    def validate(value: Additive, type_: Callable[[Any], Additive]) -> None:
         if not isinstance(value, Additive):
             raise ValueError(
                 f"'value' must be an additive; got {type(value)} instead."
             )
-        if not issubclass(type_, Additive):
+        if not isinstance(type_, type) or not issubclass(type_, Additive):
             raise ValueError(
                 f"'type_' must be an additive type; got {type(type_)} instead."
             )
@@ -101,14 +101,14 @@ class Counter:
         self, 
         name: str,
         init_value: Additive = 0,
-        type_: type[Additive] = float,
+        type_: Callable[[Any], Additive] = float,
         persistent: bool = False
     ) -> None:
         self.validate(init_value, type_)
         
         self.name: str = name
         self._value: Additive = type_(init_value)
-        self._type: type[Additive] = type_
+        self._type = type_
         self.persistent = persistent
     
     def __repr__(self) -> str:

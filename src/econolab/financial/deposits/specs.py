@@ -13,6 +13,9 @@ from .._currency import EconoCurrency
 from .._instrument import InstrumentSpecification
 
 
+__all__ = ["DepositSpecification",]
+
+
 @dataclass(frozen=True, slots=True)
 class DepositSpecification(InstrumentSpecification):
     maturity_period: EconoDuration | None = None

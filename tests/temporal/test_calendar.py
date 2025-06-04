@@ -90,7 +90,7 @@ class TestSpecification:
     
     @pytest.mark.parametrize("key, value", (
         ("days_per_week", 5),
-        ("days_per_month_seq", [25] * 4),
+        ("days_per_month_tuple", (25,) * 4),
         ("start_year", 1_000),
         ("start_month", 2),
         ("start_day", 3),
@@ -108,8 +108,8 @@ class TestSpecification:
     
     def test_days_per_month_sequence(self, standard_spec):
         spec_dict = standard_spec.to_dict()
-        dpm = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
-        assert spec_dict["days_per_month_seq"] == dpm
+        dpm = (31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31)
+        assert spec_dict["days_per_month_tuple"] == dpm
 
 
 class TestStepsDaysRatio:

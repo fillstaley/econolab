@@ -55,7 +55,7 @@ class CalendarSpecification:
     max_year: int = field(default=9_999)
     steps_to_days: tuple[int, int] = field(default=(1, 1))
     
-    _days_per_month_seq: Sequence[int] = field(init=False)
+    _days_per_month_tuple: tuple[int, ...] = field(init=False)
     _steps_to_days_ratio: EconoCalendar.StepsDaysRatio = field(init=False)
     
     
@@ -74,7 +74,7 @@ class CalendarSpecification:
     def to_dict(self) -> dict:
         return {
             "days_per_week": self.days_per_week,
-            "days_per_month_seq": self._days_per_month_seq,
+            "days_per_month_tuple": self._days_per_month_tuple,
             "start_year": self.start_year,
             "start_month": self.start_month,
             "start_day": self.start_day,
@@ -124,11 +124,11 @@ class CalendarSpecification:
         dpm = self.days_per_month
         if isinstance(dpm, int):
             self._validate_positive_int_fields("days_per_month", "months_per_year")
-            object.__setattr__(self, "_days_per_month_seq", [dpm] * self.months_per_year)
+            object.__setattr__(self, "_days_per_month_tuple", (dpm,) * self.months_per_year)
         elif isinstance(dpm, Sequence):
             # note that we silently ignore any provided months_per_year in this case
             self._validate_positive_int_sequence("days_per_month")
-            object.__setattr__(self, "_days_per_month_seq", dpm)
+            object.__setattr__(self, "_days_per_month_tuple", tuple(dpm))
             object.__setattr__(self, "months_per_year", len(dpm))
         else:
             raise TypeError(
@@ -148,7 +148,7 @@ class CalendarSpecification:
             raise ValueError(
                 f"'start_month' ({self.start_month}) exceeds the number of months ({self.months_per_year})"
             )
-        if self.start_day > self._days_per_month_seq[self.start_month-1]:
+        if self.start_day > self._days_per_month_tuple[self.start_month-1]:
             raise ValueError(
                 f"'start_day' ({self.start_day}) exceeds the number of days in 'start_month' ({self.start_month})"
             )

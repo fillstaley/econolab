@@ -6,9 +6,15 @@
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from ..._instrument import Creditor
-from ..base import DepositAccount
-from ..model import DepositModel
+
+if TYPE_CHECKING:
+    from ..base import DepositAccount
+
+
+__all__ = ["Depositor",]
 
 
 class Depositor(Creditor):
@@ -49,6 +55,10 @@ class Depositor(Creditor):
     ###########
     
     def open_deposit_account(self) -> DepositAccount | None:
+        """The agent attempts to open a deposit account.
+        
+        ...
+        """
         offers = self.deposit_offers
         
         # TODO: limit the total number of (open) deposit applications
