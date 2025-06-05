@@ -93,7 +93,7 @@ class Loan(Instrument):
         ...
     
     @classmethod
-    def apply(cls) -> LoanApplication:
+    def apply(cls, borrower, principal) -> LoanApplication:
         ...
     
     

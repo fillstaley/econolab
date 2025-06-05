@@ -6,9 +6,10 @@
 
 from __future__ import annotations
 
-from typing import cast, Protocol, runtime_checkable, TYPE_CHECKING
+from logging import Logger
+from typing import Protocol, runtime_checkable, TYPE_CHECKING
 
-from ....core import EconoAgent
+from ....core import EconoAgent, EconoModelLike
 
 if TYPE_CHECKING:
     from ....temporal import EconoDate
@@ -17,14 +18,14 @@ if TYPE_CHECKING:
     from ..interfaces import LoanApplication, LoanDisbursement, LoanRepayment
 
 
-@runtime_checkable
-class LoanModelLike(Protocol):
+class LoanModelLike(EconoModelLike):
+    logger: Logger
     loan_market: LoanMarketLike
 
 
 @runtime_checkable
 class LoanMarketLike(Protocol):
-    def sample(self, borrower: Borrower, k: int | None) -> list[type[Loan]]: ...
+    def sample(self) -> list[type[Loan]]: ...
 
 
 class InsufficientCreditError(Exception):
@@ -43,6 +44,7 @@ class Borrower(EconoAgent):
     
     # instance attributes
     __slots__ = (
+        "credit",
         "debt_limit",
         "loan_limit",
         "loan_application_limit",
@@ -51,6 +53,7 @@ class Borrower(EconoAgent):
         "_open_loan_applications",
         "_closed_loan_application",
     )
+    credit: EconoCurrency
     debt_limit: EconoCurrency | None
     loan_limit: int | None
     loan_application_limit: int | None
@@ -78,21 +81,9 @@ class Borrower(EconoAgent):
         **kwargs
     ) -> None:
         super().__init__(*args, **kwargs)
-
-        # initialize agent counters
-        self.counters.add_counters(
-            "loans_incurred",
-            type_ = int
-        )
-
-        self.counters.add_counters(
-            "debt_incurred",
-            "debt_received",
-            "debt_repaid",
-            "credit_taken",
-            "credit_given",
-            type_ = self.Currency
-        )
+        
+        if not isinstance(self.model, LoanModelLike):
+            raise TypeError("'model' does not inherit from 'loans.LoanModel'")
         
         if debt_limit is None:
             debt_limit = self.default_debt_limit
@@ -126,6 +117,23 @@ class Borrower(EconoAgent):
             raise ValueError(
                 f"'loan_application_limit' must be nonnegative; got {loan_application_limit}"
             )
+
+        # initialize agent counters
+        self.counters.add_counters(
+            "loans_incurred",
+            type_ = int
+        )
+
+        self.counters.add_counters(
+            "debt_incurred",
+            "debt_received",
+            "debt_repaid",
+            "credit_taken",
+            "credit_given",
+            type_ = self.Currency
+        )
+        
+        self.credit = self.Currency(0)
         
         self.debt_limit = self.Currency(debt_limit) if debt_limit is not None else debt_limit
         self.loan_limit = loan_limit
@@ -140,10 +148,6 @@ class Borrower(EconoAgent):
     ##############
     # Properties #
     ##############
-    
-    @property
-    def model(self) -> LoanModelLike:
-        return cast(LoanModelLike, super().model)
     
     @property
     def loan_offers(self) -> list[LoanApplication]:
@@ -233,13 +237,13 @@ class Borrower(EconoAgent):
     ###########
     
     # TODO: this should be moved to a different agent, maybe
-    def give_credit(self, amount: float) -> Credit | None:
+    def give_credit(self, amount: EconoCurrency) -> EconoCurrency:
         """Removes credit from this agent and returns it, raising an error if insufficient."""
         if amount <= 0:
             raise ValueError("'credit' must be positive.")
         if self.credit < amount:
             raise InsufficientCreditError(f"{self} has only {self.credit}, cannot give {amount}.")
-        credit = Credit(amount)
+        credit = amount
         self.credit -= credit
         self.counters.increment("credit_given", credit)
         return credit
@@ -261,7 +265,7 @@ class Borrower(EconoAgent):
         successes = 0
         for loan in self.search_for_loans(self.loan_application_limit):
             if self.should_apply_for(loan, money_demand):
-                application = loan.apply(self, money_demand, self.calendar.today())
+                application = loan.apply(self, money_demand)
                 self._open_loan_applications.append(application)
                 successes += 1
         return successes
@@ -375,11 +379,11 @@ class Borrower(EconoAgent):
         list of LoanOption
             The loan options visible to this borrower.
         """
-        
-        if getattr(self.model, "loan_market", None) is not None:
-            return self.model.loan_market.sample(self, limit)
+        if not isinstance(self.model, LoanModelLike):
+            raise TypeError
+        return self.model.loan_market.sample()
     
-    def can_apply_for(self, loan_option: LoanOption, money_demand: float) -> bool:
+    def can_apply_for(self, loan: Loan, money_demand: float) -> bool:
         """Check if the borrower is eligible to apply for a loan.
         
         This method can be overridden to define eligibility conditions for applications.
@@ -391,7 +395,7 @@ class Borrower(EconoAgent):
         """
         return True
     
-    def should_apply_for(self, loan_option: LoanOption, money_demand: float) -> bool:
+    def should_apply_for(self, loan: type[Loan], money_demand: float) -> bool:
         """Determine whether the borrower wants to apply for a given loan.
         
         This method can be overridden to implement behavioral logic or preferences.
@@ -465,14 +469,14 @@ class Borrower(EconoAgent):
         """
         return True
     
-    def prioritize_loan_payments(self, due_payments: list[LoanPayment]) -> None:
+    def prioritize_loan_payments(self, due_payments: list[LoanRepayment]) -> None:
         """Sort or reorder loan payments in-place before making them.
         
         This method can be overridden to define a payment prioritization strategy.
         """
         pass
     
-    def can_pay_loan(self, due_payment: LoanPayment) -> bool:
+    def can_pay_loan(self, due_payment: LoanRepayment) -> bool:
         """Check if the borrower has sufficient funds to make a loan payment.
         
         This method can be overridden to enforce eligibility or liquidity checks.
@@ -484,7 +488,7 @@ class Borrower(EconoAgent):
         """
         return self.credit >= due_payment.amount_due
     
-    def should_pay_loan(self, due_payment: LoanPayment) -> bool:
+    def should_pay_loan(self, due_payment: LoanRepayment) -> bool:
         """Determine whether the borrower wants to make a payment.
         
         This method can be overridden to encode repayment preferences or behaviors.
@@ -502,7 +506,7 @@ class Borrower(EconoAgent):
     ##############
     
     # TODO: maybe this should be a (passive) action
-    def _take_credit(self, credit: Credit) -> None:
+    def _take_credit(self, credit: EconoCurrency) -> None:
         """Receive credit and increase the borrower's wallet balance.
         
         Parameters
@@ -519,12 +523,12 @@ class Borrower(EconoAgent):
         -----
         This method increments the 'credit_taken' counter.
         """
-        if not isinstance(credit, Credit):
+        if not isinstance(credit, EconoCurrency):
             raise ValueError(f"'credit' should be an instance of Credit; got {type(credit).__name__}.")
         self.credit += credit
         self.counters.increment("credit_taken", credit)
     
-    def _receive_debt(self, debt: Credit) -> None:
+    def _receive_debt(self, debt: EconoCurrency) -> None:
         """Record newly received debt and update wallet and counters.
         
         Parameters
@@ -539,7 +543,7 @@ class Borrower(EconoAgent):
         self._take_credit(debt)
         self.counters.increment("debt_received", debt)
     
-    def _repay_debt(self, debt: Credit) -> Credit:
+    def _repay_debt(self, debt: EconoCurrency) -> EconoCurrency:
         """Repay debt by transferring credit and updating counters.
         
         Parameters
