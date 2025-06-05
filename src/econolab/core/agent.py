@@ -8,7 +8,7 @@ states of other agents.
 from __future__ import annotations
 
 from abc import ABC
-from typing import Protocol, runtime_checkable, TYPE_CHECKING
+from typing import cast, Protocol, runtime_checkable, TYPE_CHECKING
 
 from .meta import EconoMeta
 from ..temporal import EconoCalendar
@@ -29,9 +29,8 @@ class EconoAgent(ABC, metaclass=AgentType):
     """Base class for agents in an EconoLab model.
     
     ...
-    
     """
-
+    
     model: EconoModel
     unique_id: int
 

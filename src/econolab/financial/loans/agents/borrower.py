@@ -6,7 +6,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import cast, Protocol, runtime_checkable, TYPE_CHECKING
 
 from ....core import EconoAgent
 
@@ -14,6 +14,17 @@ if TYPE_CHECKING:
     from ....temporal import EconoDate
     from ....financial import EconoCurrency
     from ..base import Loan
+    from ..interfaces import LoanApplication, LoanDisbursement, LoanRepayment
+
+
+@runtime_checkable
+class LoanModelLike(Protocol):
+    loan_market: LoanMarketLike
+
+
+@runtime_checkable
+class LoanMarketLike(Protocol):
+    def sample(self, borrower: Borrower, k: int | None) -> list[type[Loan]]: ...
 
 
 class InsufficientCreditError(Exception):
@@ -21,23 +32,59 @@ class InsufficientCreditError(Exception):
 
 
 class Borrower(EconoAgent):
-    APPLICATION_LIMIT: int = 3
+    """...
+    
+    ...
+    """
+    
+    ##############
+    # Attributes #
+    ##############
+    
+    # instance attributes
+    __slots__ = (
+        "debt_limit",
+        "loan_limit",
+        "loan_application_limit",
+        "_open_loans",
+        "_closed_loans",
+        "_open_loan_applications",
+        "_closed_loan_application",
+    )
+    debt_limit: EconoCurrency | None
+    loan_limit: int | None
+    loan_application_limit: int | None
+    _open_loans: list[Loan]
+    _closed_loans: list[Loan]
+    _open_loan_applications: list[LoanApplication]
+    _closed_loan_application: list[LoanApplication]
+    
+    # class attributes
+    default_debt_limit: int | float | None = None
+    default_loan_limit: int | None = None
+    default_loan_application_limit: int | None = None
+    
+    
+    ###################
+    # Special Methods #
+    ###################
     
     def __init__(
         self,
         *args,
-        application_limit: int | None = None,
         debt_limit: int | float | None = None,
+        loan_limit: int | None = None,
+        loan_application_limit: int | None = None,
         **kwargs
     ) -> None:
         super().__init__(*args, **kwargs)
-        
+
         # initialize agent counters
         self.counters.add_counters(
             "loans_incurred",
             type_ = int
         )
-        
+
         self.counters.add_counters(
             "debt_incurred",
             "debt_received",
@@ -47,23 +94,56 @@ class Borrower(EconoAgent):
             type_ = self.Currency
         )
         
-        if application_limit is not None and (not isinstance(application_limit, int) or application_limit <= 0):
-            raise ValueError(f"'application_limit' must be a positive int or None, got {application_limit}.")
-        if debt_limit is not None and (not isinstance(debt_limit, int | float) or debt_limit < 0):
-            raise ValueError(f"'debt_limit' must be a nonnegative number or None, got {debt_limit}.")
+        if debt_limit is None:
+            debt_limit = self.default_debt_limit
+        if not isinstance(debt_limit, int | float):
+            raise TypeError(
+                f"'debt_limit' must be an int or float; got {type(debt_limit).__name__}"
+            )
+        elif debt_limit < 0:
+            raise ValueError(
+                f"'debt_limit' must be nonnegative; got {debt_limit}"
+            )
         
-        self.application_limit = application_limit or self.APPLICATION_LIMIT
-        self.debt_limit = debt_limit if debt_limit is not None else float("inf")
+        if loan_limit is None:
+            loan_limit = self.default_loan_limit
+        if not isinstance(loan_limit, int):
+            raise TypeError(
+                f"'loan_limit' must be an int; got {type(loan_limit).__name__}"
+            )
+        elif loan_limit < 0:
+            raise ValueError(
+                f"'loan_limit' must be nonnegative; got {loan_limit}"
+            )
         
-        self._open_loan_applications: list[LoanApplication] = []
-        self._closed_loan_applications: list[LoanApplication] = []
+        if loan_application_limit is None:
+            loan_application_limit = self.default_loan_application_limit
+        if not isinstance(loan_application_limit, int):
+            raise TypeError(
+                f"'loan_application_limit' must be an int; got {type(loan_application_limit).__name__}"
+            )
+        elif loan_application_limit < 0:
+            raise ValueError(
+                f"'loan_application_limit' must be nonnegative; got {loan_application_limit}"
+            )
         
-        self._loans: list[Loan] = []
+        self.debt_limit = self.Currency(debt_limit) if debt_limit is not None else debt_limit
+        self.loan_limit = loan_limit
+        self.loan_application_limit = loan_application_limit
+
+        self._open_loans = []
+        self._closed_loans = []
+        self._open_loan_applications = []
+        self._closed_loan_applications = []
     
     
     ##############
     # Properties #
     ##############
+    
+    @property
+    def model(self) -> LoanModelLike:
+        return cast(LoanModelLike, super().model)
     
     @property
     def loan_offers(self) -> list[LoanApplication]:
@@ -77,7 +157,7 @@ class Borrower(EconoAgent):
         return [loan for loan in self._open_loan_applications if loan.reviewed]
     
     @property
-    def debt_load(self) -> float:
+    def debt_load(self) -> EconoCurrency:
         """Total principal value of all active loans.
         
         Returns
@@ -85,10 +165,13 @@ class Borrower(EconoAgent):
         float
             The sum of principal across all current loans held by the borrower.
         """
-        return sum(loan.principal for loan in self._loans) if self._loans else 0
+        return sum(
+            (loan.principal for loan in self._open_loans),
+            start=self.Currency(0)
+        )
     
     @property
-    def debt_capacity(self) -> float | bool:
+    def debt_capacity(self) -> EconoCurrency | bool:
         """Remaining debt the borrower can take on, given their limit.
         
         Returns
@@ -97,7 +180,7 @@ class Borrower(EconoAgent):
             The remaining capacity (in currency units) before reaching the debt limit,
             or True if no limit is set.
         """
-        return max(0, self.debt_limit - self.debt_load) if self.debt_limit is not None else True
+        return max(self.Currency(0), self.debt_limit - self.debt_load) if self.debt_limit is not None else True
     
     
     ###########
@@ -120,11 +203,11 @@ class Borrower(EconoAgent):
         date = date or self.calendar.today()
         return [
             disbursement
-            for loan in self._loans if loan.disbursement_due(date)
+            for loan in self._open_loans if loan.disbursement_due(date)
             for disbursement in loan.disbursement_schedule if disbursement.is_due(date)
         ]
     
-    def loan_payments_due(self, date: EconoDate | None = None) -> list[LoanPayment]:
+    def loan_payments_due(self, date: EconoDate | None = None) -> list[LoanRepayment]:
         """Return loan payments that are due from the borrower.
 
         Parameters
@@ -139,9 +222,9 @@ class Borrower(EconoAgent):
         """
         date = date or self.calendar.today()
         return [
-            payment
-            for loan in self._loans if loan.payment_due(date)
-            for payment in loan.payment_schedule if payment.is_due(date)
+            repayment
+            for loan in self._open_loans if loan.repayment_due(date)
+            for repayment in loan.repayment_schedule if repayment.is_due(date)
         ]
     
     
@@ -176,9 +259,9 @@ class Borrower(EconoAgent):
             The number of applications successfully submitted.
         """
         successes = 0
-        for loan_option in self.search_for_loans(self.application_limit):
-            if self.should_apply_for(loan_option, money_demand):
-                application = loan_option._apply(self, money_demand, self.calendar.today())
+        for loan in self.search_for_loans(self.loan_application_limit):
+            if self.should_apply_for(loan, money_demand):
+                application = loan.apply(self, money_demand, self.calendar.today())
                 self._open_loan_applications.append(application)
                 successes += 1
         return successes
@@ -209,13 +292,13 @@ class Borrower(EconoAgent):
             today = self.calendar.today()
             if self.can_accept_loan(app) and self.should_accept_loan(app):
                 if loan := app._accept(today):
-                    self._loans.append(loan)
+                    self._open_loans.append(loan)
                     self.counters.increment("loans_incurred")
                     self.counters.increment("debt_incurred", loan.principal)
                     
                     # TODO: refactor this into a helper method
                     for disbursement in loan.disbursement_schedule:
-                        disbursement._request(disbursement.amount_due, today)
+                        disbursement._request(today, disbursement.amount_due)
                 successes += 1
             else:
                 app._reject(today)
@@ -240,7 +323,7 @@ class Borrower(EconoAgent):
             successes += 1
         return successes
     
-    def make_loan_payments(self, *due_payments: LoanPayment) -> int:
+    def make_loan_payments(self, *due_payments: LoanRepayment) -> int:
         """
         Attempt to make payments on due loan installments.
         
@@ -277,7 +360,7 @@ class Borrower(EconoAgent):
     #########
     
     # TODO: implement this
-    def search_for_loans(self, limit: int = 1) -> list[LoanOption]:
+    def search_for_loans(self, limit: int | None = 1) -> list[type[Loan]]:
         """Return a list of available loan options up to a specified limit.
         
         This method can be overridden to define how a borrower searches for loan opportunities.
