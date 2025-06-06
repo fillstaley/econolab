@@ -7,7 +7,7 @@
 from __future__ import annotations
 
 from ...core import EconoModel
-from .._instrument import InstrumentMarket
+from .._instrument import InstrumentModel, InstrumentMarket
 from .base import Loan
 from .agents import Lender
 

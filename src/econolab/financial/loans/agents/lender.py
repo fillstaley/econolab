@@ -6,26 +6,27 @@
 
 from __future__ import annotations
 
-import logging
-logger = logging.getLogger(__name__)
-
 from collections import defaultdict, deque
-from typing import Protocol, runtime_checkable, TYPE_CHECKING
+from typing import TYPE_CHECKING
 
-from ....temporal import EconoDate
 from ..._instrument import Issuer, Creditor
-from ..base import Loan, LoanDisbursement, LoanPayment, LoanOption, LoanApplication
-from .borrower import Borrower
+from ..base import Loan
+from ..spec import LoanSpecification
+from .borrower import Borrower, LoanModelLike as BorrowerLoanModel
 
 if TYPE_CHECKING:
-    from ..market import LoanMarket
+    from ....temporal import EconoDate
+    from ....financial import EconoCurrency
+    from ..model import LoanMarket
+    from ..base import LoanApplication, LoanDisbursement, LoanRepayment
 
 
-__all__ = ["Lender",]
+__all__ = [
+    "Lender",
+]
 
 
-@runtime_checkable
-class LoanModel(Protocol):
+class LoanModelLike(BorrowerLoanModel):
     loan_market: LoanMarket
 
 
@@ -33,7 +34,7 @@ class Lender(Issuer, Creditor, Borrower):
     def __init__(
         self, 
         *args,
-        loan_specs: list[LoanSpecs] | None = None,
+        loan_specs: list[LoanSpecification] | None = None,
         limit_loan_applications_reviewed: int | None = None,
         **kwargs
     ) -> None:
@@ -44,7 +45,7 @@ class Lender(Issuer, Creditor, Borrower):
         self.counters.add_counters(
             "credit_issued",
             "credit_redeemed",
-            type_ = Credit
+            type_ = self.Currency
         )
         
         self.counters.add_counters(
@@ -56,7 +57,7 @@ class Lender(Issuer, Creditor, Borrower):
             "debt_created",
             "debt_disbursed",
             "debt_extinguished",
-            type_ = Credit
+            type_ = self.Currency
         )
         
         self._loan_options = []
@@ -71,7 +72,7 @@ class Lender(Issuer, Creditor, Borrower):
         self._loan_book: dict[Borrower, list[Loan]] = defaultdict(list)
         self._undisbursed_loans: dict[Loan, list[LoanDisbursement]] = defaultdict(list)
         
-        self.outstanding_credit: Credit = Credit(0)
+        self.outstanding_credit: EconoCurrency = self.Currency(0)
     
     
     ###########

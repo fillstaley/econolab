@@ -6,33 +6,32 @@
 
 from __future__ import annotations
 
-from logging import Logger
-from typing import Protocol, runtime_checkable, TYPE_CHECKING
+from typing import TYPE_CHECKING
 
-from ....core import EconoAgent, EconoModelLike
+from ..._instrument import Debtor, InstrumentModelLike
 
 if TYPE_CHECKING:
     from ....temporal import EconoDate
     from ....financial import EconoCurrency
     from ..base import Loan
+    from ..model import LoanMarket
     from ..interfaces import LoanApplication, LoanDisbursement, LoanRepayment
 
 
-class LoanModelLike(EconoModelLike):
-    logger: Logger
-    loan_market: LoanMarketLike
+__all__ = [
+    "Borrower",
+]
 
-
-@runtime_checkable
-class LoanMarketLike(Protocol):
-    def sample(self) -> list[type[Loan]]: ...
-
-
+# TODO: move this
 class InsufficientCreditError(Exception):
     pass
 
 
-class Borrower(EconoAgent):
+class LoanModelLike(InstrumentModelLike):
+    loan_market: LoanMarket
+
+
+class Borrower(Debtor):
     """...
     
     ...
@@ -263,7 +262,7 @@ class Borrower(EconoAgent):
             The number of applications successfully submitted.
         """
         successes = 0
-        for loan in self.search_for_loans(self.loan_application_limit):
+        for loan in self.search_for_loans(self.loan_application_limit or 1):
             if self.should_apply_for(loan, money_demand):
                 application = loan.apply(self, money_demand)
                 self._open_loan_applications.append(application)
@@ -364,7 +363,7 @@ class Borrower(EconoAgent):
     #########
     
     # TODO: implement this
-    def search_for_loans(self, limit: int | None = 1) -> list[type[Loan]]:
+    def search_for_loans(self, limit: int = 1) -> list[type[Loan]]:
         """Return a list of available loan options up to a specified limit.
         
         This method can be overridden to define how a borrower searches for loan opportunities.
@@ -381,7 +380,7 @@ class Borrower(EconoAgent):
         """
         if not isinstance(self.model, LoanModelLike):
             raise TypeError
-        return self.model.loan_market.sample()
+        return self.model.loan_market.sample(limit)
     
     def can_apply_for(self, loan: Loan, money_demand: float) -> bool:
         """Check if the borrower is eligible to apply for a loan.
