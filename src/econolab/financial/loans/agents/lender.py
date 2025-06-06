@@ -7,9 +7,9 @@
 from __future__ import annotations
 
 from collections import defaultdict, deque
-from typing import TYPE_CHECKING
+from typing import cast, TYPE_CHECKING
 
-from ..._instrument import Issuer, Creditor
+from ..._instrument import Issuer, Creditor, InstrumentType
 from ..base import Loan
 from ..spec import LoanSpecification
 from .borrower import Borrower, LoanModelLike as BorrowerLoanModel
@@ -40,6 +40,9 @@ class Lender(Issuer, Creditor, Borrower):
     ) -> None:
         super().__init__(*args, **kwargs)
         
+        if not isinstance(self.model, LoanModelLike):
+            raise TypeError("'model' does not inherit from 'loans.LoanModel'")
+        
         # initialize agent counters
         # TODO: this should be moved to a different agent, maybe
         self.counters.add_counters(
@@ -60,16 +63,14 @@ class Lender(Issuer, Creditor, Borrower):
             type_ = self.Currency
         )
         
-        self._loan_options = []
+        self._loan_book: dict[type[Loan], list[Loan]] = defaultdict(list)
         
         if loan_specs:
-            for specs in loan_specs:
-                self.create_loan_option(specs)
+            self.create_loan_class(*loan_specs)
         
         self.limit_loan_applications_reviewed = limit_loan_applications_reviewed
         self._received_loan_applications: deque[LoanApplication] = deque()
         
-        self._loan_book: dict[Borrower, list[Loan]] = defaultdict(list)
         self._undisbursed_loans: dict[Loan, list[LoanDisbursement]] = defaultdict(list)
         
         self.outstanding_credit: EconoCurrency = self.Currency(0)
@@ -93,21 +94,17 @@ class Lender(Issuer, Creditor, Borrower):
     ###########
     
     # TODO: this should be moved to a different agent, maybe
-    def issue_credit(self, amount: Credit | float) -> Credit:
+    def issue_credit(self, amount: EconoCurrency) -> EconoCurrency:
         """Creates credit and returns it. Increments `credit_issued` and updates `outstanding_credit`."""
         if amount <= 0:
             raise ValueError("'amount' must be positive.")
-        credit = Credit(amount)
+        credit = self.Currency(amount)
         self.outstanding_credit += credit
         self.counters.increment("credit_issued", credit)
         return credit
     
-    def create_loan_option(
-        self,
-        loan_specs: LoanSpecs,
-    ) -> None:
-        """
-        Create a LoanOption for the lender from a predefined LoanSpecs template.
+    def create_loan_class(self, *specs: LoanSpecification) -> None:
+        """Create a LoanOption for the lender from a predefined LoanSpecs template.
 
         This method constructs a loan offering by combining a lender's identity with
         the structural and financial parameters provided by a LoanSpecs instance.
@@ -123,21 +120,40 @@ class Lender(Issuer, Creditor, Borrower):
         *borrower_types : type[Borrower]
             Optional list of borrower types eligible to apply for this loan.
         """
-        loan_option = LoanOption.from_specifications(
-            loan_specs,
-            lender=self,
-            date_created=self.calendar.today(),
-        )
-        self._loan_options.append(loan_option)
-        
-        if getattr(self.model, "loan_market", None) is not None:
-            self.model.loan_market.register(loan_option)
+        for spec in specs:
+            if not isinstance(spec, LoanSpecification):
+                raise TypeError(
+                    f"Expected LoanSpecification, got {type(spec).__name__}"
+                )
+            
+            Sub = InstrumentType(
+                spec.name,
+                (Loan,),
+                {
+                    "lender": self,
+                    "Currency": self.Currency,
+                    **spec.to_dict()
+                }
+            )
+            Sub = cast(type[Loan], Sub)
+            self._loan_book[Sub] = []
+            self.register_loan_class(Sub)
     
-    def update_loan_option(self, loan_option: LoanOption) -> None:
+    def modify_loan_class(self, LoanSub: type[Loan]) -> None:
         raise NotImplemented
     
-    def remove_loan_option(self, loan_option: LoanOption) -> None:
+    def remove_loan_option(self, LoanSub: type[Loan]) -> None:
         raise NotImplemented
+    
+    def register_loan_class(self, *LoanSubs: type[Loan]) -> None:
+        if not isinstance(self.model, LoanModelLike):
+            raise TypeError("'model' does not inherit from 'loans.LoanModel'")
+        self.model.loan_market.register(self, *LoanSubs)
+    
+    def deregister_loan_class(self, *LoanSubs: type[Loan]) -> None:
+        if not isinstance(self.model, LoanModelLike):
+            raise TypeError("'model' does not inherit from 'loans.LoanModel'")
+        self.model.loan_market.deregister(self, *LoanSubs)
     
     def review_loan_applications(self, *received_applications: LoanApplication) -> int:
         applications = list(received_applications)
@@ -259,19 +275,19 @@ class Lender(Issuer, Creditor, Borrower):
             self.counters.increment("debt_created", loan.principal)
             return loan
     
-    def _disburse_debt(self, amount: Credit | float) -> Credit:
+    def _disburse_debt(self, amount: EconoCurrency) -> EconoCurrency:
         debt = self.issue_credit(amount)
         self.counters.increment("debt_disbursed", debt)
         return debt
     
     # TODO: this should be moved to a different agent, maybe
-    def _redeem_credit(self, credit: Credit) -> None:
+    def _redeem_credit(self, credit: EconoCurrency) -> None:
         """Destroys credit. Increments `credit_redeemed` and updates `outstanding_credit`."""
-        if not isinstance(credit, Credit):
+        if not isinstance(credit, EconoCurrency):
             raise ValueError(f"'credit' must be a Credit instance, got {type(credit).__name__}")
         self.outstanding_credit -= credit
         self.counters.increment("credit_redeemed", credit)
     
-    def _extinguish_debt(self, amount: Credit) -> None:
+    def _extinguish_debt(self, amount: EconoCurrency) -> None:
         self._redeem_credit(amount)
         self.counters.increment("debt_extinguished", amount)

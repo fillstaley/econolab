@@ -60,9 +60,9 @@ class Loan(Instrument):
     __class_constants__ = (
         "lender",
     )
-    name: str
     lender: Lender
     Currency: type[EconoCurrency]
+    name: str
     borrower_types: tuple[type[Borrower]]
     limit_per_borrower: int | None
     limit_kind: Literal["outstanding", "cumulative"]
@@ -128,6 +128,18 @@ class Loan(Instrument):
     ##############
     # Properties #
     ##############
+    
+    @property
+    def issuer(self) -> Lender:
+        return self.lender
+    
+    @property
+    def debtor(self) -> Borrower:
+        return self.borrower
+    
+    @property
+    def creditor(self) -> Lender:
+        return self.lender
     
     @property
     def balance(self) -> EconoCurrency:

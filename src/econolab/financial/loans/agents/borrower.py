@@ -379,7 +379,7 @@ class Borrower(Debtor):
             The loan options visible to this borrower.
         """
         if not isinstance(self.model, LoanModelLike):
-            raise TypeError
+            raise TypeError("'model' does not inherit from 'loans.LoanModel'")
         return self.model.loan_market.sample(limit)
     
     def can_apply_for(self, loan: Loan, money_demand: float) -> bool:
@@ -523,7 +523,7 @@ class Borrower(Debtor):
         This method increments the 'credit_taken' counter.
         """
         if not isinstance(credit, EconoCurrency):
-            raise ValueError(f"'credit' should be an instance of Credit; got {type(credit).__name__}.")
+            raise ValueError(f"'credit' should be an instance of EconoCurrency; got {type(credit).__name__}.")
         self.credit += credit
         self.counters.increment("credit_taken", credit)
     

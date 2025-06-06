@@ -7,9 +7,9 @@
 from __future__ import annotations
 
 from collections import defaultdict, deque
-from typing import cast, Protocol, runtime_checkable, TYPE_CHECKING
+from typing import cast, TYPE_CHECKING
 
-from ..._instrument import Issuer, Debtor, InstrumentType
+from ..._instrument import Issuer, Debtor, InstrumentModelLike, InstrumentType
 from ..base import DepositAccount
 from ..specs import DepositSpecification
 from .depositor import Depositor
@@ -21,8 +21,7 @@ if TYPE_CHECKING:
 __all__ = ["DepositIssuer",]
 
 
-@runtime_checkable
-class DepositModel(Protocol):
+class DepositModelLike(InstrumentModelLike):
     deposit_market: DepositMarket
 
 
@@ -54,10 +53,8 @@ class DepositIssuer(Issuer, Debtor, Depositor):
     ) -> None:
         super().__init__(*args, **kwargs)
         
-        if not isinstance(self.model, DepositModel):
-            raise TypeError(
-                f"The 'model' attribute of {type(self).__name__} must inherit from DepositModel"
-            )
+        if not isinstance(self.model, DepositModelLike):
+            raise TypeError("'model' does not inherit from 'deposits.DepositModel'")
         
         self._deposit_book = defaultdict(list)
         self._available_deposit_accounts = []
@@ -65,8 +62,6 @@ class DepositIssuer(Issuer, Debtor, Depositor):
         
         if deposit_specs:
             self.create_deposit_class(*deposit_specs)
-        
-        self.model.deposit_market.register(self)
     
     
     ###########
@@ -77,33 +72,37 @@ class DepositIssuer(Issuer, Debtor, Depositor):
         for spec in specs:
             if not isinstance(spec, DepositSpecification):
                 raise TypeError(
-                    f"Expected DepositSpecification, got {type(spec).__name__} in create_deposit_class()"
+                    f"Expected DepositSpecification, got {type(spec).__name__}"
                 )
             
-            Account = InstrumentType(
+            Sub = InstrumentType(
                 spec.name,
                 (DepositAccount,),
                 {
-                    "_issuer": self,
+                    "issuer": self,
                     "Currency": self.Currency,
                     **spec.to_dict()
                 }
             )
-            Account = cast(type[DepositAccount], Account)
-            self._deposit_book[Account] = []
-            self.register_deposit_class(Account)
+            Sub = cast(type[DepositAccount], Sub)
+            self._deposit_book[Sub] = []
+            self.register_deposit_class(Sub)
     
-    def modify_deposit_class(self, Account: type[DepositAccount], /) -> None:
-        ...
+    def modify_deposit_class(self, DepositSub: type[DepositAccount], /) -> None:
+        raise NotImplemented
     
-    def delete_deposit_class(self, Account: type[DepositAccount], /) -> None:
-        ...
+    def delete_deposit_class(self, DepositSub: type[DepositAccount], /) -> None:
+        raise NotImplemented
     
-    def register_deposit_class(self, Account: type[DepositAccount], /) -> None:
-        self._available_deposit_accounts.append(Account)
+    def register_deposit_class(self, *DepositSubs: type[DepositAccount]) -> None:
+        if not isinstance(self.model, DepositModelLike):
+            raise TypeError("'model' does not inherit from 'deposits.DepositModel'")
+        self.model.deposit_market.register(self, *DepositSubs)
     
-    def deregister_deposit_class(self, Account: type[DepositAccount], /) -> None:
-        self._available_deposit_accounts.remove(Account)
+    def deregister_deposit_class(self, *DepositSubs: type[DepositAccount]) -> None:
+        if not isinstance(self.model, DepositModelLike):
+            raise TypeError("'model' does not inherit from 'deposits.DepositModel'")
+        self.model.deposit_market.deregister(self, *DepositSubs)
     
     def review_deposit_applications(self, *applications) -> int:
         successes = 0
