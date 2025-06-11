@@ -75,9 +75,9 @@ class Loan(Instrument):
     
     # class attributes
     minimum_principal: EconoCurrency
-    maximum_principal: EconoCurrency | None
+    maximum_principal: EconoCurrency
     minimum_interest_rate: float
-    maximum_interest_rate: float | None
+    maximum_interest_rate: float
     
     
     #################
@@ -93,8 +93,16 @@ class Loan(Instrument):
         ...
     
     @classmethod
-    def apply(cls, borrower, principal) -> LoanApplication:
-        ...
+    def apply(cls, applicant: Borrower, principal: EconoCurrency) -> LoanApplication:
+        return LoanApplication(
+            cls,
+            applicant=applicant,
+            principal=principal,
+            min_principal=cls.minimum_principal,
+            min_interest=cls.minimum_interest_rate,
+            max_interest=cls.maximum_interest_rate,
+            
+        )
     
     
     ###################

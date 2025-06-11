@@ -12,13 +12,17 @@ if TYPE_CHECKING:
     from ....temporal import EconoDate
     from ..._currency import EconoCurrency
     from ..base import Loan
-    from ..agents import Borrower
+    from ..agents import Borrower, Lender
 
 
 class LoanApplication:
     """...
     
-    ...
+    LoanApplication represents a borrower's request for a loan,
+    capturing both the initial intent and the lender's response.
+    An application progresses through the following states:
+
+    - opened → reviewed → approved/denied → accepted/rejected → closed
     """
     
     ##############
@@ -26,25 +30,32 @@ class LoanApplication:
     ##############
     
     __slots__ = (
-        "_loan",
-        "_borrower",
-        "_principal",
+        "_applicant",
         "_date_opened",
-        "_approved",
         "_date_reviewed",
-        "_accepted",
-        "_date_decided",
         "_date_closed",
+        "_accepted",
+        "_loan_class",
+        "_principal_requested",
+        "_minimum_principal",
+        "_minimum_interest_rate",
+        "_maximum_interest_rate",
+        "_principal_offered",
+        "_interest_rate_offered",
     )
-    _loan: Loan
-    _borrower: Borrower
-    _principal: EconoCurrency
+    _applicant: Borrower
     _date_opened: EconoDate
-    _date_reviewed: EconoDate
-    _approved: bool
-    _date_decided: EconoDate
+    _date_reviewed: EconoDate | None
+    _date_closed: EconoDate | None
     _accepted: bool
-    _date_closed: EconoDate
+    
+    _loan_class: type[Loan]
+    _principal_requested: EconoCurrency
+    _minimum_principal: EconoCurrency
+    _minimum_interest_rate: float
+    _maximum_interest_rate: float
+    _principal_offered: EconoCurrency | None
+    _interest_rate_offered: float | None
     
     
     ###################
@@ -52,126 +63,163 @@ class LoanApplication:
     ###################
     
     def __init__(self, 
-        loan: Loan,
-        borrower: Borrower, 
-        principal: EconoCurrency, 
+        loan: type[Loan],
+        /,
+        applicant: Borrower,
+        principal: EconoCurrency,
+        min_principal: EconoCurrency,
+        min_interest: float,
+        max_interest: float,
     ) -> None:
-        self._loan = loan
-        self._borrower = borrower
-        self._principal = principal
-        self._date_opened = borrower.calendar.today()
-        
-        self._approved = False
+        self._applicant = applicant
+        self._date_opened = applicant.calendar.today()
+        self._date_reviewed = None
+        self._date_closed = None
         self._accepted = False
         
-        borrower.model.logger.debug(
-            f"LoanApplication created on {self.date_opened} by {borrower} for loan {loan}."
-        )
+        self._loan_class = loan
+        self._principal_requested = principal
+        self._minimum_principal = min_principal
+        self._minimum_interest_rate = min_interest
+        self._maximum_interest_rate = max_interest
+        self._principal_offered = None
+        self._interest_rate_offered = None
+    
     
     ##############
     # Properties #
     ##############
     
     @property
-    def loan(self) -> Loan:
-        return self._loan
-    
-    @property
-    def borrower(self) -> Borrower:
-        return self._borrower
-    
-    @property
-    def principal(self) -> EconoCurrency:
-        return self._principal
+    def applicant(self) -> Borrower:
+        return self._applicant
     
     @property
     def date_opened(self) -> EconoDate:
         return self._date_opened
     
     @property
-    def reviewed(self) -> bool:
-        return hasattr(self, "_date_reviewed")
-    
-    @property
-    def date_reviewed(self) -> EconoDate:
-        if not self.reviewed:
-            raise AttributeError(f"{self} has not been reviewed")
+    def date_reviewed(self) -> EconoDate | None:
         return self._date_reviewed
     
     @property
+    def date_closed(self) -> EconoDate | None:
+        return self._date_closed
+    
+    @property
+    def opened(self) -> bool:
+        return self.date_closed is None
+    
+    @property
+    def reviewed(self) -> bool:
+        return self.date_reviewed is not None
+    
+    @property
+    def closed(self) -> bool:
+        return self.date_closed is not None
+    
+    @property
+    def accepted(self) -> bool:
+        return self.closed and self._accepted
+    
+    @property
+    def rejected(self) -> bool:
+        return self.closed and not self.accepted
+    
+    @property
+    def loan(self) -> type[Loan]:
+        return self._loan_class
+    
+    @property
+    def principal_requested(self) -> EconoCurrency:
+        return self._principal_requested
+    
+    @property
+    def minimum_principal(self) -> EconoCurrency:
+        return self._minimum_principal
+    
+    @property
+    def minimum_interest_rate(self) -> float:
+        return self._minimum_interest_rate
+    
+    @property
+    def maximum_interest_rate(self) -> float:
+        return self._maximum_interest_rate
+    
+    @property
+    def principal_offered(self) -> EconoCurrency | None:
+        return self._principal_offered
+    
+    @property
+    def interest_rate_offered(self) -> float | None:
+        return self._interest_rate_offered
+    
+    @property
     def approved(self) -> bool:
-        return self._approved
+        return self.reviewed and bool(self.principal_offered)
     
     @property
     def denied(self) -> bool:
         return self.reviewed and not self.approved
-    
-    @property
-    def decided(self) -> bool:
-        return hasattr(self, "_date_decided")
-    
-    @property
-    def date_decided(self) -> EconoDate:
-        if not self.decided:
-            raise AttributeError(f"{self} has not been decided")
-        return self._date_decided
-    
-    @property
-    def accepted(self) -> bool:
-        return self._accepted
-    
-    @property
-    def rejected(self) -> bool:
-        return self.decided and not self.accepted
-    
-    @property
-    def closed(self) -> bool:
-        return hasattr(self, "_date_closed")
-    
-    @property
-    def date_closed(self) -> EconoDate:
-        if not self.closed:
-            raise AttributeError(f"{self} is not closed")
-        return self._date_closed
     
     
     ###########
     # Methods #
     ###########
     
-    def _approve(self, date: EconoDate) -> None:
+    def _close(self) -> None:
+        if not self.closed:
+            self._date_closed = self.applicant.calendar.today()
+    
+    def _approve(self, lender: Lender, amount: EconoCurrency, rate: float) -> None:
         if self.reviewed:
-            self.borrower.model.logger.debug("LoanApplication is already reviewed: approval attempt ignored.")
-            return
-        self._approved = True
-        self._date_reviewed = date
-        self.borrower.model.logger.info(f"LoanApplication approved by {self.loan.lender} on {date}.")
+            lender.model.logger.warning(
+                "LoanApplication is already reviewed: approval attempt ignored."
+            )
+        else:
+            self._date_reviewed = lender.calendar.today()
+            self._principal_offered = amount
+            self._interest_rate_offered = rate
+            lender.model.logger.debug(
+                "LoanApplication approved by %s on %s.", lender, self.date_reviewed
+            )
     
-    def _deny(self, date: EconoDate) -> None:
+    def _deny(self, lender: Lender) -> None:
         if self.reviewed:
-            self.borrower.model.logger.debug("LoanApplication is already reviewed: denial attempt ignored.")
-            return
-        self._date_reviewed = date
-        self.borrower.model.logger.info(f"LoanApplication rejected by {self.loan.lender} on {date}.")
+            lender.model.logger.warning(
+                "LoanApplication is already reviewed: denial attempt ignored."
+            )
+        else:
+            self._date_reviewed = lender.calendar.today()
+            self._close()
+            lender.model.logger.debug(
+                "LoanApplication rejected by %s on %s.", lender, self.date_reviewed
+            )
     
-    def _accept(self, date: EconoDate) -> Loan | None:
-        if self.decided:
-            self.borrower.model.logger.warning("LoanApplication is already decided: acceptance attempt ignored.")
-            return
-        if not self.approved:
-            self.borrower.model.logger.warning("LoanApplication is not approved: cannot accept.")
-            return
-        self._accepted = True
-        self._date_decided = date
-        self.borrower.model.logger.info(f"LoanApplication accepted by {self.borrower} on {date}.")
-        return self.loan.lender._create_debt(self)
+    def _accept(self, applicant: Borrower) -> Loan | None:
+        if self.closed:
+            applicant.model.logger.warning(
+                "LoanApplication is already closed: acceptance attempt ignored."
+            )
+        elif not self.approved:
+            applicant.model.logger.warning(
+                "LoanApplication is not approved: cannot accept."
+            )
+        else:
+            self._close()
+            self._accepted = True
+            applicant.model.logger.debug(
+                "LoanApplication accepted by %s on %s.", applicant, self.date_closed
+            )
+            return self.loan.lender._create_debt(self)
     
-    def _reject(self, date: EconoDate) -> None:
-        if self.decided:
-            self.borrower.model.logger.warning("LoanApplication is already decided: rejection attempt ignored.")
-            return
-        self._date_decided = date
-        self.borrower.model.logger.info(f"LoanApplication rejected by {self.borrower} on {date}.")
-    
-    def _close(self, date: EconoDate) -> None:
-        self._date_closed = date
+    def _reject(self, applicant: Borrower) -> None:
+        if self.closed:
+            applicant.model.logger.warning(
+                "LoanApplication is already closed: rejection attempt ignored."
+            )
+        else:
+            self._close()
+            applicant.model.logger.info(
+                "LoanApplication rejected by %s on %s.", applicant, self.date_closed
+            )

@@ -158,7 +158,7 @@ class Lender(Issuer, Creditor, Borrower):
     def review_loan_applications(self, *received_applications: LoanApplication) -> int:
         applications = list(received_applications)
         
-        if any(app.lender is not self for app in applications):
+        if any(app.loan.lender is not self for app in applications):
             raise ValueError(f"All submitted applications must be for {self}; some are not.")
 
         if not received_applications:
@@ -169,15 +169,14 @@ class Lender(Issuer, Creditor, Borrower):
                 self._received_loan_applications.popleft() for _ in range(N)
             ]
 
-        today = self.calendar.today()
         successes = 0
         for app in applications:
             if self.can_approve_loan(app) and self.should_approve_loan(app):
-                app._approve(today)
+                app._approve(self, app.principal_requested, app.minimum_interest_rate)
                 successes += 1
             # TODO: introduce deferred applications when lending becomes dynamic
             else:
-                app._deny(today)
+                app._deny(self)
         return successes
     
     def make_loan_disbursements(self, *due_disbursements: LoanDisbursement) -> int:
@@ -237,23 +236,8 @@ class Lender(Issuer, Creditor, Borrower):
     # Primitives #
     ##############
     
-    def _create_application(
-        self, 
-        loan_option: LoanOption,
-        borrower: Borrower, 
-        principal: Credit, 
-        date: EconoDate
-    ) -> LoanApplication:
-        application = LoanApplication(
-            lender=self,
-            borrower=borrower,
-            principal=principal,
-            date_opened=date,
-            term=loan_option.term,
-            interest_rate=loan_option.min_interest_rate
-        )
+    def _receive_loan_application(self, application: LoanApplication) -> None:
         self._received_loan_applications.append(application)
-        return application
     
     def _create_debt(self, application: LoanApplication) -> Loan | None:
         if application.accepted and not application.closed:
