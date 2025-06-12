@@ -54,8 +54,8 @@ class LoanApplication:
     _minimum_principal: EconoCurrency
     _minimum_interest_rate: float
     _maximum_interest_rate: float
-    _principal_offered: EconoCurrency | None
-    _interest_rate_offered: float | None
+    _principal_offered: EconoCurrency
+    _interest_rate_offered: float
     
     
     ###################
@@ -82,8 +82,10 @@ class LoanApplication:
         self._minimum_principal = min_principal
         self._minimum_interest_rate = min_interest
         self._maximum_interest_rate = max_interest
-        self._principal_offered = None
-        self._interest_rate_offered = None
+        self._principal_offered = self.Loan.Currency(0)
+        self._interest_rate_offered = 0.0
+        
+        self.lender._register_loan_application(self)
     
     
     ##############
@@ -127,8 +129,12 @@ class LoanApplication:
         return self.closed and not self.accepted
     
     @property
-    def loan(self) -> type[Loan]:
+    def Loan(self) -> type[Loan]:
         return self._loan_class
+    
+    @property
+    def lender(self) -> Lender:
+        return self.Loan.lender
     
     @property
     def principal_requested(self) -> EconoCurrency:
@@ -147,16 +153,16 @@ class LoanApplication:
         return self._maximum_interest_rate
     
     @property
-    def principal_offered(self) -> EconoCurrency | None:
+    def principal_offered(self) -> EconoCurrency:
         return self._principal_offered
     
     @property
-    def interest_rate_offered(self) -> float | None:
+    def interest_rate_offered(self) -> float:
         return self._interest_rate_offered
     
     @property
     def approved(self) -> bool:
-        return self.reviewed and bool(self.principal_offered)
+        return bool(self.principal_offered)
     
     @property
     def denied(self) -> bool:
@@ -171,55 +177,55 @@ class LoanApplication:
         if not self.closed:
             self._date_closed = self.applicant.calendar.today()
     
-    def _approve(self, lender: Lender, amount: EconoCurrency, rate: float) -> None:
+    def _approve(self, amount: EconoCurrency, rate: float) -> None:
         if self.reviewed:
-            lender.model.logger.warning(
+            self.lender.model.logger.warning(
                 "LoanApplication is already reviewed: approval attempt ignored."
             )
         else:
-            self._date_reviewed = lender.calendar.today()
+            self._date_reviewed = self.lender.calendar.today()
             self._principal_offered = amount
             self._interest_rate_offered = rate
-            lender.model.logger.debug(
-                "LoanApplication approved by %s on %s.", lender, self.date_reviewed
+            self.lender.model.logger.debug(
+                "LoanApplication approved by %s on %s.", self.lender, self.date_reviewed
             )
     
-    def _deny(self, lender: Lender) -> None:
+    def _deny(self) -> None:
         if self.reviewed:
-            lender.model.logger.warning(
+            self.lender.model.logger.warning(
                 "LoanApplication is already reviewed: denial attempt ignored."
             )
         else:
-            self._date_reviewed = lender.calendar.today()
+            self._date_reviewed = self.lender.calendar.today()
             self._close()
-            lender.model.logger.debug(
-                "LoanApplication rejected by %s on %s.", lender, self.date_reviewed
+            self.lender.model.logger.debug(
+                "LoanApplication rejected by %s on %s.", self.lender, self.date_reviewed
             )
     
-    def _accept(self, applicant: Borrower) -> Loan | None:
+    def _accept(self) -> Loan | None:
         if self.closed:
-            applicant.model.logger.warning(
+            self.applicant.model.logger.warning(
                 "LoanApplication is already closed: acceptance attempt ignored."
             )
         elif not self.approved:
-            applicant.model.logger.warning(
+            self.applicant.model.logger.warning(
                 "LoanApplication is not approved: cannot accept."
             )
         else:
             self._close()
             self._accepted = True
-            applicant.model.logger.debug(
-                "LoanApplication accepted by %s on %s.", applicant, self.date_closed
+            self.applicant.model.logger.debug(
+                "LoanApplication accepted by %s on %s.", self.applicant, self.date_closed
             )
-            return self.loan.lender._create_debt(self)
+            return self.Loan.from_application(self)
     
-    def _reject(self, applicant: Borrower) -> None:
+    def _reject(self) -> None:
         if self.closed:
-            applicant.model.logger.warning(
+            self.applicant.model.logger.warning(
                 "LoanApplication is already closed: rejection attempt ignored."
             )
         else:
             self._close()
-            applicant.model.logger.info(
-                "LoanApplication rejected by %s on %s.", applicant, self.date_closed
+            self.applicant.model.logger.info(
+                "LoanApplication rejected by %s on %s.", self.applicant, self.date_closed
             )

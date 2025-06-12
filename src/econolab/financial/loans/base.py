@@ -104,6 +104,15 @@ class Loan(Instrument):
             
         )
     
+    @classmethod
+    def from_application(cls, application: LoanApplication, /) -> Loan | None:
+        if application.approved and application.accepted:
+            return cls(
+                borrower=application.applicant,
+                principal=application.principal_offered,
+                interest_rate=application.interest_rate_offered,
+            )
+    
     
     ###################
     # Special Methods #
@@ -113,21 +122,21 @@ class Loan(Instrument):
         self,
         borrower: Borrower,
         principal: EconoCurrency,
-        date_opened: EconoDate,
         interest_rate: float,
     ) -> None:
         if not isinstance(borrower, Borrower):
-            raise TypeError
+            raise TypeError(f"'borrower' ({borrower}) does not inherit from loans.Borrower")
         
         self._borrower = borrower
         self._balance = principal
-        self._date_opened = date_opened
-        self._date_closed = None
         self._interest_rate = interest_rate
         self._accrued_interest = self.Currency(0)
-        
         self.disbursement_schedule = self.disbursement_policy(self)
         self.repayment_schedule = []
+        self._date_opened = borrower.calendar.today()
+        self._date_closed = None
+        
+        self.lender._register_loan_instance(self)
     
     def __repr__(self) -> str:
         return f"<Loan of {self.principal} from {self.lender} to {self.borrower} on {self.date_opened}>"

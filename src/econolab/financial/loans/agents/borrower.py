@@ -264,7 +264,7 @@ class Borrower(Debtor):
         successes = 0
         for loan in self.search_for_loans(self.loan_application_limit or 1):
             if self.should_apply_for(loan, money_demand):
-                application = loan.apply(self, money_demand)
+                application = loan.apply(self, self.Currency(money_demand))
                 self._open_loan_applications.append(application)
                 successes += 1
         return successes
@@ -294,7 +294,7 @@ class Borrower(Debtor):
         for app in offers:
             today = self.calendar.today()
             if self.can_accept_loan(app) and self.should_accept_loan(app):
-                if loan := app._accept(today):
+                if loan := app._accept():
                     self._open_loans.append(loan)
                     self.counters.increment("loans_incurred")
                     self.counters.increment("debt_incurred", loan.principal)
@@ -304,7 +304,7 @@ class Borrower(Debtor):
                         disbursement._request(today, disbursement.amount_due)
                 successes += 1
             else:
-                app._reject(today)
+                app._reject()
         return successes
     
     # TODO: change this to a method for requesting disbursements
@@ -380,7 +380,7 @@ class Borrower(Debtor):
         """
         if not isinstance(self.model, LoanModelLike):
             raise TypeError("'model' does not inherit from 'loans.LoanModel'")
-        return self.model.loan_market.sample(limit)
+        return self.model.loan_market.sample(self, limit)
     
     def can_apply_for(self, loan: Loan, money_demand: float) -> bool:
         """Check if the borrower is eligible to apply for a loan.

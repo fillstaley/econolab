@@ -172,11 +172,11 @@ class Lender(Issuer, Creditor, Borrower):
         successes = 0
         for app in applications:
             if self.can_approve_loan(app) and self.should_approve_loan(app):
-                app._approve(self, app.principal_requested, app.minimum_interest_rate)
+                app._approve(app.principal_requested, app.minimum_interest_rate)
                 successes += 1
             # TODO: introduce deferred applications when lending becomes dynamic
             else:
-                app._deny(self)
+                app._deny()
         return successes
     
     def make_loan_disbursements(self, *due_disbursements: LoanDisbursement) -> int:
@@ -236,8 +236,11 @@ class Lender(Issuer, Creditor, Borrower):
     # Primitives #
     ##############
     
-    def _receive_loan_application(self, application: LoanApplication) -> None:
+    def _register_loan_application(self, application: LoanApplication, /) -> None:
         self._received_loan_applications.append(application)
+    
+    def _register_loan_instance(self, loan: Loan, /) -> None:
+        ...
     
     def _create_debt(self, application: LoanApplication) -> Loan | None:
         if application.accepted and not application.closed:
