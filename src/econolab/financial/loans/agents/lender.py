@@ -12,22 +12,17 @@ from typing import cast, TYPE_CHECKING
 from ..._instrument import Issuer, Creditor, InstrumentType
 from ..base import Loan
 from ..spec import LoanSpecification
-from .borrower import Borrower, LoanModelLike as BorrowerLoanModel
+from .borrower import Borrower, LoanModelLike
 
 if TYPE_CHECKING:
     from ....temporal import EconoDate
     from ....financial import EconoCurrency
-    from ..model import LoanMarket
     from ..base import LoanApplication, LoanDisbursement, LoanRepayment
 
 
 __all__ = [
     "Lender",
 ]
-
-
-class LoanModelLike(BorrowerLoanModel):
-    loan_market: LoanMarket
 
 
 class Lender(Issuer, Creditor, Borrower):
@@ -158,7 +153,7 @@ class Lender(Issuer, Creditor, Borrower):
     def review_loan_applications(self, *received_applications: LoanApplication) -> int:
         applications = list(received_applications)
         
-        if any(app.loan.lender is not self for app in applications):
+        if any(app.lender is not self for app in applications):
             raise ValueError(f"All submitted applications must be for {self}; some are not.")
 
         if not received_applications:
@@ -240,27 +235,10 @@ class Lender(Issuer, Creditor, Borrower):
         self._received_loan_applications.append(application)
     
     def _register_loan_instance(self, loan: Loan, /) -> None:
-        ...
-    
-    def _create_debt(self, application: LoanApplication) -> Loan | None:
-        if application.accepted and not application.closed:
-            today = self.calendar.today()
-            application._close(today)
-            
-            borrower = application.borrower
-            loan = Loan(
-                lender=self,
-                borrower=borrower,
-                date_created=today,
-                principal=application.principal,
-                interest_rate=application.interest_rate,
-                term=application.term,
-            )
-            self._loan_book[borrower].append(loan)
-            self._undisbursed_loans[loan].extend(loan.disbursement_schedule)
-            self.counters.increment("loans_created")
-            self.counters.increment("debt_created", loan.principal)
-            return loan
+        self._loan_book[type(loan)].append(loan)
+        self._undisbursed_loans[loan].extend(loan.disbursement_schedule)
+        self.counters.increment("loans_created")
+        self.counters.increment("debt_created", loan.principal)
     
     def _disburse_debt(self, amount: EconoCurrency) -> EconoCurrency:
         debt = self.issue_credit(amount)
