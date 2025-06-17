@@ -14,9 +14,7 @@ __all__ = ["Instrument", "InstrumentType",]
 
 
 if TYPE_CHECKING:
-    from .agents.issuer import Issuer
-    from .agents.debtor import Debtor
-    from .agents.creditor import Creditor
+    from .agents import Issuer, Debtor, Creditor
 
 
 class InstrumentType(ProductType):
