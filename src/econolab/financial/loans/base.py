@@ -132,6 +132,7 @@ class Loan(Instrument):
         self.repayment_schedule = self.repayment_policy(self)
         
         self.lender._register_loan_instance(self)
+        self.lender._process_loan_disbursement(self)
     
     def __repr__(self) -> str:
         return f"<Loan of {self.principal} from {self.lender} to {self.borrower} on {self.date_opened}>"

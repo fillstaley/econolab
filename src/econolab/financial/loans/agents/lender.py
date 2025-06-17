@@ -9,7 +9,7 @@ from __future__ import annotations
 from collections import defaultdict, deque
 from typing import cast, TYPE_CHECKING
 
-from ..._instrument import Issuer, Creditor, InstrumentType
+from ..._instrument import Issuer, Creditor, Instrument, InstrumentType
 from ..base import Loan
 from ..spec import LoanSpecification
 from .borrower import Borrower, LoanModelLike
@@ -17,6 +17,7 @@ from .borrower import Borrower, LoanModelLike
 if TYPE_CHECKING:
     from ....financial import EconoCurrency
     from ..base import LoanApplication
+    from ..interfaces import LoanRepayment
 
 
 __all__ = [
@@ -38,22 +39,14 @@ class Lender(Issuer, Creditor, Borrower):
             raise TypeError("'model' does not inherit from 'loans.LoanModel'")
         
         # initialize agent counters
-        # TODO: this should be moved to a different agent, maybe
-        self.counters.add_counters(
-            "credit_issued",
-            "credit_redeemed",
-            type_ = self.Currency
-        )
-        
         self.counters.add_counters(
             "loans_created",
             type_ = int
         )
         
         self.counters.add_counters(
-            "debt_created",
-            "debt_disbursed",
-            "debt_extinguished",
+            "loan_funds_disbursed",
+            "loan_funds_redeemed",
             type_ = self.Currency
         )
         
@@ -77,15 +70,8 @@ class Lender(Issuer, Creditor, Borrower):
     # Actions #
     ###########
     
-    # TODO: this should be moved to a different agent, maybe
-    def issue_credit(self, amount: EconoCurrency) -> EconoCurrency:
-        """Creates credit and returns it. Increments `credit_issued` and updates `outstanding_credit`."""
-        if amount <= 0:
-            raise ValueError("'amount' must be positive.")
-        credit = self.Currency(amount)
-        self.outstanding_credit += credit
-        self.counters.increment("credit_issued", credit)
-        return credit
+    def give_money(self, to, amount: EconoCurrency, form: type[Instrument]) -> None:
+        pass
     
     def create_loan_class(self, *specs: LoanSpecification) -> None:
         """Create a LoanOption for the lender from a predefined LoanSpecs template.
@@ -168,7 +154,7 @@ class Lender(Issuer, Creditor, Borrower):
     # Hooks #
     #########
     
-    def prioritize_loan_applications(self, applications: list[LoanApplication]):
+    def prioritize_loan_applications(self, applications: list[LoanApplication]) -> None:
         pass
     
     def can_approve_loan(self, application: LoanApplication) -> bool:
@@ -188,21 +174,11 @@ class Lender(Issuer, Creditor, Borrower):
     def _register_loan_instance(self, loan: Loan, /) -> None:
         self._loan_book[type(loan)].append(loan)
         self.counters.increment("loans_created")
-        self.counters.increment("debt_created", loan.principal)
+        
+    def _process_loan_disbursement(self, loan: Loan, /) -> None:
+        self.give_money(to=loan.borrower, amount=loan.principal, form=loan.disbursement_form)
+        self.counters.increment("loan_funds_disbursed", loan.principal)
     
-    def _disburse_debt(self, amount: EconoCurrency) -> EconoCurrency:
-        debt = self.issue_credit(amount)
-        self.counters.increment("debt_disbursed", debt)
-        return debt
-    
-    # TODO: this should be moved to a different agent, maybe
-    def _redeem_credit(self, credit: EconoCurrency) -> None:
-        """Destroys credit. Increments `credit_redeemed` and updates `outstanding_credit`."""
-        if not isinstance(credit, EconoCurrency):
-            raise ValueError(f"'credit' must be a Credit instance, got {type(credit).__name__}")
-        self.outstanding_credit -= credit
-        self.counters.increment("credit_redeemed", credit)
-    
-    def _extinguish_debt(self, amount: EconoCurrency) -> None:
-        self._redeem_credit(amount)
-        self.counters.increment("debt_extinguished", amount)
+    def _process_loan_repayment(self, loan_repayment: LoanRepayment, /) -> None:
+        if loan_repayment.amount_paid is not None:
+            self.counters.increment("loan_funds_redeemed", loan_repayment.amount_paid)

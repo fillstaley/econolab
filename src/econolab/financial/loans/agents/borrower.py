@@ -15,7 +15,7 @@ if TYPE_CHECKING:
     from ....financial import EconoCurrency
     from ..base import Loan
     from ..model import LoanMarket
-    from ..interfaces import LoanApplication, LoanRepayment
+    from ..interfaces import LoanApplication, LoanDisbursement, LoanRepayment
 
 
 __all__ = [
@@ -190,8 +190,28 @@ class Borrower(Debtor):
     # Methods #
     ###########
     
-    def loan_repayments_due(self, date: EconoDate | None = None) -> list[LoanRepayment]:
-        """Return loan repayments that are due from the borrower.
+    def loan_disbursements_owed(self, date: EconoDate | None = None) -> list[LoanDisbursement]:
+        """Return loan disbursements that are owed to the borrower.
+
+        Parameters
+        ----------
+        date : EconoDate, optional
+            The date to check for due disbursements. Defaults to the current model date.
+
+        Returns
+        -------
+        list of LoanDisbursement
+            Disbursements that are scheduled and due on the given date.
+        """
+        date = date or self.calendar.today()
+        return [
+            disbursement
+            for loan in self._open_loans if loan.disbursement_due(date)
+            for disbursement in loan.disbursement_schedule if disbursement.is_due(date)
+        ]
+    
+    def loan_payments_due(self, date: EconoDate | None = None) -> list[LoanRepayment]:
+        """Return loan payments that are due from the borrower.
 
         Parameters
         ----------
@@ -200,8 +220,8 @@ class Borrower(Debtor):
 
         Returns
         -------
-        list of LoanRepayment
-            Repayments that are scheduled and due on the given date.
+        list of LoanPayment
+            Payments that are scheduled and due on the given date.
         """
         date = date or self.calendar.today()
         return [
@@ -214,18 +234,6 @@ class Borrower(Debtor):
     ###########
     # Actions #
     ###########
-    
-    # TODO: this should be moved to a different agent, maybe
-    def give_credit(self, amount: EconoCurrency) -> EconoCurrency:
-        """Removes credit from this agent and returns it, raising an error if insufficient."""
-        if amount <= 0:
-            raise ValueError("'credit' must be positive.")
-        if self.credit < amount:
-            raise InsufficientCreditError(f"{self} has only {self.credit}, cannot give {amount}.")
-        credit = amount
-        self.credit -= credit
-        self.counters.increment("credit_given", credit)
-        return credit
     
     def apply_for_loans(self, money_demand: float) -> int:
         """
@@ -278,13 +286,12 @@ class Borrower(Debtor):
                     self._open_loans.append(loan)
                     self.counters.increment("loans_incurred")
                     self.counters.increment("debt_incurred", loan.principal)
-                    
                 successes += 1
             else:
                 app._reject()
         return successes
     
-    def make_loan_repayments(self, *due_repayments: LoanRepayment) -> int:
+    def make_loan_payments(self, *due_payments: LoanRepayment) -> int:
         """
         Attempt to make payments on due loan installments.
         
@@ -298,18 +305,18 @@ class Borrower(Debtor):
         int
             The number of payments successfully completed.
         """
-        repayments = list(due_repayments) or self.loan_repayments_due()
+        payments = list(due_payments) or self.loan_payments_due()
         today = self.calendar.today()
         
-        if not all(repayment.is_due(today) for repayment in repayments):
+        if not all(payment.is_due(today) for payment in payments):
             raise ValueError("All submitted payments must be due; some are not.")
         
-        if not due_repayments:
-            self.prioritize_loan_repayments(repayments)
+        if not due_payments:
+            self.prioritize_loan_payments(payments)
         
         successes = 0
-        for payment in repayments:
-            if not self.can_repay_loan(payment) and self.should_repay_loan(payment):
+        for payment in payments:
+            if not self.can_pay_loan(payment) and self.should_pay_loan(payment):
                 break
             payment._complete(today)
             successes += 1
@@ -395,27 +402,27 @@ class Borrower(Debtor):
         """
         return True
     
-    def prioritize_loan_repayments(self, due_repayments: list[LoanRepayment]) -> None:
-        """Sort or reorder loan repayments in-place before making them.
+    def prioritize_loan_payments(self, due_payments: list[LoanRepayment]) -> None:
+        """Sort or reorder loan payments in-place before making them.
         
-        This method can be overridden to define a repayment prioritization strategy.
+        This method can be overridden to define a payment prioritization strategy.
         """
         pass
     
-    def can_repay_loan(self, due_repayment: LoanRepayment) -> bool:
-        """Check if the borrower has sufficient funds to make a loan repayment.
+    def can_pay_loan(self, due_payment: LoanRepayment) -> bool:
+        """Check if the borrower has sufficient funds to make a loan payment.
         
         This method can be overridden to enforce eligibility or liquidity checks.
         
         Returns
         -------
         bool
-            True if the borrower can make the repayment, False otherwise.
+            True if the borrower can make the payment, False otherwise.
         """
-        return self.credit >= due_repayment.amount_due
+        return self.credit >= due_payment.amount_due
     
-    def should_repay_loan(self, due_payment: LoanRepayment) -> bool:
-        """Determine whether the borrower wants to make a repayment.
+    def should_pay_loan(self, due_payment: LoanRepayment) -> bool:
+        """Determine whether the borrower wants to make a payment.
         
         This method can be overridden to encode repayment preferences or behaviors.
         
@@ -430,29 +437,6 @@ class Borrower(Debtor):
     ##############
     # Primitives #
     ##############
-    
-    # TODO: maybe this should be a (passive) action
-    def _take_credit(self, credit: EconoCurrency) -> None:
-        """Receive credit and increase the borrower's wallet balance.
-        
-        Parameters
-        ----------
-        credit : Credit
-            The credit amount to add.
-        
-        Raises
-        ------
-        ValueError
-            If the credit is not an instance of Credit.
-        
-        Notes
-        -----
-        This method increments the 'credit_taken' counter.
-        """
-        if not isinstance(credit, EconoCurrency):
-            raise ValueError(f"'credit' should be an instance of EconoCurrency; got {type(credit).__name__}.")
-        self.credit += credit
-        self.counters.increment("credit_taken", credit)
     
     def _receive_debt(self, debt: EconoCurrency) -> None:
         """Record newly received debt and update wallet and counters.
