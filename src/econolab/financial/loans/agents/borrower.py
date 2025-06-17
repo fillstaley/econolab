@@ -15,7 +15,7 @@ if TYPE_CHECKING:
     from ....financial import EconoCurrency
     from ..base import Loan
     from ..model import LoanMarket
-    from ..interfaces import LoanApplication, LoanDisbursement, LoanRepayment
+    from ..interfaces import LoanApplication, LoanRepayment
 
 
 __all__ = [
@@ -190,28 +190,8 @@ class Borrower(Debtor):
     # Methods #
     ###########
     
-    def loan_disbursements_owed(self, date: EconoDate | None = None) -> list[LoanDisbursement]:
-        """Return loan disbursements that are owed to the borrower.
-
-        Parameters
-        ----------
-        date : EconoDate, optional
-            The date to check for due disbursements. Defaults to the current model date.
-
-        Returns
-        -------
-        list of LoanDisbursement
-            Disbursements that are scheduled and due on the given date.
-        """
-        date = date or self.calendar.today()
-        return [
-            disbursement
-            for loan in self._open_loans if loan.disbursement_due(date)
-            for disbursement in loan.disbursement_schedule if disbursement.is_due(date)
-        ]
-    
-    def loan_payments_due(self, date: EconoDate | None = None) -> list[LoanRepayment]:
-        """Return loan payments that are due from the borrower.
+    def loan_repayments_due(self, date: EconoDate | None = None) -> list[LoanRepayment]:
+        """Return loan repayments that are due from the borrower.
 
         Parameters
         ----------
@@ -220,8 +200,8 @@ class Borrower(Debtor):
 
         Returns
         -------
-        list of LoanPayment
-            Payments that are scheduled and due on the given date.
+        list of LoanRepayment
+            Repayments that are scheduled and due on the given date.
         """
         date = date or self.calendar.today()
         return [
@@ -299,34 +279,12 @@ class Borrower(Debtor):
                     self.counters.increment("loans_incurred")
                     self.counters.increment("debt_incurred", loan.principal)
                     
-                    # TODO: refactor this into a helper method
-                    for disbursement in loan.disbursement_schedule:
-                        disbursement._request(today, disbursement.amount_due)
                 successes += 1
             else:
                 app._reject()
         return successes
     
-    # TODO: change this to a method for requesting disbursements
-    def receive_loan_disbursements(self, *due_disbursements: LoanDisbursement) -> int:
-        disbursements = list(due_disbursements) or self.loan_disbursements_owed()
-        today = self.calendar.today()
-        
-        if not all(disbursement.is_due(today) for disbursement in disbursements):
-            raise ValueError("All submitted disbursements must be due; some are not.")
-        
-        if not due_disbursements:
-            self.prioritize_loan_disbursements_owed(disbursements)
-        
-        successes = 0
-        for disbursement in disbursements:
-            if not self.can_receive_disbursement(disbursement) and self.should_receive_disbursement(disbursement):
-                break
-            disbursement._complete(today)
-            successes += 1
-        return successes
-    
-    def make_loan_payments(self, *due_payments: LoanRepayment) -> int:
+    def make_loan_repayments(self, *due_repayments: LoanRepayment) -> int:
         """
         Attempt to make payments on due loan installments.
         
@@ -340,18 +298,18 @@ class Borrower(Debtor):
         int
             The number of payments successfully completed.
         """
-        payments = list(due_payments) or self.loan_payments_due()
+        repayments = list(due_repayments) or self.loan_repayments_due()
         today = self.calendar.today()
         
-        if not all(payment.is_due(today) for payment in payments):
+        if not all(repayment.is_due(today) for repayment in repayments):
             raise ValueError("All submitted payments must be due; some are not.")
         
-        if not due_payments:
-            self.prioritize_loan_payments(payments)
+        if not due_repayments:
+            self.prioritize_loan_repayments(repayments)
         
         successes = 0
-        for payment in payments:
-            if not self.can_pay_loan(payment) and self.should_pay_loan(payment):
+        for payment in repayments:
+            if not self.can_repay_loan(payment) and self.should_repay_loan(payment):
                 break
             payment._complete(today)
             successes += 1
@@ -437,58 +395,27 @@ class Borrower(Debtor):
         """
         return True
     
-    def prioritize_loan_disbursements_owed(self, due_disbursements: list[LoanDisbursement]) -> None:
-        """Sort or reorder loan disbursements in-place before requesting them.
+    def prioritize_loan_repayments(self, due_repayments: list[LoanRepayment]) -> None:
+        """Sort or reorder loan repayments in-place before making them.
         
-        This method can be overridden to define disbursement prioritization logic.
+        This method can be overridden to define a repayment prioritization strategy.
         """
         pass
     
-    def can_receive_disbursement(self, due_disbursement: LoanDisbursement) -> bool:
-        """Check if the borrower can receive a due disbursement.
-        
-        This method can be overridden to enforce eligibility or timing conditions.
-        
-        Returns
-        -------
-        bool
-            True if the borrower can receive the disbursement, False otherwise.
-        """
-        return True
-    
-    def should_receive_disbursement(self, due_disbursement: LoanDisbursement) -> bool:
-        """Determine whether the borrower wants to receive a disbursement.
-        
-        This method can be overridden to define behavioral preferences.
-        
-        Returns
-        -------
-        bool
-            True if the borrower wants the disbursement, False otherwise.
-        """
-        return True
-    
-    def prioritize_loan_payments(self, due_payments: list[LoanRepayment]) -> None:
-        """Sort or reorder loan payments in-place before making them.
-        
-        This method can be overridden to define a payment prioritization strategy.
-        """
-        pass
-    
-    def can_pay_loan(self, due_payment: LoanRepayment) -> bool:
-        """Check if the borrower has sufficient funds to make a loan payment.
+    def can_repay_loan(self, due_repayment: LoanRepayment) -> bool:
+        """Check if the borrower has sufficient funds to make a loan repayment.
         
         This method can be overridden to enforce eligibility or liquidity checks.
         
         Returns
         -------
         bool
-            True if the borrower can make the payment, False otherwise.
+            True if the borrower can make the repayment, False otherwise.
         """
-        return self.credit >= due_payment.amount_due
+        return self.credit >= due_repayment.amount_due
     
-    def should_pay_loan(self, due_payment: LoanRepayment) -> bool:
-        """Determine whether the borrower wants to make a payment.
+    def should_repay_loan(self, due_payment: LoanRepayment) -> bool:
+        """Determine whether the borrower wants to make a repayment.
         
         This method can be overridden to encode repayment preferences or behaviors.
         

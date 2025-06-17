@@ -16,8 +16,6 @@ if TYPE_CHECKING:
     from ...financial import EconoCurrency
     from .agents import Borrower, Lender
     from .interfaces import (
-        LoanDisbursement,
-        DisbursementPolicy,
         LoanRepayment,
         RepaymentPolicy
     )
@@ -44,7 +42,6 @@ class Loan(Instrument):
         "_borrower",
         "_interest_rate",
         "_accrued_interest",
-        "disbursement_schedule",
         "repayment_schedule",
     )
     _balance: EconoCurrency
@@ -53,7 +50,6 @@ class Loan(Instrument):
     _borrower: Borrower
     _interest_rate: float
     _accrued_interest: EconoCurrency
-    disbursement_schedule: list[LoanDisbursement]
     repayment_schedule: list[LoanRepayment]
     
     # class constants
@@ -67,10 +63,10 @@ class Loan(Instrument):
     limit_per_borrower: int | None
     limit_kind: Literal["outstanding", "cumulative"]
     term: EconoDuration
-    disbursement_policy: DisbursementPolicy
-    disbursement_window: EconoDuration
+    disbursement_form: type[Instrument]
     repayment_policy: RepaymentPolicy
     repayment_window: EconoDuration
+    repayment_forms: tuple[type[Instrument], ...]
     relative_interest_rate: bool = False
     
     # class attributes
@@ -131,10 +127,9 @@ class Loan(Instrument):
         self._balance = principal
         self._interest_rate = interest_rate
         self._accrued_interest = self.Currency(0)
-        self.disbursement_schedule = self.disbursement_policy(self)
-        self.repayment_schedule = []
         self._date_opened = borrower.calendar.today()
         self._date_closed = None
+        self.repayment_schedule = self.repayment_policy(self)
         
         self.lender._register_loan_instance(self)
     
@@ -214,22 +209,6 @@ class Loan(Instrument):
         accrued_interest = self.accrued_interest
         self.credit(accrued_interest)
         self._accrued_interest = self.Currency(0)
-    
-    def disbursement_due(self, date: EconoDate) -> bool:
-        return any(disbursement.is_due(date) for disbursement in self.disbursement_schedule)
-    
-    def disbursement_amount(self, date: EconoDate) -> EconoCurrency:
-        return sum(
-            (
-                disbursement.amount_due
-                for disbursement in self.disbursement_schedule
-                if disbursement.is_due(date)
-            ),
-            start=self.Currency(0)
-        )
-    
-    def disbursements_due(self, date: EconoDate) -> list[LoanDisbursement]:
-        return [disbursement for disbursement in self.disbursement_schedule if disbursement.is_due(date)]
     
     def repayment_due(self, date: EconoDate) -> bool:
         return any(payment.is_due(date) for payment in self.repayment_schedule)

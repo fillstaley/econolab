@@ -10,9 +10,9 @@ from typing import Callable, cast, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from ....temporal import EconoDuration, EconoDate
-    from ..._currency import EconoCurrency
+    from ....financial import EconoCurrency
+    from ..._instrument import Instrument
     from ..base import Loan
-    from .disbursement import LoanDisbursement
 
 
 class LoanRepayment:
@@ -29,14 +29,16 @@ class LoanRepayment:
         "_loan",
         "_amount_due",
         "_date_due",
-        "_payment_window",
+        "_repayment_window",
+        "_repayment_forms",
         "_amount_paid",
         "_date_paid",
     )
     _loan: Loan
     _amount_due: EconoCurrency
     _date_due: EconoDate
-    _payment_window: EconoDuration
+    _repayment_window: EconoDuration
+    _repayment_forms: tuple[type[Instrument], ...]
     _amount_paid: EconoCurrency | None
     _date_paid: EconoDate | None
     
@@ -50,12 +52,14 @@ class LoanRepayment:
         loan: Loan,
         amount_due: EconoCurrency, 
         date_due: EconoDate, 
-        payment_window: EconoDuration
+        repayment_window: EconoDuration,
+        repayment_forms: tuple[type[Instrument], ...],
     ) -> None:
         self._loan = loan
         self._amount_due = amount_due
         self._date_due = date_due
-        self._payment_window = payment_window
+        self._repayment_window = repayment_window
+        self._repayment_forms = repayment_forms
         
         self._amount_paid = None
         self._date_paid = None
@@ -86,8 +90,12 @@ class LoanRepayment:
         return self._date_due
     
     @property
-    def payment_window(self) -> EconoDuration:
-        return self._payment_window
+    def repayment_window(self) -> EconoDuration:
+        return self._repayment_window
+    
+    @property
+    def repayment_forms(self) -> tuple[type[Instrument], ...]:
+        return self._repayment_forms
     
     @property
     def paid(self) -> bool:
@@ -107,7 +115,7 @@ class LoanRepayment:
     ###########
     
     def is_due(self, date: EconoDate) -> bool:
-        return not self.paid and date >= cast(EconoDate, self.date_due - self.payment_window)
+        return not self.paid and date >= cast(EconoDate, self.date_due - self.repayment_window)
     
     def is_overdue(self, date: EconoDate) -> bool:
         return not self.paid and date > self.date_due
@@ -130,7 +138,7 @@ class RepaymentPolicy:
     def __init__(
         self,
         name: str,
-        rule: Callable[[LoanDisbursement], list[LoanRepayment]]
+        rule: Callable[[Loan], list[LoanRepayment]]
     ) -> None:
         self._name = name
         self._rule = rule
@@ -141,8 +149,8 @@ class RepaymentPolicy:
     def __str__(self) -> str:
         return f"{self.name.capitalize()} loan payment structure"
     
-    def __call__(self, loan_disbursement: LoanDisbursement) -> list[LoanRepayment]:
-        return self._rule(loan_disbursement)
+    def __call__(self, loan: Loan) -> list[LoanRepayment]:
+        return self._rule(loan)
     
     
     ##############
@@ -154,13 +162,14 @@ class RepaymentPolicy:
         return self._name
 
 
-def bullet_loan_repayment_policy(loan_disbursement: LoanDisbursement) -> list[LoanRepayment]:
+def bullet_loan_repayment_policy(loan: Loan) -> list[LoanRepayment]:
     return [
         LoanRepayment(
-            loan_disbursement.loan,
-            loan_disbursement.amount_disbursed,
-            loan_disbursement.date_disbursed + loan_disbursement.loan.term,
-            loan_disbursement.loan.repayment_window
+            loan,
+            loan.balance,
+            loan.date_opened + loan.term,
+            loan.repayment_window,
+            loan.repayment_forms
         )
     ]
 
