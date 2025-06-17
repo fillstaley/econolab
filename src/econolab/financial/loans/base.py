@@ -66,7 +66,7 @@ class Loan(Instrument):
     disbursement_form: type[Instrument]
     repayment_policy: RepaymentPolicy
     repayment_window: EconoDuration
-    repayment_forms: tuple[type[Instrument], ...]
+    repayment_form: type[Instrument]
     relative_interest_rate: bool = False
     
     # class attributes
@@ -211,18 +211,24 @@ class Loan(Instrument):
         self.credit(accrued_interest)
         self._accrued_interest = self.Currency(0)
     
-    def repayment_due(self, date: EconoDate) -> bool:
-        return any(payment.is_due(date) for payment in self.repayment_schedule)
+    def repay(self, loan_repayment: LoanRepayment) -> EconoCurrency | None:
+        self.borrower._make_loan_repayment(loan_repayment)
+        if (amount_paid := loan_repayment.amount_paid) is not None:
+            self.debit(amount_paid)
+            return amount_paid
     
-    def repayment_amount(self, date: EconoDate) -> EconoCurrency:
+    def repayment_due(self) -> bool:
+        return any(payment.is_due() for payment in self.repayment_schedule)
+    
+    def repayment_amount(self) -> EconoCurrency:
         return sum(
             (
                 repayment.amount_due
                 for repayment in self.repayment_schedule
-                if repayment.is_due(date)
+                if repayment.is_due()
             ),
             start=self.lender.Currency(0)
         )
     
-    def repayments_due(self, date: EconoDate) -> list[LoanRepayment]:
-        return [payment for payment in self.repayment_schedule if payment.is_due(date)]
+    def repayments_due(self) -> list[LoanRepayment]:
+        return [payment for payment in self.repayment_schedule if payment.is_due()]

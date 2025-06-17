@@ -13,6 +13,7 @@ if TYPE_CHECKING:
     from ....financial import EconoCurrency
     from ..._instrument import Instrument
     from ..base import Loan
+    from ..agents import Borrower, Lender
 
 
 class LoanRepayment:
@@ -30,7 +31,7 @@ class LoanRepayment:
         "_amount_due",
         "_date_due",
         "_repayment_window",
-        "_repayment_forms",
+        "_repayment_form",
         "_amount_paid",
         "_date_paid",
     )
@@ -38,7 +39,7 @@ class LoanRepayment:
     _amount_due: EconoCurrency
     _date_due: EconoDate
     _repayment_window: EconoDuration
-    _repayment_forms: tuple[type[Instrument], ...]
+    _repayment_form: type[Instrument]
     _amount_paid: EconoCurrency | None
     _date_paid: EconoDate | None
     
@@ -53,13 +54,13 @@ class LoanRepayment:
         amount_due: EconoCurrency, 
         date_due: EconoDate, 
         repayment_window: EconoDuration,
-        repayment_forms: tuple[type[Instrument], ...],
+        repayment_form: type[Instrument],
     ) -> None:
         self._loan = loan
         self._amount_due = amount_due
         self._date_due = date_due
         self._repayment_window = repayment_window
-        self._repayment_forms = repayment_forms
+        self._repayment_form = repayment_form
         
         self._amount_paid = None
         self._date_paid = None
@@ -82,6 +83,14 @@ class LoanRepayment:
         return self._loan
     
     @property
+    def lender(self) -> Lender:
+        return self.loan.lender
+    
+    @property
+    def borrower(self) -> Borrower:
+        return self.loan.borrower
+    
+    @property
     def amount_due(self) -> EconoCurrency:
         return self._amount_due
     
@@ -94,8 +103,8 @@ class LoanRepayment:
         return self._repayment_window
     
     @property
-    def repayment_forms(self) -> tuple[type[Instrument], ...]:
-        return self._repayment_forms
+    def repayment_form(self) -> type[Instrument]:
+        return self._repayment_form
     
     @property
     def paid(self) -> bool:
@@ -114,24 +123,24 @@ class LoanRepayment:
     # Methods #
     ###########
     
-    def is_due(self, date: EconoDate) -> bool:
-        return not self.paid and date >= cast(EconoDate, self.date_due - self.repayment_window)
+    def is_due(self) -> bool:
+        today = self.borrower.calendar.today()
+        earliest_repayment_date = cast(EconoDate, self.date_due - self.repayment_window)
+        return not self.paid and today >= earliest_repayment_date
     
-    def is_overdue(self, date: EconoDate) -> bool:
-        return not self.paid and date > self.date_due
+    def is_overdue(self) -> bool:
+        today = self.borrower.calendar.today()
+        return not self.paid and today > self.date_due
     
-    def _complete(self, date: EconoDate):
+    def _complete(self, amount: EconoCurrency | None = None) -> EconoCurrency | None:
         if self.paid:
-            self.loan.lender.model.logger.debug(f"LoanPayment already paid on {self._date_paid}: pay() call ignored.")
-            return False
-        elif not self.is_due(date):
-            self.loan.lender.model.logger.warning(f"Attempted payment of {self} outside of billing window.")
-            return False
-        debt = self.loan.borrower._repay_debt(self.amount_due)
-        self.loan.lender._extinguish_debt(debt)
-        self._amount_paid = debt
-        self._date_paid = date
-        return True
+            self.borrower.model.logger.debug(f"LoanPayment already paid on {self._date_paid}")
+        elif not self.is_due():
+            self.borrower.model.logger.warning(f"Attempted payment of {self} outside of billing window")
+        
+        self._amount_paid = self.borrower._make_loan_repayment(self)
+        self._date_paid = self.borrower.calendar.today()
+        return self._amount_paid
 
 
 class RepaymentPolicy:
@@ -169,7 +178,7 @@ def bullet_loan_repayment_policy(loan: Loan) -> list[LoanRepayment]:
             loan.balance,
             loan.date_opened + loan.term,
             loan.repayment_window,
-            loan.repayment_forms
+            loan.repayment_form
         )
     ]
 

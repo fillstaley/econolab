@@ -43,10 +43,8 @@ class LoanSpecification(InstrumentSpecification):
     term: EconoDuration
     limit_per_borrower: int | None = 1
     limit_kind: Literal["outstanding", "cumulative"] = "outstanding"
-    disbursement_structure: Literal["bullet", "custom"] = "bullet"
-    disbursement_window: EconoDuration | None = None
-    payment_structure: Literal["bullet", "custom"] = "bullet"
-    payment_window: EconoDuration | None = None
+    repayment_structure: Literal["bullet", "custom"] = "bullet"
+    repayment_window: EconoDuration | None = None
     borrower_types: tuple[type[Borrower]] | None = None
     
     # TODO: add some logic for the default windows

@@ -13,9 +13,10 @@ from ..._instrument import Debtor, InstrumentModelLike
 if TYPE_CHECKING:
     from ....temporal import EconoDate
     from ....financial import EconoCurrency
+    from ..._instrument import Instrument
     from ..base import Loan
     from ..model import LoanMarket
-    from ..interfaces import LoanApplication, LoanDisbursement, LoanRepayment
+    from ..interfaces import LoanApplication, LoanRepayment
 
 
 __all__ = [
@@ -190,28 +191,8 @@ class Borrower(Debtor):
     # Methods #
     ###########
     
-    def loan_disbursements_owed(self, date: EconoDate | None = None) -> list[LoanDisbursement]:
-        """Return loan disbursements that are owed to the borrower.
-
-        Parameters
-        ----------
-        date : EconoDate, optional
-            The date to check for due disbursements. Defaults to the current model date.
-
-        Returns
-        -------
-        list of LoanDisbursement
-            Disbursements that are scheduled and due on the given date.
-        """
-        date = date or self.calendar.today()
-        return [
-            disbursement
-            for loan in self._open_loans if loan.disbursement_due(date)
-            for disbursement in loan.disbursement_schedule if disbursement.is_due(date)
-        ]
-    
-    def loan_payments_due(self, date: EconoDate | None = None) -> list[LoanRepayment]:
-        """Return loan payments that are due from the borrower.
+    def loan_repayments_due(self) -> list[LoanRepayment]:
+        """Return loan repayments that are due from the borrower.
 
         Parameters
         ----------
@@ -220,14 +201,13 @@ class Borrower(Debtor):
 
         Returns
         -------
-        list of LoanPayment
-            Payments that are scheduled and due on the given date.
+        list of LoanRepayment
+            Repayments that are scheduled and due on the given date.
         """
-        date = date or self.calendar.today()
         return [
             repayment
-            for loan in self._open_loans if loan.repayment_due(date)
-            for repayment in loan.repayment_schedule if repayment.is_due(date)
+            for loan in self._open_loans if loan.repayment_due()
+            for repayment in loan.repayment_schedule if repayment.is_due()
         ]
     
     
@@ -291,34 +271,30 @@ class Borrower(Debtor):
                 app._reject()
         return successes
     
-    def make_loan_payments(self, *due_payments: LoanRepayment) -> int:
-        """
-        Attempt to make payments on due loan installments.
+    def repay_loans(self, *due_repayments: LoanRepayment) -> int:
+        """Attempt to make repayments on due loan installments.
         
         Parameters
         ----------
-        *due_payments : LoanPayment
-            Specific payments to process. If none are provided, all due payments are considered.
+        *due_repayments : LoanRepayment
+            Specific repayments to process. If none are provided, all due repayments are considered.
         
         Returns
         -------
         int
-            The number of payments successfully completed.
+            The number of repayments successfully completed.
         """
-        payments = list(due_payments) or self.loan_payments_due()
-        today = self.calendar.today()
+        repayments = list(due_repayments) or self.loan_repayments_due()
+        if not all(repayment.is_due() for repayment in repayments):
+            raise ValueError("All submitted repayments must be due; some are not.")
         
-        if not all(payment.is_due(today) for payment in payments):
-            raise ValueError("All submitted payments must be due; some are not.")
-        
-        if not due_payments:
-            self.prioritize_loan_payments(payments)
-        
+        if not due_repayments:
+            self.prioritize_loan_payments(repayments)
         successes = 0
-        for payment in payments:
-            if not self.can_pay_loan(payment) and self.should_pay_loan(payment):
+        for repayment in repayments:
+            if not self.can_repay_loan(repayment) and self.should_repay_loan(repayment):
                 break
-            payment._complete(today)
+            repayment._complete()
             successes += 1
         return successes
     
@@ -326,6 +302,9 @@ class Borrower(Debtor):
     #########
     # Hooks #
     #########
+    
+    def give_money(self, to, amount: EconoCurrency, form: type[Instrument]) -> None:
+        pass
     
     # TODO: implement this
     def search_for_loans(self, limit: int = 1) -> list[type[Loan]]:
@@ -409,7 +388,7 @@ class Borrower(Debtor):
         """
         pass
     
-    def can_pay_loan(self, due_payment: LoanRepayment) -> bool:
+    def can_repay_loan(self, due_payment: LoanRepayment) -> bool:
         """Check if the borrower has sufficient funds to make a loan payment.
         
         This method can be overridden to enforce eligibility or liquidity checks.
@@ -421,7 +400,7 @@ class Borrower(Debtor):
         """
         return self.credit >= due_payment.amount_due
     
-    def should_pay_loan(self, due_payment: LoanRepayment) -> bool:
+    def should_repay_loan(self, due_payment: LoanRepayment) -> bool:
         """Determine whether the borrower wants to make a payment.
         
         This method can be overridden to encode repayment preferences or behaviors.
@@ -438,38 +417,5 @@ class Borrower(Debtor):
     # Primitives #
     ##############
     
-    def _receive_debt(self, debt: EconoCurrency) -> None:
-        """Record newly received debt and update wallet and counters.
-        
-        Parameters
-        ----------
-        debt : Credit
-            The amount of debt received by the borrower.
-        
-        Notes
-        -----
-        This method wraps `_take_credit()` and increments the 'debt_received' counter.
-        """
-        self._take_credit(debt)
-        self.counters.increment("debt_received", debt)
-    
-    def _repay_debt(self, debt: EconoCurrency) -> EconoCurrency:
-        """Repay debt by transferring credit and updating counters.
-        
-        Parameters
-        ----------
-        debt : Credit
-            The amount of debt to repay.
-        
-        Returns
-        -------
-        Credit
-            The credit amount that was repaid.
-        
-        Notes
-        -----
-        This method uses `give_credit()` and increments the 'debt_repaid' counter.
-        """
-        debt = self.give_credit(debt)
-        self.counters.increment("debt_repaid", debt)
-        return debt
+    def _make_loan_repayment(self, loan_repayment: LoanRepayment, /) -> None:
+        self.give_money(to=loan_repayment.lender, amount=loan_repayment.amount_due, form=loan_repayment.repayment_form)
