@@ -160,18 +160,14 @@ class LoanRepayment:
         if not self.closed:
             self._date_closed = self.borrower.calendar.today()
     
-    def _complete(self, amount: EconoCurrency | None = None) -> None:
-        if self.paid:
-            self.borrower.model.logger.warning(
-                f"{self} already paid on {self._date_paid}; cannot pay again"
-            )
-        elif not self.due:
-            self.borrower.model.logger.warning(
-                f"{self} is not due; cannot pay"
-            )
-        
-        self.loan.repay(self)
-        self._close()
+    def _complete(self) -> None:
+        if not self.closed and self.due:
+            self.loan.process_repayment(self)
+            self._close()
+    
+    def _default(self) -> None:
+        if not self.closed:
+            self._close()
 
 
 class RepaymentPolicy:

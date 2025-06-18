@@ -212,9 +212,18 @@ class Loan(Instrument):
         self.credit(accrued_interest)
         self._accrued_interest = self.Currency(0)
     
-    def repay(self, repayment: LoanRepayment, /) -> None:
+    def process_repayment(
+        self,
+        repayment: LoanRepayment,
+        /,
+        *,
+        amount: EconoCurrency | None = None,
+        form: type[Instrument] | None = None,
+    ) -> None:
         if repayment.due and not repayment.closed:
-            self._repay(repayment.amount_due, repayment.repayment_form)
+            amount = amount if amount is not None else repayment.amount_due
+            form = form if form is not None else repayment.repayment_form
+            self._repay(amount=amount, form=form)
     
     def repayment_due(self) -> bool:
         return any(payment.due for payment in self.repayment_schedule)
@@ -232,9 +241,6 @@ class Loan(Instrument):
     def repayments_due(self) -> list[LoanRepayment]:
         return [payment for payment in self.repayment_schedule if payment.due]
     
-    def _repay(self, amount: EconoCurrency | None = None, form: type[Instrument] | None = None) -> None:
-        repayment_amount = amount if amount is not None else self.principal
-        repayment_form = form if form is not None else self.repayment_form
-        self.borrower._make_loan_repayment(self, amount=repayment_amount, form=repayment_form)
-        self.lender._process_loan_repayment(self, amount=repayment_amount)
-        self.debit(repayment_amount)
+    def _repay(self, amount: EconoCurrency, form: type[Instrument]) -> None:
+        self.borrower._make_loan_repayment(self, amount=amount, form=form)
+        self.debit(amount)

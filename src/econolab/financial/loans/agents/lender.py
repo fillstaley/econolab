@@ -179,18 +179,12 @@ class Lender(Issuer, Creditor, Borrower):
         self,
         loan: Loan,
         /,
-        *,
         amount: EconoCurrency,
         form: type[Instrument],
     ) -> None:
         self.give_money(to=loan.borrower, amount=amount, form=form)
+        loan.borrower._process_loan_disbursement(loan, amount)
         self.counters.increment("loan_funds_disbursed", amount)
     
-    def _process_loan_repayment(
-        self,
-        loan: Loan,
-        /,
-        *,
-        amount: EconoCurrency
-    ) -> None:
+    def _process_loan_repayment(self, loan: Loan, amount: EconoCurrency) -> None:
         self.counters.increment("loan_funds_redeemed", amount)

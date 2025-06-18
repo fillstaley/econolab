@@ -127,8 +127,6 @@ class Borrower(Debtor):
         self.counters.add_counters(
             "debt_incurred",
             "debt_repaid",
-            "credit_taken",
-            "credit_given",
             type_ = self.Currency
         )
         
@@ -263,7 +261,6 @@ class Borrower(Debtor):
                 if loan := app._accept():
                     self._open_loans.append(loan)
                     self.counters.increment("loans_incurred")
-                    self.counters.increment("debt_incurred", loan.principal)
                 successes += 1
             else:
                 app._reject()
@@ -415,21 +412,16 @@ class Borrower(Debtor):
     # Primitives #
     ##############
     
-    def _process_loan_disbursement(
-        self, loan: Loan,
-        /,
-        *,
-        amount: EconoCurrency
-    ) -> None:
+    def _process_loan_disbursement(self, loan: Loan, amount: EconoCurrency) -> None:
         self.counters.increment("debt_incurred", amount)
     
     def _make_loan_repayment(
         self,
         loan: Loan,
         /,
-        *,
         amount: EconoCurrency,
         form: type[Instrument],
     ) -> None:
         self.give_money(to=loan.lender, amount=amount, form=form)
+        loan.lender._process_loan_repayment(loan, amount)
         self.counters.increment("debt_repaid", amount)
