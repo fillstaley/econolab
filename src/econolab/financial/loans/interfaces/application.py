@@ -205,19 +205,20 @@ class LoanApplication:
     def _accept(self) -> Loan | None:
         if self.closed:
             self.applicant.model.logger.warning(
-                "LoanApplication is already closed: acceptance attempt ignored."
+                f"{self} already closed on {self.date_closed}; cannot accept again."
             )
         elif not self.approved:
             self.applicant.model.logger.warning(
-                "LoanApplication is not approved: cannot accept."
+                f"{self} is not approved; cannot accept."
             )
         else:
-            self._close()
             self._accepted = True
             self.applicant.model.logger.debug(
                 "LoanApplication accepted by %s on %s.", self.applicant, self.date_closed
             )
-            return self.Loan.from_application(self)
+            loan = self.Loan.from_application(self)
+            self._close()
+            return loan
     
     def _reject(self) -> None:
         if self.closed:

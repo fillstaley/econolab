@@ -132,7 +132,8 @@ class Loan(Instrument):
         self.repayment_schedule = self.repayment_policy(self)
         
         self.lender._register_loan_instance(self)
-        self.lender._process_loan_disbursement(self)
+        self.lender._make_loan_disbursement(self, amount=self.principal, form=self.disbursement_form)
+        self.borrower._process_loan_disbursement(self, amount=self.principal)
     
     def __repr__(self) -> str:
         return f"<Loan of {self.principal} from {self.lender} to {self.borrower} on {self.date_opened}>"
@@ -211,24 +212,29 @@ class Loan(Instrument):
         self.credit(accrued_interest)
         self._accrued_interest = self.Currency(0)
     
-    def repay(self, loan_repayment: LoanRepayment) -> EconoCurrency | None:
-        self.borrower._make_loan_repayment(loan_repayment)
-        if (amount_paid := loan_repayment.amount_paid) is not None:
-            self.debit(amount_paid)
-            return amount_paid
+    def repay(self, repayment: LoanRepayment, /) -> None:
+        if repayment.due and not repayment.closed:
+            self._repay(repayment.amount_due, repayment.repayment_form)
     
     def repayment_due(self) -> bool:
-        return any(payment.is_due() for payment in self.repayment_schedule)
+        return any(payment.due for payment in self.repayment_schedule)
     
     def repayment_amount(self) -> EconoCurrency:
         return sum(
             (
                 repayment.amount_due
                 for repayment in self.repayment_schedule
-                if repayment.is_due()
+                if repayment.due
             ),
             start=self.lender.Currency(0)
         )
     
     def repayments_due(self) -> list[LoanRepayment]:
-        return [payment for payment in self.repayment_schedule if payment.is_due()]
+        return [payment for payment in self.repayment_schedule if payment.due]
+    
+    def _repay(self, amount: EconoCurrency | None = None, form: type[Instrument] | None = None) -> None:
+        repayment_amount = amount if amount is not None else self.principal
+        repayment_form = form if form is not None else self.repayment_form
+        self.borrower._make_loan_repayment(self, amount=repayment_amount, form=repayment_form)
+        self.lender._process_loan_repayment(self, amount=repayment_amount)
+        self.debit(repayment_amount)

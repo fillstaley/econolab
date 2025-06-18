@@ -175,10 +175,22 @@ class Lender(Issuer, Creditor, Borrower):
         self._loan_book[type(loan)].append(loan)
         self.counters.increment("loans_created")
         
-    def _process_loan_disbursement(self, loan: Loan, /) -> None:
-        self.give_money(to=loan.borrower, amount=loan.principal, form=loan.disbursement_form)
-        self.counters.increment("loan_funds_disbursed", loan.principal)
+    def _make_loan_disbursement(
+        self,
+        loan: Loan,
+        /,
+        *,
+        amount: EconoCurrency,
+        form: type[Instrument],
+    ) -> None:
+        self.give_money(to=loan.borrower, amount=amount, form=form)
+        self.counters.increment("loan_funds_disbursed", amount)
     
-    def _process_loan_repayment(self, loan_repayment: LoanRepayment, /) -> None:
-        if loan_repayment.amount_paid is not None:
-            self.counters.increment("loan_funds_redeemed", loan_repayment.amount_paid)
+    def _process_loan_repayment(
+        self,
+        loan: Loan,
+        /,
+        *,
+        amount: EconoCurrency
+    ) -> None:
+        self.counters.increment("loan_funds_redeemed", amount)

@@ -32,6 +32,8 @@ class LoanRepayment:
         "_date_due",
         "_repayment_window",
         "_repayment_form",
+        "_date_opened",
+        "_date_closed",
         "_amount_paid",
         "_date_paid",
     )
@@ -40,6 +42,8 @@ class LoanRepayment:
     _date_due: EconoDate
     _repayment_window: EconoDuration
     _repayment_form: type[Instrument]
+    _date_opened: EconoDate
+    _date_closed: EconoDate | None
     _amount_paid: EconoCurrency | None
     _date_paid: EconoDate | None
     
@@ -61,7 +65,8 @@ class LoanRepayment:
         self._date_due = date_due
         self._repayment_window = repayment_window
         self._repayment_form = repayment_form
-        
+        self._date_opened = self.borrower.calendar.today()
+        self._date_closed = None
         self._amount_paid = None
         self._date_paid = None
     
@@ -99,6 +104,18 @@ class LoanRepayment:
         return self._date_due
     
     @property
+    def due(self) -> bool:
+        repayment_date = cast(EconoDate, self.date_due - self.repayment_window)
+        return (
+            not self.paid
+            and self.borrower.calendar.today() >= repayment_date
+        )
+    
+    @property
+    def overdue(self) -> bool:
+        return not self.paid and self.borrower.calendar.today() > self.date_due
+    
+    @property
     def repayment_window(self) -> EconoDuration:
         return self._repayment_window
     
@@ -107,8 +124,24 @@ class LoanRepayment:
         return self._repayment_form
     
     @property
+    def open(self) -> bool:
+        return not self.closed
+    
+    @property
+    def date_opened(self) -> EconoDate:
+        return self._date_opened
+    
+    @property
+    def closed(self) -> bool:
+        return self._date_closed is not None
+    
+    @property
+    def date_closed(self) -> EconoDate | None:
+        return self._date_closed
+    
+    @property
     def paid(self) -> bool:
-        return bool(self._amount_paid)
+        return self._date_paid is not None
     
     @property
     def amount_paid(self) -> EconoCurrency | None:
@@ -123,24 +156,22 @@ class LoanRepayment:
     # Methods #
     ###########
     
-    def is_due(self) -> bool:
-        today = self.borrower.calendar.today()
-        earliest_repayment_date = cast(EconoDate, self.date_due - self.repayment_window)
-        return not self.paid and today >= earliest_repayment_date
+    def _close(self) -> None:
+        if not self.closed:
+            self._date_closed = self.borrower.calendar.today()
     
-    def is_overdue(self) -> bool:
-        today = self.borrower.calendar.today()
-        return not self.paid and today > self.date_due
-    
-    def _complete(self, amount: EconoCurrency | None = None) -> EconoCurrency | None:
+    def _complete(self, amount: EconoCurrency | None = None) -> None:
         if self.paid:
-            self.borrower.model.logger.debug(f"LoanPayment already paid on {self._date_paid}")
-        elif not self.is_due():
-            self.borrower.model.logger.warning(f"Attempted payment of {self} outside of billing window")
+            self.borrower.model.logger.warning(
+                f"{self} already paid on {self._date_paid}; cannot pay again"
+            )
+        elif not self.due:
+            self.borrower.model.logger.warning(
+                f"{self} is not due; cannot pay"
+            )
         
-        self._amount_paid = self.borrower._make_loan_repayment(self)
-        self._date_paid = self.borrower.calendar.today()
-        return self._amount_paid
+        self.loan.repay(self)
+        self._close()
 
 
 class RepaymentPolicy:

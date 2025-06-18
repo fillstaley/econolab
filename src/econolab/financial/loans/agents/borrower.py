@@ -126,7 +126,6 @@ class Borrower(Debtor):
 
         self.counters.add_counters(
             "debt_incurred",
-            "debt_received",
             "debt_repaid",
             "credit_taken",
             "credit_given",
@@ -207,7 +206,7 @@ class Borrower(Debtor):
         return [
             repayment
             for loan in self._open_loans if loan.repayment_due()
-            for repayment in loan.repayment_schedule if repayment.is_due()
+            for repayment in loan.repayment_schedule if repayment.due
         ]
     
     
@@ -260,7 +259,6 @@ class Borrower(Debtor):
 
         successes = 0
         for app in offers:
-            today = self.calendar.today()
             if self.can_accept_loan(app) and self.should_accept_loan(app):
                 if loan := app._accept():
                     self._open_loans.append(loan)
@@ -285,7 +283,7 @@ class Borrower(Debtor):
             The number of repayments successfully completed.
         """
         repayments = list(due_repayments) or self.loan_repayments_due()
-        if not all(repayment.is_due() for repayment in repayments):
+        if not all(repayment.due for repayment in repayments):
             raise ValueError("All submitted repayments must be due; some are not.")
         
         if not due_repayments:
@@ -417,5 +415,21 @@ class Borrower(Debtor):
     # Primitives #
     ##############
     
-    def _make_loan_repayment(self, loan_repayment: LoanRepayment, /) -> None:
-        self.give_money(to=loan_repayment.lender, amount=loan_repayment.amount_due, form=loan_repayment.repayment_form)
+    def _process_loan_disbursement(
+        self, loan: Loan,
+        /,
+        *,
+        amount: EconoCurrency
+    ) -> None:
+        self.counters.increment("debt_incurred", amount)
+    
+    def _make_loan_repayment(
+        self,
+        loan: Loan,
+        /,
+        *,
+        amount: EconoCurrency,
+        form: type[Instrument],
+    ) -> None:
+        self.give_money(to=loan.lender, amount=amount, form=form)
+        self.counters.increment("debt_repaid", amount)
