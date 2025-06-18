@@ -17,7 +17,7 @@ if TYPE_CHECKING:
     from .agents import Borrower, Lender
     from .interfaces import (
         LoanRepayment,
-        RepaymentPolicy
+        LoanRepaymentPolicy
     )
 
 
@@ -64,7 +64,7 @@ class Loan(Instrument):
     limit_kind: Literal["outstanding", "cumulative"]
     term: EconoDuration
     disbursement_form: type[Instrument]
-    repayment_policy: RepaymentPolicy
+    repayment_policy: LoanRepaymentPolicy
     repayment_window: EconoDuration
     repayment_form: type[Instrument]
     relative_interest_rate: bool = False
@@ -132,8 +132,7 @@ class Loan(Instrument):
         self.repayment_schedule = self.repayment_policy(self)
         
         self.lender._register_loan_instance(self)
-        self.lender._make_loan_disbursement(self, amount=self.principal, form=self.disbursement_form)
-        self.borrower._process_loan_disbursement(self, amount=self.principal)
+        self._disburse(amount=self.principal, form=self.disbursement_form)
     
     def __repr__(self) -> str:
         return f"<Loan of {self.principal} from {self.lender} to {self.borrower} on {self.date_opened}>"
@@ -220,9 +219,9 @@ class Loan(Instrument):
         amount: EconoCurrency | None = None,
         form: type[Instrument] | None = None,
     ) -> None:
-        if repayment.due and not repayment.closed:
+        if repayment.due:
             amount = amount if amount is not None else repayment.amount_due
-            form = form if form is not None else repayment.repayment_form
+            form = form if form is not None else repayment.form
             self._repay(amount=amount, form=form)
     
     def repayment_due(self) -> bool:
@@ -241,6 +240,11 @@ class Loan(Instrument):
     def repayments_due(self) -> list[LoanRepayment]:
         return [payment for payment in self.repayment_schedule if payment.due]
     
+    def _disburse(self, amount: EconoCurrency, form: type[Instrument]) -> None:
+        self.lender._make_loan_disbursement(self, amount=amount, form=form)
+        self.borrower._process_loan_disbursement(self, amount=amount)
+        
     def _repay(self, amount: EconoCurrency, form: type[Instrument]) -> None:
         self.borrower._make_loan_repayment(self, amount=amount, form=form)
+        self.lender._process_loan_repayment(self, amount=amount)
         self.debit(amount)

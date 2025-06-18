@@ -9,6 +9,7 @@ from __future__ import annotations
 from typing import Callable, cast, TYPE_CHECKING
 
 if TYPE_CHECKING:
+    from ....core import EconoAgent
     from ....temporal import EconoDuration, EconoDate
     from ....financial import EconoCurrency
     from ..._instrument import Instrument
@@ -16,7 +17,154 @@ if TYPE_CHECKING:
     from ..agents import Borrower, Lender
 
 
-class LoanRepayment:
+class Payment:
+    __slots__ = (
+        "_payer",
+        "_recipient",
+        "_amount_due",
+        "_form",
+        "_date_due",
+        "_window",
+        "_date_opened",
+        "_date_closed",
+        "_amount_paid",
+    )
+    _payer: EconoAgent
+    _recipient: EconoAgent
+    _amount_due: EconoCurrency
+    _form: type[Instrument]
+    _date_due: EconoDate
+    _window: EconoDuration
+    _date_opened: EconoDate
+    _date_closed: EconoDate | None
+    _amount_paid: EconoCurrency | None
+    
+    
+    def __init__(
+        self,
+        payer: EconoAgent,
+        recipient: EconoAgent,
+        amount: EconoCurrency,
+        form: type[Instrument],
+        date: EconoDate,
+        window: EconoDuration,
+    ) -> None:
+        self._payer = payer
+        self._recipient = recipient
+        self._amount_due = amount
+        self._form = form
+        self._date_due = date
+        self._window = window
+        self._date_opened = payer.calendar.today()
+        
+        self._date_closed = None
+        self._amount_paid = None
+    
+    def __repr__(self) -> str:
+        status = "paid" if self.completed else "unpaid"
+        return (
+            f"<{type(self).__name__} from {self.payer} to {self.recipient}"
+            f" of {self.amount_due} due on {self.date_due} ({status})"
+        )
+    
+    
+    ##############
+    # Properties #
+    ##############
+    
+    @property
+    def payer(self) -> EconoAgent:
+        return self._payer
+    
+    @property
+    def recipient(self) -> EconoAgent:
+        return self._recipient
+    
+    @property
+    def amount_due(self) -> EconoCurrency:
+        return self._amount_due
+    
+    @property
+    def form(self) -> type[Instrument]:
+        return self._form
+    
+    @property
+    def date_due(self) -> EconoDate:
+        return self._date_due
+    
+    @property
+    def window(self) -> EconoDuration:
+        return self._window
+    
+    @property
+    def date_opened(self) -> EconoDate:
+        return self._date_opened
+    
+    @property
+    def date_closed(self) -> EconoDate | None:
+        return self._date_closed
+    
+    @property
+    def amount_paid(self) -> EconoCurrency | None:
+        return self._amount_paid
+    
+    
+    ##########
+    # States #
+    ##########
+    
+    @property
+    def open(self) -> bool:
+        return not self.closed
+    
+    @property
+    def closed(self) -> bool:
+        return self.date_closed is not None
+    
+    @property
+    def due(self) -> bool:
+        today = self.payer.calendar.today()
+        earliest_date = cast(EconoDate, self.date_due - self.window)
+        return self.open and today >= earliest_date
+    
+    @property
+    def overdue(self) -> bool:
+        today = self.payer.calendar.today()
+        return self.open and today > self.date_due
+    
+    @property
+    def completed(self) -> bool:
+        return self.closed and self.amount_paid == self.amount_due
+    
+    @property
+    def defaulted(self) -> bool:
+        return self.closed and not self.amount_paid
+    
+    
+    ###########
+    # Methods #
+    ###########
+    
+    def _close(self) -> None:
+        if not self.closed:
+            self._date_closed = self.payer.calendar.today()
+    
+    def complete(self) -> bool:
+        if not self.closed and self.due:
+            self._amount_paid = self._amount_due
+            self._close()
+            return True
+        return False
+    
+    def default(self) -> bool:
+        if not self.closed and self.due:
+            self._amount_paid = self.payer.Currency(0)
+            self._close()
+            return True
+        return False
+
+
+class LoanRepayment(Payment):
     """...
     
     ...
@@ -28,24 +176,8 @@ class LoanRepayment:
     
     __slots__ = (
         "_loan",
-        "_amount_due",
-        "_date_due",
-        "_repayment_window",
-        "_repayment_form",
-        "_date_opened",
-        "_date_closed",
-        "_amount_paid",
-        "_date_paid",
     )
     _loan: Loan
-    _amount_due: EconoCurrency
-    _date_due: EconoDate
-    _repayment_window: EconoDuration
-    _repayment_form: type[Instrument]
-    _date_opened: EconoDate
-    _date_closed: EconoDate | None
-    _amount_paid: EconoCurrency | None
-    _date_paid: EconoDate | None
     
     
     ###################
@@ -55,28 +187,21 @@ class LoanRepayment:
     def __init__(
         self,
         loan: Loan,
-        amount_due: EconoCurrency, 
-        date_due: EconoDate, 
-        repayment_window: EconoDuration,
-        repayment_form: type[Instrument],
+        /,
+        amount: EconoCurrency, 
+        form: type[Instrument],
+        date: EconoDate, 
+        window: EconoDuration,
     ) -> None:
+        super().__init__(
+            payer=loan.borrower,
+            recipient=loan.lender,
+            amount=amount,
+            form=form,
+            date=date,
+            window=window,
+        )
         self._loan = loan
-        self._amount_due = amount_due
-        self._date_due = date_due
-        self._repayment_window = repayment_window
-        self._repayment_form = repayment_form
-        self._date_opened = self.borrower.calendar.today()
-        self._date_closed = None
-        self._amount_paid = None
-        self._date_paid = None
-    
-    def __repr__(self) -> str:
-        status = "paid" if self.paid else "unpaid"
-        return f"<LoanPayment of {self.amount_due} for {self.loan} due on {self.date_due} ({status}).>"
-    
-    def __str__(self) -> str:
-        status = "Paid" if self.paid else "Unpaid"
-        return f"Loan payment of {self.amount_due} due on {self.date_due} ({status})"
     
     
     ##############
@@ -95,82 +220,26 @@ class LoanRepayment:
     def borrower(self) -> Borrower:
         return self.loan.borrower
     
-    @property
-    def amount_due(self) -> EconoCurrency:
-        return self._amount_due
-    
-    @property
-    def date_due(self) -> EconoDate:
-        return self._date_due
-    
-    @property
-    def due(self) -> bool:
-        repayment_date = cast(EconoDate, self.date_due - self.repayment_window)
-        return (
-            not self.paid
-            and self.borrower.calendar.today() >= repayment_date
-        )
-    
-    @property
-    def overdue(self) -> bool:
-        return not self.paid and self.borrower.calendar.today() > self.date_due
-    
-    @property
-    def repayment_window(self) -> EconoDuration:
-        return self._repayment_window
-    
-    @property
-    def repayment_form(self) -> type[Instrument]:
-        return self._repayment_form
-    
-    @property
-    def open(self) -> bool:
-        return not self.closed
-    
-    @property
-    def date_opened(self) -> EconoDate:
-        return self._date_opened
-    
-    @property
-    def closed(self) -> bool:
-        return self._date_closed is not None
-    
-    @property
-    def date_closed(self) -> EconoDate | None:
-        return self._date_closed
-    
-    @property
-    def paid(self) -> bool:
-        return self._date_paid is not None
-    
-    @property
-    def amount_paid(self) -> EconoCurrency | None:
-        return self._amount_paid
-    
-    @property
-    def date_paid(self) -> EconoDate | None:
-        return self._date_paid
-    
     
     ###########
     # Methods #
     ###########
     
-    def _close(self) -> None:
-        if not self.closed:
-            self._date_closed = self.borrower.calendar.today()
-    
-    def _complete(self) -> None:
-        if not self.closed and self.due:
+    def complete(self) -> bool:
+        if self.due:
             self.loan.process_repayment(self)
-            self._close()
+            super().complete()
+            return True
+        return False
     
-    def _default(self) -> None:
-        if not self.closed:
-            self._close()
+    def default(self) -> bool:
+        if self.due:
+            super().default()
+            return True
+        return False
 
 
-class RepaymentPolicy:
+class LoanRepaymentPolicy:
     def __init__(
         self,
         name: str,
@@ -178,12 +247,6 @@ class RepaymentPolicy:
     ) -> None:
         self._name = name
         self._rule = rule
-    
-    def __repr__(self) -> str:
-        return f"<LoanPaymentStructure '{self.name}'>"
-    
-    def __str__(self) -> str:
-        return f"{self.name.capitalize()} loan payment structure"
     
     def __call__(self, loan: Loan) -> list[LoanRepayment]:
         return self._rule(loan)
@@ -198,18 +261,18 @@ class RepaymentPolicy:
         return self._name
 
 
-def bullet_loan_repayment_policy(loan: Loan) -> list[LoanRepayment]:
+def bullet_repayment_rule(loan: Loan) -> list[LoanRepayment]:
     return [
         LoanRepayment(
             loan,
-            loan.balance,
-            loan.date_opened + loan.term,
-            loan.repayment_window,
-            loan.repayment_form
+            amount=loan.balance,
+            form=loan.repayment_form,
+            date=loan.date_opened + loan.term,
+            window=loan.repayment_window,
         )
     ]
 
-BULLET_REPAYMENT = RepaymentPolicy("bullet", rule = bullet_loan_repayment_policy)
+BULLET_REPAYMENT = LoanRepaymentPolicy("bullet", rule=bullet_repayment_rule)
 
 REPAYMENT_POLICIES = {
         "bullet": BULLET_REPAYMENT

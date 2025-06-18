@@ -11,21 +11,11 @@ from typing import TYPE_CHECKING
 from ..._instrument import Debtor, InstrumentModelLike
 
 if TYPE_CHECKING:
-    from ....temporal import EconoDate
     from ....financial import EconoCurrency
     from ..._instrument import Instrument
     from ..base import Loan
     from ..model import LoanMarket
     from ..interfaces import LoanApplication, LoanRepayment
-
-
-__all__ = [
-    "Borrower",
-]
-
-# TODO: move this
-class InsufficientCreditError(Exception):
-    pass
 
 
 class LoanModelLike(InstrumentModelLike):
@@ -44,7 +34,6 @@ class Borrower(Debtor):
     
     # instance attributes
     __slots__ = (
-        "credit",
         "debt_limit",
         "loan_limit",
         "loan_application_limit",
@@ -53,7 +42,6 @@ class Borrower(Debtor):
         "_open_loan_applications",
         "_closed_loan_application",
     )
-    credit: EconoCurrency
     debt_limit: EconoCurrency | None
     loan_limit: int | None
     loan_application_limit: int | None
@@ -129,8 +117,6 @@ class Borrower(Debtor):
             "debt_repaid",
             type_ = self.Currency
         )
-        
-        self.credit = self.Currency(0)
         
         self.debt_limit = self.Currency(debt_limit) if debt_limit is not None else debt_limit
         self.loan_limit = loan_limit
@@ -289,7 +275,7 @@ class Borrower(Debtor):
         for repayment in repayments:
             if not self.can_repay_loan(repayment) and self.should_repay_loan(repayment):
                 break
-            repayment._complete()
+            repayment.complete()
             successes += 1
         return successes
     
@@ -393,7 +379,7 @@ class Borrower(Debtor):
         bool
             True if the borrower can make the payment, False otherwise.
         """
-        return self.credit >= due_payment.amount_due
+        return True
     
     def should_repay_loan(self, due_payment: LoanRepayment) -> bool:
         """Determine whether the borrower wants to make a payment.
@@ -412,7 +398,12 @@ class Borrower(Debtor):
     # Primitives #
     ##############
     
-    def _process_loan_disbursement(self, loan: Loan, amount: EconoCurrency) -> None:
+    def _process_loan_disbursement(
+        self,
+        loan: Loan,
+        /,
+        amount: EconoCurrency
+    ) -> None:
         self.counters.increment("debt_incurred", amount)
     
     def _make_loan_repayment(
@@ -423,5 +414,4 @@ class Borrower(Debtor):
         form: type[Instrument],
     ) -> None:
         self.give_money(to=loan.lender, amount=amount, form=form)
-        loan.lender._process_loan_repayment(loan, amount)
         self.counters.increment("debt_repaid", amount)
