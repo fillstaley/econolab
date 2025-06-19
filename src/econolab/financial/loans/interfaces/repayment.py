@@ -9,9 +9,8 @@ from __future__ import annotations
 from typing import Callable, cast, TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from ....core import EconoAgent
+    from ....core import EconoAgent, EconoCurrency
     from ....temporal import EconoDuration, EconoDate
-    from ....financial import EconoCurrency
     from ..._instrument import Instrument
     from ..base import Loan
     from ..agents import Borrower, Lender

@@ -15,14 +15,17 @@ from ..temporal import (
     EconoCalendar,
     CalendarSpecification,
 )
-from ..financial import (
+from .currency import (
     EconoCurrency,
     CurrencyType,
     CurrencySpecification,
 )
 
 
-__all__ = ["EconoModel", "ModelType"]
+__all__ = [
+    "EconoModel",
+    "ModelType",
+]
 
 
 class ModelType(EconoMeta):

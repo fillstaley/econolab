@@ -15,7 +15,7 @@ from ..spec import LoanSpecification
 from .borrower import Borrower, LoanModelLike
 
 if TYPE_CHECKING:
-    from ....financial import EconoCurrency
+    from ....core import EconoCurrency
     from ..base import LoanApplication
 
 

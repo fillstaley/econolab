@@ -7,19 +7,23 @@ states of other agents.
 
 from __future__ import annotations
 
-from abc import ABC, abstractmethod
+from abc import ABC
 from logging import Logger
-from typing import cast, Protocol, runtime_checkable, TYPE_CHECKING
+from typing import Protocol, runtime_checkable, TYPE_CHECKING
 
 from .meta import EconoMeta
 from ..temporal import EconoCalendar
 from .counters import CounterCollection
 
 if TYPE_CHECKING:
-    from ..financial import EconoCurrency
+    from ..core import EconoCurrency
 
 
-__all__ = ["EconoAgent", "AgentType"]
+__all__ = [
+    "EconoAgent",
+    "AgentType",
+    "EconoModelLike",
+]
 
 
 @runtime_checkable

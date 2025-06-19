@@ -19,8 +19,13 @@ Usage examples and further details are documented within the classes.
 from __future__ import annotations
 
 from collections.abc import Iterator
-from numbers import Number
-from typing import Any, Callable, Protocol, runtime_checkable, Self, overload
+from typing import Any, Callable, Protocol, runtime_checkable, Self
+
+
+__all__ = [
+    "Counter",
+    "CounterCollection",
+]
 
 
 @runtime_checkable

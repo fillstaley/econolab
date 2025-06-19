@@ -11,7 +11,7 @@ from typing import TYPE_CHECKING
 from ..._instrument import Debtor, InstrumentModelLike
 
 if TYPE_CHECKING:
-    from ....financial import EconoCurrency
+    from ....core import EconoCurrency
     from ..._instrument import Instrument
     from ..base import Loan
     from ..model import LoanMarket

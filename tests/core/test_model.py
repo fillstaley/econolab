@@ -11,7 +11,7 @@ from econolab.temporal import (
     EconoCalendar,
     CalendarSpecification
 )
-from econolab.financial import EconoCurrency
+from econolab.core import EconoCurrency
 
 
 @pytest.fixture
