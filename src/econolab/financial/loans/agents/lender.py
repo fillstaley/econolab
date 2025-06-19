@@ -7,9 +7,9 @@
 from __future__ import annotations
 
 from collections import defaultdict, deque
-from typing import cast, TYPE_CHECKING
+from typing import TYPE_CHECKING
 
-from ....core import Issuer, Creditor, InstrumentType
+from ....core import EconoIssuer, EconoCreditor
 from ..base import Loan
 from ..spec import LoanSpecification
 from .borrower import Borrower, LoanModelLike
@@ -24,7 +24,7 @@ __all__ = [
 ]
 
 
-class Lender(Issuer, Creditor, Borrower):
+class Lender(EconoIssuer, EconoCreditor, Borrower):
     def __init__(
         self, 
         *args,
@@ -91,19 +91,9 @@ class Lender(Issuer, Creditor, Borrower):
                 raise TypeError(
                     f"Expected LoanSpecification, got {type(spec).__name__}"
                 )
-            
-            Sub = InstrumentType(
-                spec.name,
-                (Loan,),
-                {
-                    "lender": self,
-                    "Currency": self.Currency,
-                    **spec.to_dict()
-                }
-            )
-            Sub = cast(type[Loan], Sub)
-            self._loan_book[Sub] = []
-            self.register_loan_class(Sub)
+            Subclass = self._create_instrument_subclass(Loan, spec, lender=self)
+            self._loan_book[Subclass] = []
+            self.register_loan_class(Subclass)
     
     def modify_loan_class(self, LoanSub: type[Loan]) -> None:
         raise NotImplemented

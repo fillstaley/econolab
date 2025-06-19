@@ -141,18 +141,6 @@ class Loan(EconoInstrument):
     ##############
     
     @property
-    def issuer(self) -> Lender:
-        return self.lender
-    
-    @property
-    def debtor(self) -> Borrower:
-        return self.borrower
-    
-    @property
-    def creditor(self) -> Lender:
-        return self.lender
-    
-    @property
     def balance(self) -> EconoCurrency:
         return self._balance
     
@@ -171,6 +159,14 @@ class Loan(EconoInstrument):
     @property
     def closed(self) -> bool:
         return self.date_closed is not None
+    
+    @property
+    def debtor(self) -> Borrower:
+        return self.borrower
+    
+    @property
+    def creditor(self) -> Lender:
+        return self.lender
     
     @property
     def borrower(self) -> Borrower:

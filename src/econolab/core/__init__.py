@@ -16,7 +16,9 @@ from .agent import EconoAgent, AgentType, EconoModelLike
 from .counters import CounterCollection
 
 # expose product base
-from .product import *
+from .product import (
+    EconoProduct, ProductType, ProductSpecification, ProductMarket, EconoSupplier, EconoProducer,
+)
 
 # export temporal base
 from .calendar import EconoCalendar, EconoDuration, EconoDate, CalendarSpecification

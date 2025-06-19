@@ -6,7 +6,7 @@
 
 from __future__ import annotations
 
-from ...core import InstrumentModel, InstrumentMarket
+from ...core import EconoModel, InstrumentMarket
 from .base import DepositAccount
 from .agents import Depositor, DepositIssuer
 
@@ -17,7 +17,7 @@ __all__ = [
 ]
 
 
-class DepositModel(InstrumentModel):
+class DepositModel(EconoModel):
     """...
     
     ...

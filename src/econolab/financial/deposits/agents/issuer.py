@@ -9,7 +9,7 @@ from __future__ import annotations
 from collections import defaultdict, deque
 from typing import cast, TYPE_CHECKING
 
-from ....core import Issuer, Debtor, InstrumentType
+from ....core import EconoIssuer, EconoDebtor, InstrumentType
 from ..base import DepositAccount
 from ..specs import DepositSpecification
 from .depositor import Depositor, DepositModelLike
@@ -23,7 +23,7 @@ __all__ = [
 ]
 
 
-class DepositIssuer(Issuer, Debtor, Depositor):
+class DepositIssuer(EconoIssuer, EconoDebtor, Depositor):
     """...
     
     ...
@@ -73,18 +73,9 @@ class DepositIssuer(Issuer, Debtor, Depositor):
                     f"Expected DepositSpecification, got {type(spec).__name__}"
                 )
             
-            Sub = InstrumentType(
-                spec.name,
-                (DepositAccount,),
-                {
-                    "issuer": self,
-                    "Currency": self.Currency,
-                    **spec.to_dict()
-                }
-            )
-            Sub = cast(type[DepositAccount], Sub)
-            self._deposit_book[Sub] = []
-            self.register_deposit_class(Sub)
+            Subclass = self._create_instrument_subclass(DepositAccount, spec, depository_institution=self)
+            self._deposit_book[Subclass] = []
+            self.register_deposit_class(Subclass)
     
     def modify_deposit_class(self, DepositSub: type[DepositAccount], /) -> None:
         raise NotImplemented

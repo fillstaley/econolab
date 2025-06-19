@@ -6,7 +6,13 @@
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from ...core import EconoProduct, ProductType
+
+if TYPE_CHECKING:
+    from ..currency import EconoCurrency
+    from .agents import EconoIssuer
 
 
 __all__ = [
@@ -20,4 +26,5 @@ class InstrumentType(ProductType):
 
 
 class EconoInstrument(EconoProduct, metaclass=InstrumentType):
-    pass
+    issuer: EconoIssuer
+    Currency: type[EconoCurrency]

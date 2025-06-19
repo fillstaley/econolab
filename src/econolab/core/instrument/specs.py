@@ -11,7 +11,9 @@ from dataclasses import dataclass
 from ..product import ProductSpecification
 
 
-__all__ = ["InstrumentSpecification",]
+__all__ = [
+    "InstrumentSpecification",
+]
 
 
 @dataclass(frozen=True, slots=True)

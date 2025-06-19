@@ -10,8 +10,9 @@ from collections import defaultdict
 from collections.abc import Mapping
 from typing import Callable, Generic, Iterator, TypeVar, TYPE_CHECKING
 
-from .base import EconoProduct
 from ..agent import EconoAgent
+from .base import EconoProduct
+from .agents import EconoSupplier
 
 if TYPE_CHECKING:
     from ..model import EconoModel
@@ -23,7 +24,7 @@ __all__ = [
 ]
 
 
-S = TypeVar("S", bound=EconoAgent)
+S = TypeVar("S", bound=EconoSupplier)
 P = TypeVar("P", bound=EconoProduct)
 D = TypeVar("D", bound=EconoAgent)
 

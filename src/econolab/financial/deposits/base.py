@@ -26,12 +26,14 @@ class DepositAccount(EconoInstrument):
     ...
     """
     
-    __slots__ = ("_debtor", "_creditor", "_balance",)
+    __slots__ = (
+        "_depositor",
+        "_balance",
+    )
+    _depositor: Depositor
+    _balance: EconoCurrency
     
-    __class_constants__ = ("issuer", "Currency")
-    issuer: DepositIssuer
-    Currency: type[EconoCurrency]
-    
+    depository_institution: DepositIssuer
     maturity_period: EconoDuration | None
     withdrawal_limit_count: int | None
     withdrawal_limit_value: EconoCurrency | None
@@ -41,8 +43,7 @@ class DepositAccount(EconoInstrument):
     
     
     def __init__(self, depositor: Depositor, init_balance: EconoCurrency | None = None) -> None:
-        self._debtor = self.issuer
-        self._creditor = depositor
+        self._depositor = depositor
         if init_balance is None:
             self._balance = self.Currency()
         elif isinstance(init_balance, self.Currency):
@@ -59,20 +60,20 @@ class DepositAccount(EconoInstrument):
     ##############
     
     @property
+    def balance(self) -> EconoCurrency:
+        return self._balance
+    
+    @property
     def debtor(self) -> DepositIssuer:
-        return self._debtor
+        return self.depository_institution
     
     @property
     def creditor(self) -> Depositor:
-        return self._creditor
+        return self.depositor
     
     @property
     def depositor(self) -> Depositor:
-        return self.creditor
-    
-    @property
-    def balance(self) -> EconoCurrency:
-        return self._balance
+        return self._depositor
     
     
     ###########

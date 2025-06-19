@@ -4,12 +4,18 @@
 
 """
 
-# expose sub-module product
 from .base import EconoInstrument, InstrumentType
 from .specs import InstrumentSpecification
+from .market import InstrumentMarket
+from .agents import EconoIssuer, EconoDebtor, EconoCreditor, InstrumentModelLike
 
-# expose sub-module model
-from .model import InstrumentModel, InstrumentMarket
-
-# expose sub-module agents
-from .agents import Issuer, Debtor, Creditor, InstrumentModelLike
+__all__ = [
+    "EconoInstrument",
+    "InstrumentType",
+    "InstrumentSpecification",
+    "InstrumentMarket",
+    "EconoIssuer",
+    "EconoDebtor",
+    "EconoCreditor",
+    "InstrumentModelLike",
+]
