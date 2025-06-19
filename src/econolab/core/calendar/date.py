@@ -9,7 +9,7 @@ from __future__ import annotations
 from functools import total_ordering
 from typing import Sequence, Self
 
-from ...core.meta import EconoMeta
+from ..meta import EconoMeta
 from .duration import EconoCalendar, EconoDuration
 
 

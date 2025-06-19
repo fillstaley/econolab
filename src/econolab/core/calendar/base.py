@@ -9,7 +9,7 @@ from __future__ import annotations
 from logging import Logger
 from typing import NamedTuple, Protocol, runtime_checkable, Sequence
 
-from ...core.meta import EconoMeta
+from ..meta import EconoMeta
 from .duration import EconoDuration
 from .date import EconoDate
 

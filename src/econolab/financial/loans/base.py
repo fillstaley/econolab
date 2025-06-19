@@ -12,8 +12,7 @@ from .._instrument import Instrument
 from .interfaces import LoanApplication
 
 if TYPE_CHECKING:
-    from ...temporal import EconoDuration, EconoDate
-    from ...core import EconoCurrency
+    from ...core import EconoDuration, EconoDate, EconoCurrency
     from .agents import Borrower, Lender
     from .interfaces import (
         LoanRepayment,

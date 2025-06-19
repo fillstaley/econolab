@@ -7,11 +7,11 @@
 from __future__ import annotations
 
 from functools import total_ordering
-from typing import Sequence, Protocol, runtime_checkable
+from typing import Protocol, runtime_checkable
 
 from numpy import floor
 
-from ...core.meta import EconoMeta
+from ..meta import EconoMeta
 
 
 @runtime_checkable

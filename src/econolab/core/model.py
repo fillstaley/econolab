@@ -11,7 +11,7 @@ from re import sub
 
 from .meta import EconoMeta
 from .counters import CounterCollection
-from ..temporal import (
+from .calendar import (
     EconoCalendar,
     CalendarSpecification,
 )

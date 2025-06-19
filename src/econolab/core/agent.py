@@ -12,7 +12,7 @@ from logging import Logger
 from typing import Protocol, runtime_checkable, TYPE_CHECKING
 
 from .meta import EconoMeta
-from ..temporal import EconoCalendar
+from .calendar import EconoCalendar
 from .counters import CounterCollection
 
 if TYPE_CHECKING:

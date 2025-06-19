@@ -9,7 +9,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Literal, TYPE_CHECKING
 
-from ...temporal import EconoDuration
+from ...core import EconoDuration
 from .._instrument import InstrumentSpecification
 
 if TYPE_CHECKING:

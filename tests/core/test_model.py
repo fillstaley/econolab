@@ -6,12 +6,13 @@
 
 import pytest
 
-from econolab.core import EconoModel, CounterCollection
-from econolab.temporal import (
+from econolab.core import (
+    EconoModel,
+    CounterCollection,
     EconoCalendar,
-    CalendarSpecification
+    CalendarSpecification,
+    EconoCurrency,
 )
-from econolab.core import EconoCurrency
 
 
 @pytest.fixture
