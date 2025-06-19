@@ -16,7 +16,7 @@ from .calendar import EconoCalendar
 from .counters import CounterCollection
 
 if TYPE_CHECKING:
-    from ..core import EconoCurrency, Instrument
+    from ..core import EconoCurrency, EconoInstrument
 
 
 __all__ = [
@@ -58,7 +58,7 @@ class EconoAgent(ABC, metaclass=AgentType):
         """Perform actions during a model step."""
         raise NotImplementedError
     
-    def give_money(self, to, amount: EconoCurrency, form: type[Instrument]) -> None:
+    def give_money(self, to, amount: EconoCurrency, form: type[EconoInstrument]) -> None:
         pass
     
     def reset_counters(self) -> None:

@@ -9,12 +9,15 @@ from __future__ import annotations
 from ...core import EconoProduct, ProductType
 
 
-__all__ = ["Instrument", "InstrumentType",]
+__all__ = [
+    "EconoInstrument",
+    "InstrumentType",
+]
 
 
 class InstrumentType(ProductType):
     pass
 
 
-class Instrument(EconoProduct, metaclass=InstrumentType):
+class EconoInstrument(EconoProduct, metaclass=InstrumentType):
     pass

@@ -9,7 +9,7 @@ from __future__ import annotations
 from typing import Callable, cast, TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from ....core import EconoAgent, EconoCurrency, EconoDuration, EconoDate, Instrument
+    from ....core import EconoAgent, EconoCurrency, EconoDuration, EconoDate, EconoInstrument
     from ..base import Loan
     from ..agents import Borrower, Lender
 
@@ -36,7 +36,7 @@ class Payment:
     _payer: EconoAgent
     _recipient: EconoAgent
     _amount_due: EconoCurrency
-    _form: type[Instrument]
+    _form: type[EconoInstrument]
     _date_due: EconoDate
     _window: EconoDuration
     _date_opened: EconoDate
@@ -49,7 +49,7 @@ class Payment:
         payer: EconoAgent,
         recipient: EconoAgent,
         amount: EconoCurrency,
-        form: type[Instrument],
+        form: type[EconoInstrument],
         date: EconoDate,
         window: EconoDuration,
     ) -> None:
@@ -89,7 +89,7 @@ class Payment:
         return self._amount_due
     
     @property
-    def form(self) -> type[Instrument]:
+    def form(self) -> type[EconoInstrument]:
         return self._form
     
     @property
@@ -193,7 +193,7 @@ class LoanRepayment(Payment):
         loan: Loan,
         /,
         amount: EconoCurrency, 
-        form: type[Instrument],
+        form: type[EconoInstrument],
         date: EconoDate, 
         window: EconoDuration,
     ) -> None:

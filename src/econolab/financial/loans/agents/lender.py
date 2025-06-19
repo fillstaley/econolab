@@ -15,7 +15,7 @@ from ..spec import LoanSpecification
 from .borrower import Borrower, LoanModelLike
 
 if TYPE_CHECKING:
-    from ....core import EconoCurrency, Instrument
+    from ....core import EconoCurrency, EconoInstrument
     from ..base import LoanApplication
 
 
@@ -176,7 +176,7 @@ class Lender(Issuer, Creditor, Borrower):
         loan: Loan,
         /,
         amount: EconoCurrency,
-        form: type[Instrument],
+        form: type[EconoInstrument],
     ) -> None:
         self.give_money(to=loan.borrower, amount=amount, form=form)
         self.counters.increment("loan_funds_disbursed", amount)

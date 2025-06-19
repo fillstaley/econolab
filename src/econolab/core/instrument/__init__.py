@@ -5,7 +5,7 @@
 """
 
 # expose sub-module product
-from .base import Instrument, InstrumentType
+from .base import EconoInstrument, InstrumentType
 from .specs import InstrumentSpecification
 
 # expose sub-module model

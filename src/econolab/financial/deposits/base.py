@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from ...core import Instrument
+from ...core import EconoInstrument
 
 if TYPE_CHECKING:
     from ...core import EconoDuration, EconoCurrency
@@ -20,7 +20,7 @@ __all__ = [
 ]
 
 
-class DepositAccount(Instrument):
+class DepositAccount(EconoInstrument):
     """...
     
     ...

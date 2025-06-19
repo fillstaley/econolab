@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from typing import Literal, TYPE_CHECKING
 
-from ...core import Instrument
+from ...core import EconoInstrument
 from .interfaces import LoanApplication
 
 if TYPE_CHECKING:
@@ -22,7 +22,7 @@ __all__ = [
 ]
 
 
-class Loan(Instrument):
+class Loan(EconoInstrument):
     """...
     
     ...
@@ -61,10 +61,10 @@ class Loan(Instrument):
     limit_per_borrower: int | None
     limit_kind: Literal["outstanding", "cumulative"]
     term: EconoDuration
-    disbursement_form: type[Instrument]
+    disbursement_form: type[EconoInstrument]
     repayment_policy: LoanRepaymentPolicy
     repayment_window: EconoDuration
-    repayment_form: type[Instrument]
+    repayment_form: type[EconoInstrument]
     relative_interest_rate: bool = False
     
     # class attributes
@@ -209,19 +209,6 @@ class Loan(Instrument):
         self.credit(accrued_interest)
         self._accrued_interest = self.Currency(0)
     
-    def process_repayment(
-        self,
-        repayment: LoanRepayment,
-        /,
-        *,
-        amount: EconoCurrency | None = None,
-        form: type[Instrument] | None = None,
-    ) -> None:
-        if repayment.due:
-            amount = amount if amount is not None else repayment.amount_due
-            form = form if form is not None else repayment.form
-            self._repay(amount=amount, form=form)
-    
     def repayment_due(self) -> bool:
         return any(payment.due for payment in self.repayment_schedule)
     
@@ -238,11 +225,24 @@ class Loan(Instrument):
     def repayments_due(self) -> list[LoanRepayment]:
         return [payment for payment in self.repayment_schedule if payment.due]
     
-    def _disburse(self, amount: EconoCurrency, form: type[Instrument]) -> None:
+    def process_repayment(
+        self,
+        repayment: LoanRepayment,
+        /,
+        *,
+        amount: EconoCurrency | None = None,
+        form: type[EconoInstrument] | None = None,
+    ) -> None:
+        if repayment.due:
+            amount = amount if amount is not None else repayment.amount_due
+            form = form if form is not None else repayment.form
+            self._repay(amount=amount, form=form)
+    
+    def _disburse(self, amount: EconoCurrency, form: type[EconoInstrument]) -> None:
         self.lender._make_loan_disbursement(self, amount=amount, form=form)
         self.borrower._process_loan_disbursement(self, amount=amount)
         
-    def _repay(self, amount: EconoCurrency, form: type[Instrument]) -> None:
+    def _repay(self, amount: EconoCurrency, form: type[EconoInstrument]) -> None:
         self.borrower._make_loan_repayment(self, amount=amount, form=form)
         self.lender._process_loan_repayment(self, amount=amount)
         self.debit(amount)

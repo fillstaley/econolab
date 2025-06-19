@@ -11,7 +11,7 @@ from typing import TYPE_CHECKING
 from ....core import Debtor, InstrumentModelLike
 
 if TYPE_CHECKING:
-    from ....core import EconoCurrency, Instrument
+    from ....core import EconoCurrency, EconoInstrument
     from ..base import Loan
     from ..model import LoanMarket
     from ..interfaces import LoanApplication, LoanRepayment
@@ -412,7 +412,7 @@ class Borrower(Debtor):
         loan: Loan,
         /,
         amount: EconoCurrency,
-        form: type[Instrument],
+        form: type[EconoInstrument],
     ) -> None:
         self.give_money(to=loan.lender, amount=amount, form=form)
         self.counters.increment("debt_repaid", amount)

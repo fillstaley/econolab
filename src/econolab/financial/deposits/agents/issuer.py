@@ -15,7 +15,7 @@ from ..specs import DepositSpecification
 from .depositor import Depositor, DepositModelLike
 
 if TYPE_CHECKING:
-    from ....core import EconoCurrency, Instrument
+    from ....core import EconoCurrency, EconoInstrument
 
 
 __all__ = [

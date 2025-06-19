@@ -10,7 +10,7 @@ from typing import cast, Generic, TypeVar, TYPE_CHECKING
 
 from ..model import EconoModel
 from ..product.market import ProductMarket, D
-from .base import Instrument
+from .base import EconoInstrument
 from .agents import Issuer
 
 if TYPE_CHECKING:
@@ -28,7 +28,7 @@ class InstrumentModel(EconoModel):
 
 
 S = TypeVar("S", bound=Issuer)
-P = TypeVar("P", bound=Instrument)
+P = TypeVar("P", bound=EconoInstrument)
 
 class InstrumentMarket(ProductMarket[S, P, D], Generic[S, P, D]):
     @property
