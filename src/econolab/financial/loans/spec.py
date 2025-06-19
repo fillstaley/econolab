@@ -9,9 +9,10 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Literal, TYPE_CHECKING
 
-from ...core import EconoDuration, InstrumentSpecification
+from ...core import InstrumentSpecification
 
 if TYPE_CHECKING:
+    from ...core import EconoDuration
     from .agents import Borrower
 
 
@@ -22,8 +23,7 @@ __all__ = [
 
 @dataclass(frozen=True, slots=True)
 class LoanSpecification(InstrumentSpecification):
-    """
-    Immutable specifications for a class of loans.
+    """Immutable specifications for a class of loans.
 
     A LoanSpecs object defines the structural and financial characteristics of a loan
     that may be offered by one or more lenders. These specs serve as blueprints

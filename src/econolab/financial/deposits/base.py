@@ -8,16 +8,16 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from ...temporal import EconoDuration
-from .._currency import EconoCurrency
-from .._instrument import Instrument
+from ...core import Instrument
 
 if TYPE_CHECKING:
-    from .agents.depositor import Depositor
-    from .agents.issuer import DepositIssuer
+    from ...core import EconoDuration, EconoCurrency
+    from .agents import Depositor, DepositIssuer
 
 
-__all__ = ["DepositAccount",]
+__all__ = [
+    "DepositAccount",
+]
 
 
 class DepositAccount(Instrument):

@@ -14,10 +14,7 @@ from .interfaces import LoanApplication
 if TYPE_CHECKING:
     from ...core import EconoDuration, EconoDate, EconoCurrency
     from .agents import Borrower, Lender
-    from .interfaces import (
-        LoanRepayment,
-        LoanRepaymentPolicy
-    )
+    from .interfaces import LoanRepayment, LoanRepaymentPolicy
 
 
 __all__ = [

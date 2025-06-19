@@ -9,13 +9,13 @@ from __future__ import annotations
 from collections import defaultdict, deque
 from typing import cast, TYPE_CHECKING
 
-from ....core import Issuer, Creditor, Instrument, InstrumentType
+from ....core import Issuer, Creditor, InstrumentType
 from ..base import Loan
 from ..spec import LoanSpecification
 from .borrower import Borrower, LoanModelLike
 
 if TYPE_CHECKING:
-    from ....core import EconoCurrency
+    from ....core import EconoCurrency, Instrument
     from ..base import LoanApplication
 
 

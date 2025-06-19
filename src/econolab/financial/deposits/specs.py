@@ -7,17 +7,25 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
-from ...temporal import EconoDuration
-from .._currency import EconoCurrency
-from .._instrument import InstrumentSpecification
+from ...core import InstrumentSpecification
+
+if TYPE_CHECKING:
+    from ...core import EconoDuration, EconoCurrency
 
 
-__all__ = ["DepositSpecification",]
+__all__ = [
+    "DepositSpecification",
+]
 
 
 @dataclass(frozen=True, slots=True)
 class DepositSpecification(InstrumentSpecification):
+    """...
+    
+    ...
+    """
     maturity_period: EconoDuration | None = None
     withdrawal_limit_count: int | None = None
     withdrawal_limit_value: EconoCurrency | None = None

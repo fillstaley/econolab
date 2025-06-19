@@ -8,13 +8,20 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from ..._instrument import Creditor
+from ....core import Creditor, InstrumentModelLike
 
 if TYPE_CHECKING:
     from ..base import DepositAccount
+    from ..model import DepositMarket
 
 
-__all__ = ["Depositor",]
+__all__ = [
+    "Depositor",
+]
+
+
+class DepositModelLike(InstrumentModelLike):
+    deposit_market: DepositMarket
 
 
 class Depositor(Creditor):

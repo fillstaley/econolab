@@ -9,20 +9,18 @@ from __future__ import annotations
 from collections import defaultdict, deque
 from typing import cast, TYPE_CHECKING
 
-from ..._instrument import Issuer, Debtor, InstrumentModelLike, InstrumentType
+from ....core import Issuer, Debtor, InstrumentType
 from ..base import DepositAccount
 from ..specs import DepositSpecification
-from .depositor import Depositor
+from .depositor import Depositor, DepositModelLike
 
 if TYPE_CHECKING:
-    from ..market import DepositMarket
+    from ....core import EconoCurrency, Instrument
 
 
-__all__ = ["DepositIssuer",]
-
-
-class DepositModelLike(InstrumentModelLike):
-    deposit_market: DepositMarket
+__all__ = [
+    "DepositIssuer",
+]
 
 
 class DepositIssuer(Issuer, Debtor, Depositor):
