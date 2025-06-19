@@ -288,9 +288,6 @@ class Borrower(Debtor):
     # Hooks #
     #########
     
-    def give_money(self, to, amount: EconoCurrency, form: type[Instrument]) -> None:
-        pass
-    
     # TODO: implement this
     def search_for_loans(self, limit: int = 1) -> list[type[Loan]]:
         """Return a list of available loan options up to a specified limit.

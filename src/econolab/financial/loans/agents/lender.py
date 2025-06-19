@@ -69,9 +69,6 @@ class Lender(Issuer, Creditor, Borrower):
     # Actions #
     ###########
     
-    def give_money(self, to, amount: EconoCurrency, form: type[Instrument]) -> None:
-        pass
-    
     def create_loan_class(self, *specs: LoanSpecification) -> None:
         """Create a LoanOption for the lender from a predefined LoanSpecs template.
 
