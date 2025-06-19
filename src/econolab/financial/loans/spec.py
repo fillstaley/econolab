@@ -9,8 +9,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Literal, TYPE_CHECKING
 
-from ...core import EconoDuration
-from .._instrument import InstrumentSpecification
+from ...core import EconoDuration, InstrumentSpecification
 
 if TYPE_CHECKING:
     from .agents import Borrower

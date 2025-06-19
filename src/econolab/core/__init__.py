@@ -15,11 +15,12 @@ from .model import EconoModel, ModelType
 from .agent import EconoAgent, AgentType, EconoModelLike
 from .counters import CounterCollection
 
-# export temporal base
-from .calendar import EconoCalendar, EconoDuration, EconoDate, CalendarSpecification
-
 # expose product base
 from .product import *
+
+# export temporal base
+from .calendar import EconoCalendar, EconoDuration, EconoDate, CalendarSpecification
+from .instrument import *
 
 # expose financial base
 from .currency import EconoCurrency, CurrencyType, CurrencySpecification

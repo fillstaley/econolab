@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from typing import Literal, TYPE_CHECKING
 
-from .._instrument import Instrument
+from ...core import Instrument
 from .interfaces import LoanApplication
 
 if TYPE_CHECKING:

@@ -9,7 +9,7 @@ from __future__ import annotations
 from collections import defaultdict, deque
 from typing import cast, TYPE_CHECKING
 
-from ..._instrument import Issuer, Creditor, Instrument, InstrumentType
+from ....core import Issuer, Creditor, Instrument, InstrumentType
 from ..base import Loan
 from ..spec import LoanSpecification
 from .borrower import Borrower, LoanModelLike

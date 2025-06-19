@@ -6,7 +6,7 @@
 
 from __future__ import annotations
 
-from .._instrument import InstrumentModel, InstrumentMarket
+from ...core import InstrumentModel, InstrumentMarket
 from .base import Loan
 from .agents import Borrower, Lender
 
