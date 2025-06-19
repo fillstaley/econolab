@@ -9,7 +9,9 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 
-__all__ = ["ProductSpecification",]
+__all__ = [
+    "ProductSpecification",
+]
 
 
 @dataclass(frozen=True, slots=True)

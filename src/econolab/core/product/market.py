@@ -18,7 +18,9 @@ if TYPE_CHECKING:
 
 
 
-__all__ = ["ProductMarket",]
+__all__ = [
+    "ProductMarket",
+]
 
 
 S = TypeVar("S", bound=EconoAgent)

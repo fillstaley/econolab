@@ -4,6 +4,6 @@
 
 """
 
-from .base import *
-from .specs import *
-from .market import *
+from .base import EconoProduct, ProductType
+from .specs import ProductSpecification
+from .market import ProductMarket

@@ -9,7 +9,10 @@ from __future__ import annotations
 from ...core import EconoMeta
 
 
-__all__ = ["EconoProduct", "ProductType",]
+__all__ = [
+    "EconoProduct",
+    "ProductType",
+]
 
 
 class ProductType(EconoMeta):
