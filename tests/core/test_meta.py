@@ -1,3 +1,9 @@
+"""...
+
+...
+
+"""
+
 import pytest
 
 from econolab.core import EconoMeta, class_constant

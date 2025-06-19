@@ -11,7 +11,7 @@ import pytest
 
 from decimal import Decimal
 
-from econolab.financial import EconoCurrency, CurrencySpecification
+from econolab.core import EconoCurrency, CurrencySpecification
 
 
 @pytest.fixture

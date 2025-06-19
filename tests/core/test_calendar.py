@@ -7,7 +7,7 @@
 import pytest
 from unittest.mock import MagicMock
 
-from econolab.temporal import (
+from econolab.core import (
     EconoCalendar,
     CalendarSpecification,
     EconoDuration,
