@@ -21,7 +21,9 @@ if TYPE_CHECKING:
     )
 
 
-__all__ = ["Loan",]
+__all__ = [
+    "Loan",
+]
 
 
 class Loan(Instrument):

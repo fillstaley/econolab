@@ -17,7 +17,6 @@ from .borrower import Borrower, LoanModelLike
 if TYPE_CHECKING:
     from ....financial import EconoCurrency
     from ..base import LoanApplication
-    from ..interfaces import LoanRepayment
 
 
 __all__ = [
@@ -142,11 +141,11 @@ class Lender(Issuer, Creditor, Borrower):
         successes = 0
         for app in applications:
             if self.can_approve_loan(app) and self.should_approve_loan(app):
-                app._approve(app.principal_requested, app.minimum_interest_rate)
+                app.approve(app.principal_requested, app.minimum_interest_rate)
                 successes += 1
             # TODO: introduce deferred applications when lending becomes dynamic
             else:
-                app._deny()
+                app.deny()
         return successes
     
     

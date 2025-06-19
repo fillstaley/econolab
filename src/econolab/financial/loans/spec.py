@@ -16,6 +16,11 @@ if TYPE_CHECKING:
     from .agents import Borrower
 
 
+__all__ = [
+    "LoanSpecification",
+]
+
+
 @dataclass(frozen=True, slots=True)
 class LoanSpecification(InstrumentSpecification):
     """

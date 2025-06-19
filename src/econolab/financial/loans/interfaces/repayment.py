@@ -17,6 +17,13 @@ if TYPE_CHECKING:
     from ..agents import Borrower, Lender
 
 
+__all__ = [
+    "LoanRepayment",
+    "LoanRepaymentPolicy",
+    "LOAN_REPAYMENT_POLICIES",
+]
+
+
 class Payment:
     __slots__ = (
         "_payer",
@@ -274,6 +281,6 @@ def bullet_repayment_rule(loan: Loan) -> list[LoanRepayment]:
 
 BULLET_REPAYMENT = LoanRepaymentPolicy("bullet", rule=bullet_repayment_rule)
 
-REPAYMENT_POLICIES = {
+LOAN_REPAYMENT_POLICIES = {
         "bullet": BULLET_REPAYMENT
 }

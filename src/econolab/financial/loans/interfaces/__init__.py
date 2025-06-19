@@ -1,9 +1,9 @@
 from .application import LoanApplication
-from .repayment import LoanRepayment, LoanRepaymentPolicy, REPAYMENT_POLICIES
+from .repayment import LoanRepayment, LoanRepaymentPolicy, LOAN_REPAYMENT_POLICIES
 
 __all__ =[
     "LoanApplication",
     "LoanRepayment",
     "LoanRepaymentPolicy",
-    "REPAYMENT_POLICIES",
+    "LOAN_REPAYMENT_POLICIES",
 ]

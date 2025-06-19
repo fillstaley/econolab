@@ -11,7 +11,10 @@ from .base import Loan
 from .agents import Borrower, Lender
 
 
-__all__ = ["LoanModel", "LoanMarket"]
+__all__ = [
+    "LoanModel",
+    "LoanMarket",
+]
 
 
 class LoanModel(InstrumentModel):

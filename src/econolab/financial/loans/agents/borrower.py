@@ -18,6 +18,11 @@ if TYPE_CHECKING:
     from ..interfaces import LoanApplication, LoanRepayment
 
 
+__all__ = [
+    "Borrower",
+]
+
+
 class LoanModelLike(InstrumentModelLike):
     loan_market: LoanMarket
 
@@ -244,12 +249,12 @@ class Borrower(Debtor):
         successes = 0
         for app in offers:
             if self.can_accept_loan(app) and self.should_accept_loan(app):
-                if loan := app._accept():
+                if loan := app.accept():
                     self._open_loans.append(loan)
                     self.counters.increment("loans_incurred")
                 successes += 1
             else:
-                app._reject()
+                app.reject()
         return successes
     
     def repay_loans(self, *due_repayments: LoanRepayment) -> int:
