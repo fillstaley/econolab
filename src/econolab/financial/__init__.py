@@ -3,5 +3,3 @@
 ...
 
 """
-
-from ._currency import *
