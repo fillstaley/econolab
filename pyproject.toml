@@ -1,6 +1,6 @@
 [project]
 name = "econolab"
-version = "0.1.0"
+version = "0.1.1"
 description = "A package for agent-based simulations of economic activity."
 authors = [
     {name = "Fill Staley",email = "fillstaley@gmail.com"}
