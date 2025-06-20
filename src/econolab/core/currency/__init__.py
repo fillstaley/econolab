@@ -5,4 +5,11 @@
 """
 
 from .base import EconoCurrency, CurrencyType
-from .specs import CurrencySpecification
+from .spec import CurrencySpecification
+
+
+__all__ = [
+    "EconoCurrency",
+    "CurrencyType",
+    "CurrencySpecification",
+]

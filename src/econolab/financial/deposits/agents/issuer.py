@@ -7,15 +7,15 @@
 from __future__ import annotations
 
 from collections import defaultdict, deque
-from typing import cast, TYPE_CHECKING
+from typing import TYPE_CHECKING
 
-from ....core import EconoIssuer, EconoDebtor, InstrumentType
+from ....core import EconoIssuer, EconoModelLike
 from ..base import DepositAccount
 from ..specs import DepositSpecification
-from .depositor import Depositor, DepositModelLike
 
 if TYPE_CHECKING:
     from ....core import EconoCurrency, EconoInstrument
+    from ..model import DepositMarket
 
 
 __all__ = [
@@ -23,7 +23,11 @@ __all__ = [
 ]
 
 
-class DepositIssuer(EconoIssuer, EconoDebtor, Depositor):
+class DepositModelLike(EconoModelLike):
+    deposit_market: DepositMarket
+
+
+class DepositIssuer(EconoIssuer):
     """...
     
     ...

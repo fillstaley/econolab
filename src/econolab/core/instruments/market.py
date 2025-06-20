@@ -9,7 +9,7 @@ from __future__ import annotations
 from typing import Generic, TypeVar
 
 from ..agent import EconoAgent
-from ..product import ProductMarket
+from ..products import ProductMarket
 from .base import EconoInstrument
 from .agents import EconoIssuer
 

@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from ..product import ProductSpecification
+from ..products import ProductSpecification
 
 
 __all__ = [

@@ -5,9 +5,10 @@
 """
 
 from .base import EconoInstrument, InstrumentType
-from .specs import InstrumentSpecification
+from .spec import InstrumentSpecification
 from .market import InstrumentMarket
-from .agents import EconoIssuer, EconoDebtor, EconoCreditor, InstrumentModelLike
+from .agents import EconoIssuer
+
 
 __all__ = [
     "EconoInstrument",
@@ -15,7 +16,4 @@ __all__ = [
     "InstrumentSpecification",
     "InstrumentMarket",
     "EconoIssuer",
-    "EconoDebtor",
-    "EconoCreditor",
-    "InstrumentModelLike",
 ]

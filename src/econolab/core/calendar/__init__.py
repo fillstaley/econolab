@@ -4,8 +4,15 @@
 
 """
 
-
 from .base import EconoCalendar
-from .specs import CalendarSpecification
+from .spec import CalendarSpecification
 from .duration import EconoDuration
 from .date import EconoDate
+
+
+__all__ = [
+    "EconoCalendar",
+    "CalendarSpecification",
+    "EconoDuration",
+    "EconoDate",
+]

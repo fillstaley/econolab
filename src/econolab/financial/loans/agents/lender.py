@@ -9,14 +9,14 @@ from __future__ import annotations
 from collections import defaultdict, deque
 from typing import TYPE_CHECKING
 
-from ....core import EconoIssuer, EconoCreditor
+from ....core import EconoIssuer, EconoModelLike
 from ..base import Loan
 from ..spec import LoanSpecification
-from .borrower import Borrower, LoanModelLike
 
 if TYPE_CHECKING:
     from ....core import EconoCurrency, EconoInstrument
     from ..base import LoanApplication
+    from ..model import LoanMarket
 
 
 __all__ = [
@@ -24,7 +24,11 @@ __all__ = [
 ]
 
 
-class Lender(EconoIssuer, EconoCreditor, Borrower):
+class LoanModelLike(EconoModelLike):
+    loan_market: LoanMarket
+
+
+class Lender(EconoIssuer):
     def __init__(
         self, 
         *args,

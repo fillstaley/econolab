@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from ....core import EconoDebtor, InstrumentModelLike
+from ....core import EconoAgent, EconoModelLike
 
 if TYPE_CHECKING:
     from ....core import EconoCurrency, EconoInstrument
@@ -22,11 +22,11 @@ __all__ = [
 ]
 
 
-class LoanModelLike(InstrumentModelLike):
+class LoanModelLike(EconoModelLike):
     loan_market: LoanMarket
 
 
-class Borrower(EconoDebtor):
+class Borrower(EconoAgent):
     """...
     
     ...

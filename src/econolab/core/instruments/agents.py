@@ -8,27 +8,19 @@ from __future__ import annotations
 
 from typing import cast, TypeVar, TYPE_CHECKING
 
-from ..agent import EconoAgent, EconoModelLike
-from ..product import EconoProducer
+from ..products import EconoProducer
 from .base import EconoInstrument, InstrumentType
 
 if TYPE_CHECKING:
-    from .specs import InstrumentSpecification
+    from .spec import InstrumentSpecification
 
 
 __all__ = [
-    "InstrumentModelLike",
     "EconoIssuer",
-    "EconoDebtor",
-    "EconoCreditor",
 ]
 
 
 T = TypeVar("T", bound=EconoInstrument)
-
-
-class InstrumentModelLike(EconoModelLike):
-    pass
 
 
 class EconoIssuer(EconoProducer):
@@ -50,11 +42,3 @@ class EconoIssuer(EconoProducer):
             }
         )
         return cast(type[T], Subclass)
-
-
-class EconoDebtor(EconoAgent):
-    pass
-
-
-class EconoCreditor(EconoAgent):
-    pass

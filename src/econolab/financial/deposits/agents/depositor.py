@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from ....core import EconoCreditor, InstrumentModelLike
+from ....core import EconoAgent, EconoModelLike
 
 if TYPE_CHECKING:
     from ..base import DepositAccount
@@ -20,11 +20,11 @@ __all__ = [
 ]
 
 
-class DepositModelLike(InstrumentModelLike):
+class DepositModelLike(EconoModelLike):
     deposit_market: DepositMarket
 
 
-class Depositor(EconoCreditor):
+class Depositor(EconoAgent):
     """...
     
     ...

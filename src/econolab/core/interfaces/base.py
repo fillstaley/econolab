@@ -8,7 +8,13 @@ agents with a particular agency.
 
 from abc import ABC
 
-from .meta import EconoMeta
+from ..meta import EconoMeta
+
+
+__all__ = [
+    "EconoInterface",
+    "InterfaceType",
+]
 
 
 class InterfaceType(EconoMeta):
