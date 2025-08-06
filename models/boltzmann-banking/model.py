@@ -4,12 +4,13 @@
 import numpy as np
 import mesa
 
+from econolab.core import EconoModel
 from econolab import metrics
 
 from agents import Individual, Bank, ReserveBank
 
 
-class BoltzmannBanking(mesa.Model):
+class BoltzmannBanking(EconoModel, mesa.Model):
     """A Mesa model with many individuals and one or more banks.
     """
     
